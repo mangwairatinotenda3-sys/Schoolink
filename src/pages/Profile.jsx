@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, IdCard } from 'lucide-react'
+import { ChevronLeft, ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -10,7 +10,7 @@ const menuItems = [
   { label: 'Groups & Communities', icon: Users },
   { label: 'Saved Items', icon: Bookmark, to: '/saved' },
   { label: 'Connections', icon: Link2 },
-  { label: 'Account Information', icon: IdCard, to: '/settings' },
+  { label: 'Account Information', icon: User, to: '/settings' },
 ]
 
 export default function Profile() {
@@ -73,4 +73,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-    }
+}
