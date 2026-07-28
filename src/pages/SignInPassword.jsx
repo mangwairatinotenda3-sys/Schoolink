@@ -32,7 +32,7 @@ export default function SignInPassword() {
     }
 
     setBusy(false)
-    navigate('/onboarding/school-type')
+    navigate('/onboarding/account-type')
   }
 
   return (
@@ -87,4 +87,4 @@ export default function SignInPassword() {
       </form>
     </div>
   )
-  }
+}
