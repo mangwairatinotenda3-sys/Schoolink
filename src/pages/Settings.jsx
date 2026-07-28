@@ -10,6 +10,7 @@ import {
   RefreshCw,
   UserPlus,
 } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -24,17 +25,22 @@ const items = [
   { label: 'Storage and Data', sub: 'Network usage, auto-download', icon: Database },
   { label: 'Help and Feedback', sub: 'Help center, contact us', icon: HelpCircle },
   { label: 'Updates', sub: 'Check for new updates', icon: RefreshCw },
-  { label: 'Invite a Member', sub: 'Invite staff, parents or others', icon: UserPlus },
+  { label: 'Invite a Member', sub: 'Invite staff, parents or others', icon: UserPlus, to: '/invite-member' },
 ]
 
 export default function Settings() {
+  const navigate = useNavigate()
   const { signOut } = useAuth()
   return (
     <div className="flex-1 flex flex-col">
       <BackHeader title="Settings" />
       <div className="screen-scroll divide-y divide-gray-100 px-4">
-        {items.map(({ label, sub, icon: Icon }) => (
-          <button key={label} className="w-full flex items-center justify-between py-3.5">
+        {items.map(({ label, sub, icon: Icon, to }) => (
+          <button
+            key={label}
+            onClick={() => to && navigate(to)}
+            className="w-full flex items-center justify-between py-3.5"
+          >
             <span className="flex items-center gap-3">
               <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center">
                 <Icon size={16} className="text-brand-purple" />
@@ -55,4 +61,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-   }
+  }
