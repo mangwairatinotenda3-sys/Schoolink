@@ -8,6 +8,7 @@ const menuItems = [
   { label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' },
   { label: 'My Posts', icon: FileText },
   { label: 'Groups & Communities', icon: Users },
+  { label: 'Staff Directory', icon: Users, to: '/staff-directory' },
   { label: 'Saved Items', icon: Bookmark, to: '/saved' },
   { label: 'Connections', icon: Link2 },
   { label: 'Account Information', icon: User, to: '/settings' },
@@ -73,4 +74,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-}
+  }
