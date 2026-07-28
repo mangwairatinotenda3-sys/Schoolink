@@ -1,35 +1,30 @@
-import { Bookmark } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import PostCard from '../components/PostCard.jsx'
+import { supabase } from '../lib/supabaseClient.js'
+import { useAuth } from '../context/AuthContext.jsx'
 
 const tabs = ['Posts', 'Articles', 'Events', 'Files']
 
-const savedPosts = [
-  {
-    author: 'Science Department',
-    time: 'Yesterday',
-    text: 'Photos from the Science exhibition held last Friday.',
-  },
-  {
-    author: 'Ms. R. Moyo',
-    time: '3d',
-    text: 'Important notice for all Form 3 students about Term Exam.',
-  },
-  {
-    author: 'Sports Coach',
-    time: '5d',
-    text: 'Inter-house football results and upcoming matches.',
-  },
-  {
-    author: 'Schoolink Admin',
-    time: '1w',
-    text: 'How to stay safe online as a student.',
-  },
-]
-
 export default function Saved() {
+  const { user } = useAuth()
   const [tab, setTab] = useState('Posts')
+  const [savedPosts, setSavedPosts] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) return
+    supabase
+      .from('saved_posts')
+      .select('post_id, posts(*)')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        setSavedPosts((data ?? []).map((row) => row.posts).filter(Boolean))
+        setLoading(false)
+      })
+  }, [user])
 
   return (
     <div className="flex-1 flex flex-col">
@@ -48,25 +43,19 @@ export default function Saved() {
         ))}
       </div>
 
-      <div className="screen-scroll px-4 divide-y divide-gray-100">
-        {tab === 'Posts' ? (
-          savedPosts.map((p) => (
-            <div key={p.author} className="py-4 flex items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold text-sm">
-                  {p.author} <span className="text-gray-400 font-normal">· {p.time}</span>
-                </p>
-                <p className="text-sm text-gray-600 mt-1">{p.text}</p>
-              </div>
-              <Bookmark size={18} className="text-brand-purple shrink-0 mt-1" fill="currentColor" />
-            </div>
-          ))
-        ) : (
+      <div className="screen-scroll px-4 space-y-4 pt-4">
+        {tab !== 'Posts' ? (
           <p className="text-center text-gray-400 mt-10">No saved {tab.toLowerCase()} yet.</p>
+        ) : loading ? (
+          <p className="text-center text-gray-400 mt-10">Loading…</p>
+        ) : savedPosts.length === 0 ? (
+          <p className="text-center text-gray-400 mt-10">Nothing saved yet — tap the bookmark icon on a post to save it.</p>
+        ) : (
+          savedPosts.map((post) => <PostCard key={post.id} post={post} />)
         )}
       </div>
 
       <BottomNav />
     </div>
   )
-    }
+      }
