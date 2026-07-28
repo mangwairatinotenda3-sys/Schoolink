@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { isSchoolMember } from '../lib/permissions.js'
 
 export default function AddPost() {
   const navigate = useNavigate()
@@ -29,6 +30,19 @@ export default function AddPost() {
     navigate('/home')
   }
 
+  if (!isSchoolMember(profile)) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <BackHeader title="Create Post" />
+        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-2">
+          <p className="text-gray-500">
+            Only school staff members can post. Join a school with an invite code from Settings to unlock posting.
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 flex flex-col">
       <BackHeader title="Create Post" />
@@ -52,4 +66,4 @@ export default function AddPost() {
       </div>
     </div>
   )
-  }
+      }
