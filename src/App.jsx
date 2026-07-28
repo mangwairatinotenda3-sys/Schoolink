@@ -4,8 +4,10 @@ import { useAuth } from './context/AuthContext.jsx'
 import Welcome from './pages/Welcome.jsx'
 import SignInEmail from './pages/SignInEmail.jsx'
 import SignInPassword from './pages/SignInPassword.jsx'
-import ChooseSchoolType from './pages/ChooseSchoolType.jsx'
-import ChooseRole from './pages/ChooseRole.jsx'
+import AccountType from './pages/AccountType.jsx'
+import CreateSchool from './pages/CreateSchool.jsx'
+import JoinSchool from './pages/JoinSchool.jsx'
+import InviteMember from './pages/InviteMember.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -29,82 +31,21 @@ export default function App() {
         <Route path="/sign-in/email" element={<SignInEmail />} />
         <Route path="/sign-in/password" element={<SignInPassword />} />
 
-        <Route
-          path="/onboarding/school-type"
-          element={
-            <RequireAuth>
-              <ChooseSchoolType />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/onboarding/role"
-          element={
-            <RequireAuth>
-              <ChooseRole />
-            </RequireAuth>
-          }
-        />
+        <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
+        <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
+        <Route path="/onboarding/join-school" element={<RequireAuth><JoinSchool /></RequireAuth>} />
+        <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
 
-        <Route
-          path="/home"
-          element={
-            <RequireAuth>
-              <Home />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/profile"
-          element={
-            <RequireAuth>
-              <Profile />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/settings"
-          element={
-            <RequireAuth>
-              <Settings />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/saved"
-          element={
-            <RequireAuth>
-              <Saved />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/notifications"
-          element={
-            <RequireAuth>
-              <Notifications />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/add-post"
-          element={
-            <RequireAuth>
-              <AddPost />
-            </RequireAuth>
-          }
-        />
-        <Route
-          path="/dashboard"
-          element={
-            <RequireAuth>
-              <Dashboard />
-            </RequireAuth>
-          }
-        />
+        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+        <Route path="/saved" element={<RequireAuth><Saved /></RequireAuth>} />
+        <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
+        <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
+        <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
-  }
+    }
