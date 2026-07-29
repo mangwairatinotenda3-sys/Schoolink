@@ -29,12 +29,7 @@ export default function Home() {
         <h1 className="font-bold text-lg">Schoolink</h1>
         <div className="flex items-center gap-4">
           <Search size={20} />
-          <span className="relative">
-            <Bell size={20} />
-            <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center">
-              3
-            </span>
-          </span>
+          <Bell size={20} />
         </div>
       </div>
 
@@ -67,4 +62,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-}
+          }
