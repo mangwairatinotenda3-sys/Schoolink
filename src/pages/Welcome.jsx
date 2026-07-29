@@ -1,6 +1,7 @@
 import { GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import GoogleIcon from '../components/GoogleIcon.jsx'
 
 export default function Welcome() {
   const navigate = useNavigate()
@@ -40,8 +41,9 @@ export default function Welcome() {
         </button>
         <button
           onClick={signInWithGoogle}
-          className="w-full border border-gray-200 font-medium py-3.5 rounded-xl"
+          className="w-full border border-gray-200 font-medium py-3.5 rounded-xl flex items-center justify-center gap-2"
         >
+          <GoogleIcon size={18} />
           Continue with Google
         </button>
         <button
@@ -59,4 +61,4 @@ export default function Welcome() {
       </p>
     </div>
   )
-          }
+      }
