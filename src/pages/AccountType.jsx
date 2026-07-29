@@ -7,7 +7,8 @@ const options = [
   { label: 'Continue as Guest', value: 'guest' },
   { label: 'Parent / Guardian', value: 'parent' },
   { label: 'Investor', value: 'investor' },
-  { label: 'I have an Invite Code', value: 'join' },
+  { label: 'Join as a Student', value: 'join-student' },
+  { label: 'I have a Staff Invite Code', value: 'join' },
   { label: 'Create a School Account', value: 'create' },
 ]
 
@@ -20,6 +21,10 @@ export default function AccountType() {
     setBusy(true)
     if (value === 'join') {
       navigate('/onboarding/join-school')
+      return
+    }
+    if (value === 'join-student') {
+      navigate('/onboarding/join-student')
       return
     }
     if (value === 'create') {
@@ -52,4 +57,4 @@ export default function AccountType() {
       </div>
     </div>
   )
-    }
+  }
