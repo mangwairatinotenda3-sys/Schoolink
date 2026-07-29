@@ -43,7 +43,11 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
-    return supabase.auth.signInWithOAuth({ provider: 'google' })
+    const redirectTo = window.location.href.split('#')[0] + '#/home'
+    return supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo },
+    })
   }
 
   async function signOut() {
@@ -80,4 +84,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-}
+                                                               }
