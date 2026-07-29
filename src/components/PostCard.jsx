@@ -12,6 +12,7 @@ export default function PostCard({ post }) {
   const [comments, setComments] = useState([])
   const [showComments, setShowComments] = useState(false)
   const [commentText, setCommentText] = useState('')
+  const [submittingComment, setSubmittingComment] = useState(false)
 
   useEffect(() => {
     loadLikes()
@@ -109,7 +110,8 @@ export default function PostCard({ post }) {
   }
 
   async function submitComment() {
-    if (!commentText.trim() || !user) return
+    if (!commentText.trim() || !user || submittingComment) return
+    setSubmittingComment(true)
     const { data, error } = await supabase
       .from('comments')
       .insert({
@@ -124,19 +126,20 @@ export default function PostCard({ post }) {
       setComments((c) => [...c, data])
       setCommentText('')
     }
+    setSubmittingComment(false)
   }
 
   return (
     <div className="border border-gray-100 rounded-xl p-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="font-semibold">{post.author_name}</p>
-          <p className="text-xs text-gray-400">{post.author_role}</p>
+      <div className="flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="font-semibold truncate">{post.author_name}</p>
+          <p className="text-xs text-gray-400 truncate">{post.author_role}</p>
         </div>
         {user && post.author_id !== user.id ? (
           <button
             onClick={toggleFollow}
-            className={`text-xs font-medium px-3 py-1 rounded-full border ${
+            className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full border ${
               following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'
             }`}
           >
@@ -177,8 +180,8 @@ export default function PostCard({ post }) {
                 placeholder="Write a comment…"
                 className="flex-1 border border-gray-200 rounded-full px-3 py-1.5 text-sm outline-brand-purple"
               />
-              <button onClick={submitComment}>
-                <Send size={18} className="text-brand-purple" />
+              <button onClick={submitComment} disabled={submittingComment}>
+                <Send size={18} className={submittingComment ? 'text-gray-300' : 'text-brand-purple'} />
               </button>
             </div>
           ) : null}
