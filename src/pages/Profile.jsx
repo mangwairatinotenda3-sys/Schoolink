@@ -11,6 +11,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
   const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 })
+  const [school, setSchool] = useState(null)
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
   const role = profile?.role || 'Add your role'
@@ -19,6 +20,19 @@ export default function Profile() {
     if (!user) return
     loadStats()
   }, [user])
+
+  useEffect(() => {
+    if (!profile?.school_id) {
+      setSchool(null)
+      return
+    }
+    supabase
+      .from('schools')
+      .select('name, location')
+      .eq('id', profile.school_id)
+      .maybeSingle()
+      .then(({ data }) => setSchool(data))
+  }, [profile?.school_id])
 
   async function loadStats() {
     const [{ count: postsCount }, { count: followersCount }, { count: followingCount }] = await Promise.all([
@@ -34,7 +48,7 @@ export default function Profile() {
   }
 
   const menuItems = [
-    { label: 'My School Profile', icon: UserSquare2 },
+    { label: 'My School Profile', icon: UserSquare2, to: '/school-profile' },
     { label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' },
     { label: 'My Posts', icon: FileText },
     { label: 'Groups & Communities', icon: Users },
@@ -57,8 +71,8 @@ export default function Profile() {
           <AvatarUpload />
           <p className="font-semibold mt-2">{name}</p>
           <p className="text-sm text-white/70">{role}</p>
-          <p className="text-sm text-white/70">Springfield High School</p>
-          <p className="text-xs text-white/50">Harare, Zimbabwe</p>
+          <p className="text-sm text-white/70">{school?.name || 'No school yet'}</p>
+          <p className="text-xs text-white/50">{school?.location || ''}</p>
         </div>
       </div>
 
@@ -104,4 +118,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-    }
+}
