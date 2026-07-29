@@ -3,7 +3,7 @@ import { NavLink } from 'react-router-dom'
 
 const items = [
   { to: '/home', label: 'Home', icon: Home },
-  { to: '/notifications', label: 'Notifications', icon: Bell, badge: 3 },
+  { to: '/notifications', label: 'Notifications', icon: Bell },
   { to: '/add-post', label: 'Add Post', icon: PlusCircle, primary: true },
   { to: '/saved', label: 'Saved', icon: Bookmark },
   { to: '/profile', label: 'Profile', icon: User },
@@ -12,7 +12,7 @@ const items = [
 export default function BottomNav() {
   return (
     <nav className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-2 px-2">
-      {items.map(({ to, label, icon: Icon, badge, primary }) => (
+      {items.map(({ to, label, icon: Icon, primary }) => (
         <NavLink
           key={to}
           to={to}
@@ -28,14 +28,7 @@ export default function BottomNav() {
               </>
             ) : (
               <>
-                <span className="relative">
-                  <Icon size={22} className={isActive ? 'text-brand-purple' : 'text-gray-400'} />
-                  {badge ? (
-                    <span className="absolute -top-1 -right-2 bg-red-500 text-white text-[9px] rounded-full w-3.5 h-3.5 flex items-center justify-center">
-                      {badge}
-                    </span>
-                  ) : null}
-                </span>
+                <Icon size={22} className={isActive ? 'text-brand-purple' : 'text-gray-400'} />
                 <span className={isActive ? 'text-brand-purple font-medium' : ''}>{label}</span>
               </>
             )
@@ -44,4 +37,4 @@ export default function BottomNav() {
       ))}
     </nav>
   )
-        }
+    }
