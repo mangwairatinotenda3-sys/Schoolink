@@ -11,6 +11,7 @@ import JoinAsStudent from './pages/JoinAsStudent.jsx'
 import InviteMember from './pages/InviteMember.jsx'
 import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
+import SchoolProfile from './pages/SchoolProfile.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -41,6 +42,7 @@ export default function App() {
         <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
+        <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
@@ -54,4 +56,4 @@ export default function App() {
       </Routes>
     </div>
   )
-}
+  }
