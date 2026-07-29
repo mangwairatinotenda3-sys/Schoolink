@@ -1,6 +1,7 @@
 import { ChevronLeft, ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
+import AvatarUpload from '../components/AvatarUpload.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const menuItems = [
@@ -28,9 +29,7 @@ export default function Profile() {
           <ChevronLeft size={22} />
         </button>
         <div className="flex flex-col items-center mt-2">
-          <div className="w-20 h-20 rounded-full bg-white/20 flex items-center justify-center text-3xl">
-            🙂
-          </div>
+          <AvatarUpload />
           <p className="font-semibold mt-2">{name}</p>
           <p className="text-sm text-white/70">{role}</p>
           <p className="text-sm text-white/70">Springfield High School</p>
@@ -74,4 +73,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-  }
+    }
