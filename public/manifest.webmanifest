@@ -1,0 +1,13 @@
+{
+  "name": "Schoolink",
+  "short_name": "Schoolink",
+  "description": "Connecting schools, staff, parents and communities.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#F5F4FB",
+  "theme_color": "#241B4E",
+  "icons": [
+    { "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}
