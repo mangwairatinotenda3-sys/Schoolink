@@ -1,16 +1,37 @@
+import { useEffect, useState } from 'react'
 import { ChevronLeft, ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarUpload from '../components/AvatarUpload.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, isPendingApproval } from '../lib/permissions.js'
 
 export default function Profile() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
+  const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 })
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
   const role = profile?.role || 'Add your role'
+
+  useEffect(() => {
+    if (!user) return
+    loadStats()
+  }, [user])
+
+  async function loadStats() {
+    const [{ count: postsCount }, { count: followersCount }, { count: followingCount }] = await Promise.all([
+      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', user.id),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id),
+      supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
+    ])
+    setStats({
+      posts: postsCount ?? 0,
+      followers: followersCount ?? 0,
+      following: followingCount ?? 0,
+    })
+  }
 
   const menuItems = [
     { label: 'My School Profile', icon: UserSquare2 },
@@ -50,15 +71,15 @@ export default function Profile() {
       <div className="screen-scroll">
         <div className="flex justify-around py-4 border-b border-gray-100">
           <div className="text-center">
-            <p className="font-bold">120</p>
+            <p className="font-bold">{stats.posts}</p>
             <p className="text-xs text-gray-400">Posts</p>
           </div>
           <div className="text-center">
-            <p className="font-bold">1.2K</p>
+            <p className="font-bold">{stats.followers}</p>
             <p className="text-xs text-gray-400">Followers</p>
           </div>
           <div className="text-center">
-            <p className="font-bold">320</p>
+            <p className="font-bold">{stats.following}</p>
             <p className="text-xs text-gray-400">Following</p>
           </div>
         </div>
@@ -83,4 +104,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-     }
+    }
