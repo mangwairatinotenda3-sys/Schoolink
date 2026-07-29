@@ -4,7 +4,7 @@ import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
-const roles = ['Deputy Head', 'Teacher / Tutor', 'Bursar', 'Librarian', 'ICT Administrator', 'Receptionist', 'School Nurse']
+const roles = ['Student', 'Deputy Head', 'Teacher / Tutor', 'Bursar', 'Librarian', 'ICT Administrator', 'Receptionist', 'School Nurse']
 
 function generateCode() {
   return Math.random().toString(36).slice(2, 10).toUpperCase()
@@ -89,4 +89,4 @@ export default function InviteMember() {
       </div>
     </div>
   )
-}
+    }
