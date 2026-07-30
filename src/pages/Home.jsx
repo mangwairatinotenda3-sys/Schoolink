@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import BottomNav from '../components/BottomNav.jsx'
 import PostCard from '../components/PostCard.jsx'
 import SideDrawer from '../components/SideDrawer.jsx'
+import ComposerBar from '../components/ComposerBar.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 
@@ -133,6 +134,8 @@ export default function Home() {
           </div>
         ) : null}
 
+        <ComposerBar />
+
         <div className="px-4 mt-4 space-y-4">
           {loading ? (
             <p className="text-center text-gray-400 mt-8">Loading posts…</p>
@@ -157,4 +160,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-        }
+}
