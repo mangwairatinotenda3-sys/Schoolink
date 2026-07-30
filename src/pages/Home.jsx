@@ -6,12 +6,14 @@ import BottomNav from '../components/BottomNav.jsx'
 import PostCard from '../components/PostCard.jsx'
 import SideDrawer from '../components/SideDrawer.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useUnreadCount } from '../lib/useUnreadCount.js'
 
 const shortcuts = ['Your School', 'Science Club', 'Sports Club', 'Parents', 'Alumni']
 
 export default function Home() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+  const unread = useUnreadCount()
   const [posts, setPosts] = useState([])
   const [loading, setLoading] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(false)
@@ -56,8 +58,6 @@ export default function Home() {
     if (label === 'Your School') {
       navigate(profile?.school_id ? '/school-profile' : '/onboarding/account-type')
     }
-    // Other shortcuts (Science Club, Sports Club, etc.) will link to
-    // real communities once that feature is built.
   }
 
   const visiblePosts = searchQuery.trim()
@@ -79,8 +79,13 @@ export default function Home() {
           <button onClick={() => setSearchOpen((s) => !s)}>
             <Search size={20} />
           </button>
-          <button onClick={() => navigate('/notifications')}>
+          <button onClick={() => navigate('/notifications')} className="relative">
             <Bell size={20} />
+            {unread > 0 ? (
+              <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center">
+                {unread > 9 ? '9+' : unread}
+              </span>
+            ) : null}
           </button>
         </div>
       </div>
@@ -152,4 +157,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-            }
+        }
