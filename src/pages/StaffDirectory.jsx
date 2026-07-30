@@ -5,6 +5,39 @@ import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember, canManageStaff } from '../lib/permissions.js'
+import { useIsOnline } from '../lib/presence.js'
+
+function MemberRow({ member, user, profile, onRemove }) {
+  const isOnline = useIsOnline(member.id)
+  return (
+    <div className="flex items-center justify-between py-4">
+      <div className="flex items-center gap-3">
+        <span className="relative shrink-0">
+          {member.avatar_url ? (
+            <img src={member.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
+          ) : (
+            <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-sm">🙂</span>
+          )}
+          {isOnline ? (
+            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" />
+          ) : null}
+        </span>
+        <div>
+          <p className="font-medium text-sm">{member.full_name || 'Unnamed member'}</p>
+          <p className="text-xs text-gray-400">{member.role}</p>
+        </div>
+      </div>
+      {canManageStaff(profile) && member.role !== 'Headteacher' && member.id !== user.id ? (
+        <button
+          onClick={() => onRemove(member)}
+          className="flex items-center gap-1 text-red-500 text-xs font-medium"
+        >
+          <UserX size={16} /> Remove
+        </button>
+      ) : null}
+    </div>
+  )
+}
 
 export default function StaffDirectory() {
   const { user, profile } = useAuth()
@@ -69,20 +102,7 @@ export default function StaffDirectory() {
         ) : (
           <div className="divide-y divide-gray-100 mt-2">
             {members.map((m) => (
-              <div key={m.id} className="flex items-center justify-between py-4">
-                <div>
-                  <p className="font-medium text-sm">{m.full_name || 'Unnamed member'}</p>
-                  <p className="text-xs text-gray-400">{m.role}</p>
-                </div>
-                {canManageStaff(profile) && m.role !== 'Headteacher' && m.id !== user.id ? (
-                  <button
-                    onClick={() => handleRemove(m)}
-                    className="flex items-center gap-1 text-red-500 text-xs font-medium"
-                  >
-                    <UserX size={16} /> Remove
-                  </button>
-                ) : null}
-              </div>
+              <MemberRow key={m.id} member={m} user={user} profile={profile} onRemove={handleRemove} />
             ))}
           </div>
         )}
@@ -90,4 +110,4 @@ export default function StaffDirectory() {
       <BottomNav />
     </div>
   )
-}
+      }
