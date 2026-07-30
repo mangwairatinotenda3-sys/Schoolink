@@ -1,17 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { supabase } from './supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 export function useUnreadCount() {
   const { user } = useAuth()
   const [count, setCount] = useState(0)
+  const channelNameRef = useRef(`notifications-count-${Math.random().toString(36).slice(2)}`)
 
   useEffect(() => {
     if (!user) return
     loadCount()
 
     const channel = supabase
-      .channel('notifications-count')
+      .channel(channelNameRef.current)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'notifications', filter: `recipient_id=eq.${user.id}` },
