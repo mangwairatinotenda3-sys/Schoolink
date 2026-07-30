@@ -1,192 +1,144 @@
-import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, Bookmark, Send } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { Image as ImageIcon, X } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { isSchoolMember } from '../lib/permissions.js'
 
-export default function PostCard({ post }) {
-  const { user, profile } = useAuth()
-  const [likeCount, setLikeCount] = useState(0)
-  const [liked, setLiked] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [following, setFollowing] = useState(false)
-  const [comments, setComments] = useState([])
-  const [showComments, setShowComments] = useState(false)
-  const [commentText, setCommentText] = useState('')
-  const [submittingComment, setSubmittingComment] = useState(false)
+const categories = ['General', 'Announcement', 'Event', 'News', 'Sports Update', 'Photo']
 
-  useEffect(() => {
-    loadLikes()
-    loadSaved()
-    loadFollow()
-  }, [])
+export default function AddPost() {
+  const navigate = useNavigate()
+  const { profile, user } = useAuth()
+  const fileInputRef = useRef(null)
 
-  async function loadLikes() {
-    const { count } = await supabase
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', post.id)
-    setLikeCount(count ?? 0)
+  const [content, setContent] = useState('')
+  const [category, setCategory] = useState('General')
+  const [imageFile, setImageFile] = useState(null)
+  const [imagePreview, setImagePreview] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-    if (user) {
-      const { data } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('post_id', post.id)
-        .eq('user_id', user.id)
-        .maybeSingle()
-      setLiked(!!data)
+  function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImageFile(file)
+    setImagePreview(URL.createObjectURL(file))
+  }
+
+  function removeImage() {
+    setImageFile(null)
+    setImagePreview(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  async function handlePost() {
+    if (!content.trim() && !imageFile) return
+    setBusy(true)
+    setError('')
+
+    let imageUrl = null
+    if (imageFile) {
+      const ext = imageFile.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error: uploadError } = await supabase.storage.from('post-images').upload(path, imageFile)
+      if (uploadError) {
+        setError(uploadError.message)
+        setBusy(false)
+        return
+      }
+      const { data } = supabase.storage.from('post-images').getPublicUrl(path)
+      imageUrl = data.publicUrl
     }
-  }
 
-  async function loadSaved() {
-    if (!user) return
-    const { data } = await supabase
-      .from('saved_posts')
-      .select('*')
-      .eq('post_id', post.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
-    setSaved(!!data)
-  }
-
-  async function loadFollow() {
-    if (!user || !post.author_id || post.author_id === user.id) return
-    const { data } = await supabase
-      .from('follows')
-      .select('*')
-      .eq('follower_id', user.id)
-      .eq('followed_id', post.author_id)
-      .maybeSingle()
-    setFollowing(!!data)
-  }
-
-  async function loadComments() {
-    const { data } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('post_id', post.id)
-      .order('created_at', { ascending: true })
-    setComments(data ?? [])
-  }
-
-  async function toggleLike() {
-    if (!user) return
-    if (liked) {
-      await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id)
-      setLiked(false)
-      setLikeCount((c) => c - 1)
-    } else {
-      await supabase.from('likes').insert({ post_id: post.id, user_id: user.id })
-      setLiked(true)
-      setLikeCount((c) => c + 1)
+    const { error: insertError } = await supabase.from('posts').insert({
+      author_id: user.id,
+      author_name: profile?.full_name || user.email,
+      author_role: profile?.role || '',
+      content,
+      category,
+      image_url: imageUrl,
+    })
+    setBusy(false)
+    if (insertError) {
+      setError(insertError.message)
+      return
     }
+    navigate('/home')
   }
 
-  async function toggleSave() {
-    if (!user) return
-    if (saved) {
-      await supabase.from('saved_posts').delete().eq('post_id', post.id).eq('user_id', user.id)
-      setSaved(false)
-    } else {
-      await supabase.from('saved_posts').insert({ post_id: post.id, user_id: user.id })
-      setSaved(true)
-    }
-  }
-
-  async function toggleFollow() {
-    if (!user || !post.author_id) return
-    if (following) {
-      await supabase.from('follows').delete().eq('follower_id', user.id).eq('followed_id', post.author_id)
-      setFollowing(false)
-    } else {
-      await supabase.from('follows').insert({ follower_id: user.id, followed_id: post.author_id })
-      setFollowing(true)
-    }
-  }
-
-  async function handleToggleComments() {
-    setShowComments((s) => !s)
-    if (!showComments) await loadComments()
-  }
-
-  async function submitComment() {
-    if (!commentText.trim() || !user || submittingComment) return
-    setSubmittingComment(true)
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        post_id: post.id,
-        author_id: user.id,
-        author_name: profile?.full_name || user.email,
-        content: commentText,
-      })
-      .select()
-      .maybeSingle()
-    if (!error && data) {
-      setComments((c) => [...c, data])
-      setCommentText('')
-    }
-    setSubmittingComment(false)
+  if (!isSchoolMember(profile)) {
+    return (
+      <div className="flex-1 flex flex-col">
+        <BackHeader title="Create Post" />
+        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-2">
+          <p className="text-gray-500">
+            Only school staff members can post. Join a school with an invite code from Settings to unlock posting.
+          </p>
+        </div>
+      </div>
+    )
   }
 
   return (
-    <div className="border border-gray-100 rounded-xl p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-semibold truncate">{post.author_name}</p>
-          <p className="text-xs text-gray-400 truncate">{post.author_role}</p>
-        </div>
-        {user && post.author_id !== user.id ? (
-          <button
-            onClick={toggleFollow}
-            className={`shrink-0 text-xs font-medium px-3 py-1 rounded-full border ${
-              following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'
-            }`}
-          >
-            {following ? 'Following' : 'Follow'}
-          </button>
-        ) : null}
-      </div>
-
-      <p className="text-sm mt-2">{post.content}</p>
-
-      <div className="flex items-center gap-5 mt-3 text-gray-500">
-        <button onClick={toggleLike} className="flex items-center gap-1 text-sm">
-          <Heart size={18} className={liked ? 'text-red-500' : ''} fill={liked ? 'currentColor' : 'none'} />
-          {likeCount}
-        </button>
-        <button onClick={handleToggleComments} className="flex items-center gap-1 text-sm">
-          <MessageCircle size={18} />
-          {comments.length || ''}
-        </button>
-        <button onClick={toggleSave} className="ml-auto">
-          <Bookmark size={18} className={saved ? 'text-brand-purple' : ''} fill={saved ? 'currentColor' : 'none'} />
-        </button>
-      </div>
-
-      {showComments ? (
-        <div className="mt-3 border-t border-gray-100 pt-3 space-y-2">
-          {comments.map((c) => (
-            <div key={c.id} className="text-sm">
-              <span className="font-medium">{c.author_name}</span>{' '}
-              <span className="text-gray-600">{c.content}</span>
-            </div>
+    <div className="flex-1 flex flex-col">
+      <BackHeader title="Create Post" />
+      <div className="flex-1 flex flex-col px-4 pt-2">
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {categories.map((c) => (
+            <button
+              key={c}
+              onClick={() => setCategory(c)}
+              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border ${
+                category === c ? 'bg-brand-purple text-white border-brand-purple' : 'border-gray-200 text-gray-600'
+              }`}
+            >
+              {c}
+            </button>
           ))}
-          {user ? (
-            <div className="flex items-center gap-2 mt-2">
-              <input
-                value={commentText}
-                onChange={(e) => setCommentText(e.target.value)}
-                placeholder="Write a comment…"
-                className="flex-1 border border-gray-200 rounded-full px-3 py-1.5 text-sm outline-brand-purple"
-              />
-              <button onClick={submitComment} disabled={submittingComment}>
-                <Send size={18} className={submittingComment ? 'text-gray-300' : 'text-brand-purple'} />
-              </button>
-            </div>
-          ) : null}
         </div>
-      ) : null}
+
+        <textarea
+          autoFocus
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          placeholder="What's on your mind?"
+          rows={6}
+          className="border border-gray-200 rounded-xl p-4 outline-brand-purple resize-none mt-2"
+        />
+
+        {imagePreview ? (
+          <div className="relative mt-3">
+            <img src={imagePreview} alt="Preview" className="w-full rounded-xl max-h-64 object-cover" />
+            <button
+              onClick={removeImage}
+              className="absolute top-2 right-2 bg-black/60 rounded-full p-1.5"
+            >
+              <X size={16} className="text-white" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-3 flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500"
+          >
+            <ImageIcon size={18} />
+            Add a photo
+          </button>
+        )}
+        <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+
+        {error ? <p className="text-red-500 text-sm mt-2">{error}</p> : null}
+
+        <button
+          onClick={handlePost}
+          disabled={busy}
+          className="mt-4 w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl disabled:opacity-60"
+        >
+          {busy ? 'Posting…' : 'Post'}
+        </button>
+      </div>
     </div>
   )
-  }
+                    }
