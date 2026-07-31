@@ -3,7 +3,7 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
-import { PresenceProvider } from './lib/presence.js'
+import { PresenceProvider } from './lib/presence.jsx'
 import './index.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
