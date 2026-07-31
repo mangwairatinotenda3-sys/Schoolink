@@ -1,7 +1,7 @@
 import { Image as ImageIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { useIsOnline } from '../lib/presence.js'
+import { useIsOnline } from '../lib/presence.jsx'
 
 export default function ComposerBar() {
   const navigate = useNavigate()
