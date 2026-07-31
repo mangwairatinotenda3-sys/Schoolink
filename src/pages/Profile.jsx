@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { ChevronLeft, ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User, Clock } from 'lucide-react'
+import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User, Clock, Pencil, MapPin, GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarUpload from '../components/AvatarUpload.jsx'
+import CoverPhotoUpload from '../components/CoverPhotoUpload.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, isPendingApproval } from '../lib/permissions.js'
@@ -15,6 +16,7 @@ export default function Profile() {
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
   const role = profile?.role || 'Add your role'
+  const links = (profile?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
 
   useEffect(() => {
     if (!user) return
@@ -63,27 +65,24 @@ export default function Profile() {
 
   return (
     <div className="flex-1 flex flex-col">
-      <div className="bg-brand-navy text-white px-4 pt-4 pb-6">
-        <button onClick={() => navigate(-1)}>
-          <ChevronLeft size={22} />
-        </button>
-        <div className="flex flex-col items-center mt-2">
-          <AvatarUpload />
-          <p className="font-semibold mt-2">{name}</p>
-          <p className="text-sm text-white/70">{role}</p>
-          <p className="text-sm text-white/70">{school?.name || 'No school yet'}</p>
-          <p className="text-xs text-white/50">{school?.location || ''}</p>
-        </div>
+      <CoverPhotoUpload />
+
+      <div className="px-4 -mt-10">
+        <AvatarUpload />
+        <p className="font-semibold text-lg mt-2">{name}</p>
+        <p className="text-sm text-gray-500">{role}</p>
+        {school ? <p className="text-sm text-gray-500">{school.name} · {school.location}</p> : null}
+        {profile?.bio ? <p className="text-sm text-gray-700 mt-2">{profile.bio}</p> : null}
       </div>
 
       {isPendingApproval(profile) ? (
-        <div className="bg-yellow-50 text-yellow-700 text-sm text-center py-2 px-4">
+        <div className="bg-yellow-50 text-yellow-700 text-sm text-center py-2 px-4 mt-3">
           Your student request is awaiting approval from your school's admin.
         </div>
       ) : null}
 
       <div className="screen-scroll">
-        <div className="flex justify-around py-4 border-b border-gray-100">
+        <div className="flex justify-around py-4 border-b border-gray-100 mt-3">
           <div className="text-center">
             <p className="font-bold">{stats.posts}</p>
             <p className="text-xs text-gray-400">Posts</p>
@@ -98,7 +97,60 @@ export default function Profile() {
           </div>
         </div>
 
-        <div className="divide-y divide-gray-100 px-4">
+        <div className="px-4 mt-4">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-sm">Personal Details</p>
+            <button onClick={() => navigate('/edit-profile-details')}>
+              <Pencil size={15} className="text-gray-400" />
+            </button>
+          </div>
+          <div className="mt-2 space-y-2">
+            {profile?.location ? (
+              <p className="flex items-center gap-2 text-sm text-gray-600">
+                <MapPin size={15} className="text-gray-400" /> {profile.location}
+              </p>
+            ) : (
+              <p className="text-sm text-gray-400">No location added yet</p>
+            )}
+          </div>
+        </div>
+
+        <div className="px-4 mt-5">
+          <div className="flex items-center justify-between">
+            <p className="font-semibold text-sm">Links</p>
+            <button onClick={() => navigate('/edit-profile-details')}>
+              <Pencil size={15} className="text-gray-400" />
+            </button>
+          </div>
+          <div className="mt-2 space-y-1">
+            {links.length > 0 ? (
+              links.map((link) => (
+                <a key={link} href={link} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-brand-purple truncate">
+                  <Link2 size={15} className="text-gray-400 shrink-0" /> {link}
+                </a>
+              ))
+            ) : (
+              <p className="text-sm text-gray-400">No links added yet</p>
+            )}
+          </div>
+        </div>
+
+        {school ? (
+          <div className="px-4 mt-5">
+            <p className="font-semibold text-sm mb-2">Education</p>
+            <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
+              <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0">
+                <GraduationCap size={18} className="text-brand-purple" />
+              </span>
+              <div>
+                <p className="text-sm font-medium">{school.name}</p>
+                <p className="text-xs text-gray-400">{role}</p>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        <div className="divide-y divide-gray-100 px-4 mt-5">
           {menuItems.map(({ label, icon: Icon, to }) => (
             <button
               key={label}
@@ -118,4 +170,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-}
+  }
