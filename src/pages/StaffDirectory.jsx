@@ -5,7 +5,7 @@ import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember, canManageStaff } from '../lib/permissions.js'
-import { useIsOnline } from '../lib/presence.js'
+import { useIsOnline } from '../lib/presence.jsx'
 
 function MemberRow({ member, user, profile, onRemove }) {
   const isOnline = useIsOnline(member.id)
