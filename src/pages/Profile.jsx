@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User, Clock, Pencil, MapPin, GraduationCap } from 'lucide-react'
+import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Bookmark, Link2, User, Pencil, MapPin, GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarUpload from '../components/AvatarUpload.jsx'
 import CoverPhotoUpload from '../components/CoverPhotoUpload.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff, isPendingApproval } from '../lib/permissions.js'
+import { isPendingApproval } from '../lib/permissions.js'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -54,10 +54,6 @@ export default function Profile() {
     { label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' },
     { label: 'My Posts', icon: FileText },
     { label: 'Groups & Communities', icon: Users },
-    { label: 'Staff Directory', icon: Users, to: '/staff-directory' },
-    ...(canManageStaff(profile)
-      ? [{ label: 'Pending Approvals', icon: Clock, to: '/pending-approvals' }]
-      : []),
     { label: 'Saved Items', icon: Bookmark, to: '/saved' },
     { label: 'Connections', icon: Link2 },
     { label: 'Account Information', icon: User, to: '/settings' },
