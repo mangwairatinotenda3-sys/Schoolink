@@ -9,28 +9,40 @@ import {
   HelpCircle,
   RefreshCw,
   UserPlus,
+  Users,
+  Clock,
+  BookOpen,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-
-const items = [
-  { label: 'Account', sub: 'Security, personal information', icon: Shield },
-  { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
-  { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette },
-  { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye },
-  { label: 'App Language', sub: 'English (United States)', icon: Palette },
-  { label: 'Notifications', sub: 'Message, group & call tones', icon: Bell },
-  { label: 'Storage and Data', sub: 'Network usage, auto-download', icon: Database },
-  { label: 'Help and Feedback', sub: 'Help center, contact us', icon: HelpCircle },
-  { label: 'Updates', sub: 'Check for new updates', icon: RefreshCw },
-  { label: 'Invite a Member', sub: 'Invite staff, parents or others', icon: UserPlus, to: '/invite-member' },
-]
+import { canManageStaff } from '../lib/permissions.js'
 
 export default function Settings() {
   const navigate = useNavigate()
-  const { signOut } = useAuth()
+  const { signOut, profile } = useAuth()
+
+  const items = [
+    { label: 'Account', sub: 'Security, personal information', icon: Shield },
+    { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
+    { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
+    { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette },
+    { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye },
+    { label: 'App Language', sub: 'English (United States)', icon: Palette },
+    { label: 'Notifications', sub: 'Message, group & call tones', icon: Bell },
+    { label: 'Storage and Data', sub: 'Network usage, auto-download', icon: Database },
+    { label: 'Staff Directory', sub: 'View everyone at your school', icon: Users, to: '/staff-directory' },
+    ...(canManageStaff(profile)
+      ? [
+          { label: 'Invite a Member', sub: 'Invite staff, parents or others', icon: UserPlus, to: '/invite-member' },
+          { label: 'Pending Approvals', sub: 'Review student join requests', icon: Clock, to: '/pending-approvals' },
+        ]
+      : []),
+    { label: 'Help and Feedback', sub: 'Help center, contact us', icon: HelpCircle },
+    { label: 'Updates', sub: 'Check for new updates', icon: RefreshCw },
+  ]
+
   return (
     <div className="flex-1 flex flex-col">
       <BackHeader title="Settings" />
