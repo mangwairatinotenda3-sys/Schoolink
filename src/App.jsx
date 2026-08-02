@@ -13,6 +13,7 @@ import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
 import SchoolProfile from './pages/SchoolProfile.jsx'
 import EditProfileDetails from './pages/EditProfileDetails.jsx'
+import Library from './pages/Library.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
+        <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
