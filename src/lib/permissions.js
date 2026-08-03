@@ -19,7 +19,3 @@ export function canManageStaff(profile) {
 export function isHeadteacher(profile) {
   return profile?.role === 'Headteacher'
 }
-
-export function canManageLibrary(profile) {
-  return isSchoolMember(profile) && ['Librarian', 'Headteacher', 'Deputy Head', 'ICT Administrator'].includes(profile?.role)
-  }
