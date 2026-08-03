@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Link2, User, Pencil, MapPin, GraduationCap } from 'lucide-react'
+import { UserSquare2, Briefcase, FileText, Users, Link2, User, Pencil, MapPin, GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarUpload from '../components/AvatarUpload.jsx'
@@ -49,13 +49,13 @@ export default function Profile() {
     })
   }
 
-  const menuItems = [
-    { label: 'My School Profile', icon: UserSquare2, to: '/school-profile' },
-    { label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' },
+  const gridItems = [
     { label: 'My Posts', icon: FileText },
-    { label: 'Groups & Communities', icon: Users },
+    { label: 'School Profile', icon: UserSquare2, to: '/school-profile' },
+    { label: 'Dashboard', icon: Briefcase, to: '/dashboard' },
     { label: 'Connections', icon: Link2 },
-    { label: 'Account Information', icon: User, to: '/settings' },
+    { label: 'Communities', icon: Users },
+    { label: 'Account', icon: User, to: '/settings' },
   ]
 
   return (
@@ -90,6 +90,19 @@ export default function Profile() {
             <p className="font-bold">{stats.following}</p>
             <p className="text-xs text-gray-400">Following</p>
           </div>
+        </div>
+
+        <div className="grid grid-cols-3 gap-3 px-4 py-4 border-b border-gray-100">
+          {gridItems.map(({ label, icon: Icon, to }) => (
+            <button
+              key={label}
+              onClick={() => to && navigate(to)}
+              className="flex flex-col items-center gap-1.5 py-3 rounded-xl bg-gray-50"
+            >
+              <Icon size={20} className="text-brand-purple" />
+              <span className="text-[11px] text-gray-600 text-center">{label}</span>
+            </button>
+          ))}
         </div>
 
         <div className="px-4 mt-4">
@@ -131,7 +144,7 @@ export default function Profile() {
         </div>
 
         {school ? (
-          <div className="px-4 mt-5">
+          <div className="px-4 mt-5 mb-4">
             <p className="font-semibold text-sm mb-2">Education</p>
             <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
               <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0">
@@ -144,25 +157,9 @@ export default function Profile() {
             </div>
           </div>
         ) : null}
-
-        <div className="divide-y divide-gray-100 px-4 mt-5">
-          {menuItems.map(({ label, icon: Icon, to }) => (
-            <button
-              key={label}
-              onClick={() => to && navigate(to)}
-              className="w-full flex items-center justify-between py-4"
-            >
-              <span className="flex items-center gap-3">
-                <Icon size={18} className="text-brand-purple" />
-                <span className="font-medium text-sm">{label}</span>
-              </span>
-              <ChevronRight size={18} className="text-gray-300" />
-            </button>
-          ))}
-        </div>
       </div>
 
       <BottomNav />
     </div>
   )
-         }
+  }
