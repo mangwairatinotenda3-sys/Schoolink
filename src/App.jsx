@@ -13,6 +13,9 @@ import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
 import SchoolProfile from './pages/SchoolProfile.jsx'
 import EditProfileDetails from './pages/EditProfileDetails.jsx'
+import Library from './pages/Library.jsx'
+import ChatList from './pages/ChatList.jsx'
+import ChatThread from './pages/ChatThread.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -20,7 +23,6 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import Library from './pages/Library.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -46,7 +48,10 @@ export default function App() {
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
-        
+        <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
+        <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
+        <Route path="/chats/:userId" element={<RequireAuth><ChatThread /></RequireAuth>} />
+
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
@@ -54,10 +59,9 @@ export default function App() {
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-        <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
-  }
+}
