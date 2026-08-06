@@ -1,10 +1,11 @@
-import { Home, Bell, Bookmark, User } from 'lucide-react'
+import { Home, MessageCircle, Bell, Bookmark, User } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 
 const items = [
   { to: '/home', label: 'Home', icon: Home },
-  { to: '/notifications', label: 'Notifications', icon: Bell, showBadge: true },
+  { to: '/chats', label: 'Chats', icon: MessageCircle },
+  { to: '/notifications', label: 'Alerts', icon: Bell, showBadge: true },
   { to: '/saved', label: 'Saved', icon: Bookmark },
   { to: '/profile', label: 'Profile', icon: User },
 ]
@@ -37,4 +38,4 @@ export default function BottomNav() {
       ))}
     </nav>
   )
-                   }
+                 }
