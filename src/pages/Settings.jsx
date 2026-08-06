@@ -11,6 +11,7 @@ import {
   UserPlus,
   Users,
   Clock,
+  BookOpen,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
@@ -25,6 +26,7 @@ export default function Settings() {
   const items = [
     { label: 'Account', sub: 'Security, personal information', icon: Shield },
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
+    { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
     { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette },
     { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye },
     { label: 'App Language', sub: 'English (United States)', icon: Palette },
@@ -71,4 +73,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-            }
+    }
