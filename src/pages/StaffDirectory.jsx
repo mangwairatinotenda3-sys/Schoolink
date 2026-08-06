@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { UserX } from 'lucide-react'
+import { UserX, MessageCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -7,11 +8,16 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember, canManageStaff } from '../lib/permissions.js'
 import { useIsOnline } from '../lib/presence.jsx'
 
-function MemberRow({ member, user, profile, onRemove }) {
+function MemberRow({ member, user, profile, onRemove, navigate }) {
   const isOnline = useIsOnline(member.id)
+  const isMe = member.id === user.id
+
   return (
     <div className="flex items-center justify-between py-4">
-      <div className="flex items-center gap-3">
+      <button
+        onClick={() => !isMe && navigate(`/chats/${member.id}`)}
+        className="flex items-center gap-3 flex-1 text-left"
+      >
         <span className="relative shrink-0">
           {member.avatar_url ? (
             <img src={member.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" />
@@ -26,20 +32,28 @@ function MemberRow({ member, user, profile, onRemove }) {
           <p className="font-medium text-sm">{member.full_name || 'Unnamed member'}</p>
           <p className="text-xs text-gray-400">{member.role}</p>
         </div>
+      </button>
+      <div className="flex items-center gap-3">
+        {!isMe ? (
+          <button onClick={() => navigate(`/chats/${member.id}`)}>
+            <MessageCircle size={18} className="text-brand-purple" />
+          </button>
+        ) : null}
+        {canManageStaff(profile) && member.role !== 'Headteacher' && !isMe ? (
+          <button
+            onClick={() => onRemove(member)}
+            className="flex items-center gap-1 text-red-500 text-xs font-medium"
+          >
+            <UserX size={16} />
+          </button>
+        ) : null}
       </div>
-      {canManageStaff(profile) && member.role !== 'Headteacher' && member.id !== user.id ? (
-        <button
-          onClick={() => onRemove(member)}
-          className="flex items-center gap-1 text-red-500 text-xs font-medium"
-        >
-          <UserX size={16} /> Remove
-        </button>
-      ) : null}
     </div>
   )
 }
 
 export default function StaffDirectory() {
+  const navigate = useNavigate()
   const { user, profile } = useAuth()
   const [members, setMembers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -102,7 +116,7 @@ export default function StaffDirectory() {
         ) : (
           <div className="divide-y divide-gray-100 mt-2">
             {members.map((m) => (
-              <MemberRow key={m.id} member={m} user={user} profile={profile} onRemove={handleRemove} />
+              <MemberRow key={m.id} member={m} user={user} profile={profile} onRemove={handleRemove} navigate={navigate} />
             ))}
           </div>
         )}
@@ -110,4 +124,4 @@ export default function StaffDirectory() {
       <BottomNav />
     </div>
   )
-      }
+  }
