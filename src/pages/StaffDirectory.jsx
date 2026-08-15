@@ -124,4 +124,4 @@ export default function StaffDirectory() {
       <BottomNav />
     </div>
   )
-  }
+          }
