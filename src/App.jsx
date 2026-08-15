@@ -16,6 +16,9 @@ import EditProfileDetails from './pages/EditProfileDetails.jsx'
 import Library from './pages/Library.jsx'
 import ChatList from './pages/ChatList.jsx'
 import ChatThread from './pages/ChatThread.jsx'
+import Communities from './pages/Communities.jsx'
+import CreateCommunity from './pages/CreateCommunity.jsx'
+import CommunityDetail from './pages/CommunityDetail.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -51,6 +54,9 @@ export default function App() {
         <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
         <Route path="/chats/:userId" element={<RequireAuth><ChatThread /></RequireAuth>} />
+        <Route path="/communities" element={<RequireAuth><Communities /></RequireAuth>} />
+        <Route path="/communities/create" element={<RequireAuth><CreateCommunity /></RequireAuth>} />
+        <Route path="/communities/:communityId" element={<RequireAuth><CommunityDetail /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
