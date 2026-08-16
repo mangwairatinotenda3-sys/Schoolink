@@ -54,7 +54,7 @@ export default function Profile() {
     { label: 'School Profile', icon: UserSquare2, to: '/school-profile' },
     { label: 'Dashboard', icon: Briefcase, to: '/dashboard' },
     { label: 'Connections', icon: Link2 },
-    { label: 'Communities', icon: Users },
+    { label: 'Groups & Communities', icon: Users, to: '/communities' },
     { label: 'Account', icon: User, to: '/settings' },
   ]
 
@@ -81,7 +81,7 @@ export default function Profile() {
           <div className="text-center">
             <p className="font-bold">{stats.posts}</p>
             <p className="text-xs text-gray-400">Posts</p>
-          </div>
+          <div>
           <div className="text-center">
             <p className="font-bold">{stats.followers}</p>
             <p className="text-xs text-gray-400">Followers</p>
