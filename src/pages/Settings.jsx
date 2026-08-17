@@ -12,12 +12,15 @@ import {
   Users,
   Clock,
   BookOpen,
+  DollarSign,
+  Trophy,
+  Laptop,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff } from '../lib/permissions.js'
+import { canManageStaff, canManageFees, canManageSports, canManageDevices } from '../lib/permissions.js'
 
 export default function Settings() {
   const navigate = useNavigate()
@@ -27,6 +30,15 @@ export default function Settings() {
     { label: 'Account', sub: 'Security, personal information', icon: Shield },
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
     { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
+    ...(canManageFees(profile)
+      ? [{ label: 'Bursar Dashboard', sub: 'Fees, income, expenses', icon: DollarSign, to: '/bursar' }]
+      : []),
+    ...(canManageSports(profile)
+      ? [{ label: 'Coach Dashboard', sub: 'Fixtures, teams, results', icon: Trophy, to: '/coach' }]
+      : []),
+    ...(canManageDevices(profile)
+      ? [{ label: 'ICT Dashboard', sub: 'Device management, resources', icon: Laptop, to: '/ict' }]
+      : []),
     { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette },
     { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye },
     { label: 'App Language', sub: 'English (United States)', icon: Palette },
@@ -73,4 +85,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-    }
+     }
