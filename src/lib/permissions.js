@@ -12,6 +12,13 @@ export function isPendingApproval(profile) {
   return profile?.account_type === 'school_member' && profile?.status === 'pending'
 }
 
+// Staff = an active school member who isn't a Student. Used to gate
+// dashboards/tools that shouldn't be visible to students, guests,
+// parents, investors, or followers.
+export function isStaffMember(profile) {
+  return isSchoolMember(profile) && profile?.role !== 'Student'
+}
+
 export function canManageStaff(profile) {
   return isSchoolMember(profile) && ['Headteacher', 'Deputy Head'].includes(profile?.role)
 }
@@ -34,4 +41,4 @@ export function canManageSports(profile) {
 
 export function canManageDevices(profile) {
   return isSchoolMember(profile) && ['ICT Administrator', 'Headteacher', 'Deputy Head'].includes(profile?.role)
-    }
+                                     }
