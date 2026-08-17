@@ -22,4 +22,16 @@ export function isHeadteacher(profile) {
 
 export function canManageLibrary(profile) {
   return isSchoolMember(profile) && ['Librarian', 'Headteacher', 'Deputy Head', 'ICT Administrator'].includes(profile?.role)
+}
+
+export function canManageFees(profile) {
+  return isSchoolMember(profile) && ['Bursar', 'Headteacher', 'Deputy Head'].includes(profile?.role)
+}
+
+export function canManageSports(profile) {
+  return isSchoolMember(profile) && ['School Coach', 'Headteacher', 'Deputy Head'].includes(profile?.role)
+}
+
+export function canManageDevices(profile) {
+  return isSchoolMember(profile) && ['ICT Administrator', 'Headteacher', 'Deputy Head'].includes(profile?.role)
     }
