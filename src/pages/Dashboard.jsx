@@ -4,7 +4,7 @@ import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useSchoolStats } from '../lib/useSchoolStats.js'
-import { canManageStaff, isSchoolMember } from '../lib/permissions.js'
+import { canManageStaff, isStaffMember } from '../lib/permissions.js'
 
 export default function Dashboard() {
   const navigate = useNavigate()
@@ -22,12 +22,12 @@ export default function Dashboard() {
     { label: 'Pending Approvals', value: stats.pendingApprovals, icon: Clock, to: '/pending-approvals' },
   ]
 
-  if (!isSchoolMember(profile)) {
+  if (!isStaffMember(profile)) {
     return (
       <div className="flex-1 flex flex-col">
         <BackHeader title="Dashboard" />
         <div className="screen-scroll px-6 flex items-center justify-center text-center text-gray-400">
-          You need to belong to a school to view its dashboard.
+          This dashboard is only available to school staff members.
         </div>
         <BottomNav />
       </div>
@@ -74,4 +74,4 @@ export default function Dashboard() {
       <BottomNav />
     </div>
   )
-      }
+            }
