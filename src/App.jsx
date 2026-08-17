@@ -19,6 +19,9 @@ import ChatThread from './pages/ChatThread.jsx'
 import Communities from './pages/Communities.jsx'
 import CreateCommunity from './pages/CreateCommunity.jsx'
 import CommunityDetail from './pages/CommunityDetail.jsx'
+import BursarDashboard from './pages/BursarDashboard.jsx'
+import CoachDashboard from './pages/CoachDashboard.jsx'
+import ICTDashboard from './pages/ICTDashboard.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -57,6 +60,9 @@ export default function App() {
         <Route path="/communities" element={<RequireAuth><Communities /></RequireAuth>} />
         <Route path="/communities/create" element={<RequireAuth><CreateCommunity /></RequireAuth>} />
         <Route path="/communities/:communityId" element={<RequireAuth><CommunityDetail /></RequireAuth>} />
+        <Route path="/bursar" element={<RequireAuth><BursarDashboard /></RequireAuth>} />
+        <Route path="/coach" element={<RequireAuth><CoachDashboard /></RequireAuth>} />
+        <Route path="/ict" element={<RequireAuth><ICTDashboard /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
