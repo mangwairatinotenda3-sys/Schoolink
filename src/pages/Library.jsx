@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Search, Plus, X, BookOpen } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { Search, Plus, X, BookOpen, Upload } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -9,6 +9,7 @@ const categories = ['All', 'Novel', 'Textbook', 'Past Paper']
 
 export default function Library() {
   const { user, profile } = useAuth()
+  const fileInputRef = useRef(null)
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
@@ -18,6 +19,8 @@ export default function Library() {
   const [form, setForm] = useState({
     title: '', author: '', category: 'Novel', language: '', country: '', exam_board: '', year: '', file_url: '',
   })
+  const [uploadedFile, setUploadedFile] = useState(null)
+  const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -39,6 +42,28 @@ export default function Library() {
     setForm((f) => ({ ...f, [key]: value }))
   }
 
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file || !user) return
+    setUploading(true)
+    setError('')
+
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `${user.id}/${Date.now()}-${safeName}`
+
+    const { error: uploadError } = await supabase.storage.from('library-files').upload(path, file)
+    if (uploadError) {
+      setError(uploadError.message)
+      setUploading(false)
+      return
+    }
+
+    const { data } = supabase.storage.from('library-files').getPublicUrl(path)
+    setUploadedFile(file.name)
+    updateForm('file_url', data.publicUrl)
+    setUploading(false)
+  }
+
   async function handleAdd() {
     if (!form.title.trim()) return
     setSaving(true)
@@ -53,6 +78,7 @@ export default function Library() {
       return
     }
     setForm({ title: '', author: '', category: 'Novel', language: '', country: '', exam_board: '', year: '', file_url: '' })
+    setUploadedFile(null)
     setShowAddForm(false)
     loadResources()
   }
@@ -155,16 +181,30 @@ export default function Library() {
                 placeholder="Year (optional)"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
               />
+
+              <div className="pt-1">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-lg py-2.5 text-sm text-gray-500 disabled:opacity-60"
+                >
+                  <Upload size={15} />
+                  {uploading ? 'Uploading…' : uploadedFile ? uploadedFile : 'Upload file from this device'}
+                </button>
+                <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
+                <p className="text-[11px] text-gray-400 mt-1">or paste a link below instead</p>
+              </div>
+
               <input
                 value={form.file_url}
                 onChange={(e) => updateForm('file_url', e.target.value)}
-                placeholder="Link to file (optional)"
+                placeholder="Link to file (optional if you uploaded one above)"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
               />
               {error ? <p className="text-red-500 text-xs">{error}</p> : null}
               <button
                 onClick={handleAdd}
-                disabled={saving}
+                disabled={saving || uploading}
                 className="w-full bg-brand-purple text-white font-medium py-2.5 rounded-lg text-sm disabled:opacity-60"
               >
                 {saving ? 'Adding…' : 'Add Resource'}
@@ -216,4 +256,4 @@ export default function Library() {
       </div>
     </div>
   )
-  }
+    }
