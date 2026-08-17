@@ -6,7 +6,7 @@ import AvatarUpload from '../components/AvatarUpload.jsx'
 import CoverPhotoUpload from '../components/CoverPhotoUpload.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { isPendingApproval } from '../lib/permissions.js'
+import { isPendingApproval, isStaffMember } from '../lib/permissions.js'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -51,7 +51,9 @@ export default function Profile() {
 
   const menuItems = [
     { label: 'My School Profile', icon: UserSquare2, to: '/school-profile' },
-    { label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' },
+    ...(isStaffMember(profile)
+      ? [{ label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' }]
+      : []),
     { label: 'My Posts', icon: FileText },
     { label: 'Groups & Communities', icon: Users, to: '/communities' },
     { label: 'Connections', icon: Link2 },
@@ -165,4 +167,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-    }
+      }
