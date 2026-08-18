@@ -15,6 +15,7 @@ import {
   DollarSign,
   Trophy,
   Laptop,
+  CalendarDays,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
@@ -29,6 +30,7 @@ export default function Settings() {
   const items = [
     { label: 'Account', sub: 'Security, personal information', icon: Shield },
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
+    { label: 'School Calendar', sub: 'Events, RSVPs', icon: CalendarDays, to: '/calendar' },
     { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
     ...(canManageFees(profile)
       ? [{ label: 'Bursar Dashboard', sub: 'Fees, income, expenses', icon: DollarSign, to: '/bursar' }]
@@ -85,4 +87,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-     }
+    }
