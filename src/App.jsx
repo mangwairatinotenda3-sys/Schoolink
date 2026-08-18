@@ -24,6 +24,8 @@ import CoachDashboard from './pages/CoachDashboard.jsx'
 import ICTDashboard from './pages/ICTDashboard.jsx'
 import Calendar from './pages/Calendar.jsx'
 import CreateEvent from './pages/CreateEvent.jsx'
+import Assignments from './pages/Assignments.jsx'
+import Timetable from './pages/Timetable.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -67,6 +69,8 @@ export default function App() {
         <Route path="/ict" element={<RequireAuth><ICTDashboard /></RequireAuth>} />
         <Route path="/calendar" element={<RequireAuth><Calendar /></RequireAuth>} />
         <Route path="/calendar/create" element={<RequireAuth><CreateEvent /></RequireAuth>} />
+        <Route path="/assignments" element={<RequireAuth><Assignments /></RequireAuth>} />
+        <Route path="/timetable" element={<RequireAuth><Timetable /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
