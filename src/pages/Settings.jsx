@@ -16,6 +16,8 @@ import {
   Trophy,
   Laptop,
   CalendarDays,
+  ClipboardList,
+  Table,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
@@ -31,6 +33,8 @@ export default function Settings() {
     { label: 'Account', sub: 'Security, personal information', icon: Shield },
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
     { label: 'School Calendar', sub: 'Events, RSVPs', icon: CalendarDays, to: '/calendar' },
+    { label: 'Homework & Assignments', sub: 'View and post assignments', icon: ClipboardList, to: '/assignments' },
+    { label: 'Timetable', sub: 'Class schedule by day', icon: Table, to: '/timetable' },
     { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
     ...(canManageFees(profile)
       ? [{ label: 'Bursar Dashboard', sub: 'Fees, income, expenses', icon: DollarSign, to: '/bursar' }]
@@ -87,4 +91,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-    }
+}
