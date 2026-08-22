@@ -26,6 +26,15 @@ import Calendar from './pages/Calendar.jsx'
 import CreateEvent from './pages/CreateEvent.jsx'
 import Assignments from './pages/Assignments.jsx'
 import Timetable from './pages/Timetable.jsx'
+import AccountSettings from './pages/AccountSettings.jsx'
+import PrivacySettings from './pages/PrivacySettings.jsx'
+import NotificationSettings from './pages/NotificationSettings.jsx'
+import AccessibilitySettings from './pages/AccessibilitySettings.jsx'
+import ChatAppearanceSettings from './pages/ChatAppearanceSettings.jsx'
+import LanguageSettings from './pages/LanguageSettings.jsx'
+import StorageSettings from './pages/StorageSettings.jsx'
+import HelpSettings from './pages/HelpSettings.jsx'
+import UpdatesSettings from './pages/UpdatesSettings.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -71,6 +80,15 @@ export default function App() {
         <Route path="/calendar/create" element={<RequireAuth><CreateEvent /></RequireAuth>} />
         <Route path="/assignments" element={<RequireAuth><Assignments /></RequireAuth>} />
         <Route path="/timetable" element={<RequireAuth><Timetable /></RequireAuth>} />
+        <Route path="/settings/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
+        <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
+        <Route path="/settings/notifications" element={<RequireAuth><NotificationSettings /></RequireAuth>} />
+        <Route path="/settings/accessibility" element={<RequireAuth><AccessibilitySettings /></RequireAuth>} />
+        <Route path="/settings/chat-appearance" element={<RequireAuth><ChatAppearanceSettings /></RequireAuth>} />
+        <Route path="/settings/language" element={<RequireAuth><LanguageSettings /></RequireAuth>} />
+        <Route path="/settings/storage" element={<RequireAuth><StorageSettings /></RequireAuth>} />
+        <Route path="/settings/help" element={<RequireAuth><HelpSettings /></RequireAuth>} />
+        <Route path="/settings/updates" element={<RequireAuth><UpdatesSettings /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
