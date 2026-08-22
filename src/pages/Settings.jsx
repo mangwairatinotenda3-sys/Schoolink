@@ -30,8 +30,8 @@ export default function Settings() {
   const { signOut, profile } = useAuth()
 
   const items = [
-    { label: 'Account', sub: 'Security, personal information', icon: Shield },
-    { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock },
+    { label: 'Account', sub: 'Security, personal information', icon: Shield, to: '/settings/account' },
+    { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock, to: '/settings/privacy' },
     { label: 'School Calendar', sub: 'Events, RSVPs', icon: CalendarDays, to: '/calendar' },
     { label: 'Homework & Assignments', sub: 'View and post assignments', icon: ClipboardList, to: '/assignments' },
     { label: 'Timetable', sub: 'Class schedule by day', icon: Table, to: '/timetable' },
@@ -45,11 +45,11 @@ export default function Settings() {
     ...(canManageDevices(profile)
       ? [{ label: 'ICT Dashboard', sub: 'Device management, resources', icon: Laptop, to: '/ict' }]
       : []),
-    { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette },
-    { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye },
-    { label: 'App Language', sub: 'English (United States)', icon: Palette },
-    { label: 'Notifications', sub: 'Message, group & call tones', icon: Bell },
-    { label: 'Storage and Data', sub: 'Network usage, auto-download', icon: Database },
+    { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette, to: '/settings/chat-appearance' },
+    { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye, to: '/settings/accessibility' },
+    { label: 'App Language', sub: 'English (United States)', icon: Palette, to: '/settings/language' },
+    { label: 'Notifications', sub: 'Message, group & call tones', icon: Bell, to: '/settings/notifications' },
+    { label: 'Storage and Data', sub: 'Network usage, auto-download', icon: Database, to: '/settings/storage' },
     { label: 'Staff Directory', sub: 'View everyone at your school', icon: Users, to: '/staff-directory' },
     ...(canManageStaff(profile)
       ? [
@@ -57,8 +57,8 @@ export default function Settings() {
           { label: 'Pending Approvals', sub: 'Review student join requests', icon: Clock, to: '/pending-approvals' },
         ]
       : []),
-    { label: 'Help and Feedback', sub: 'Help center, contact us', icon: HelpCircle },
-    { label: 'Updates', sub: 'Check for new updates', icon: RefreshCw },
+    { label: 'Help and Feedback', sub: 'Help center, contact us', icon: HelpCircle, to: '/settings/help' },
+    { label: 'Updates', sub: 'Check for new updates', icon: RefreshCw, to: '/settings/updates' },
   ]
 
   return (
@@ -91,4 +91,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-}
+      }
