@@ -6,7 +6,7 @@ export default {
       colors: {
         brand: {
           navy: '#241B4E',
-          purple: '#6C4CE0',
+          purple: 'var(--brand-purple, #6C4CE0)',
           light: '#F5F4FB',
         },
       },
@@ -16,4 +16,4 @@ export default {
     },
   },
   plugins: [],
-  }
+          }
