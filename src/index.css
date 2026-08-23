@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --brand-purple: #6C4CE0;
+}
+
 html, body, #root {
   height: 100%;
 }
@@ -10,9 +14,6 @@ body {
   @apply bg-brand-light text-brand-navy;
 }
 
-/* App is designed mobile-first; on wider screens we center it like a phone.
-   Fixed height + overflow hidden here keeps the header and bottom nav
-   pinned in place, so only the content in between scrolls. */
 .app-shell {
   max-width: 480px;
   margin: 0 auto;
@@ -27,7 +28,7 @@ body {
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
-  padding-bottom: 84px; /* leave room for bottom nav */
+  padding-bottom: 84px;
 }
 
 ::-webkit-scrollbar {
