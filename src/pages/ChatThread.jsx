@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Send, Check, CheckCheck } from 'lucide-react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Send, Check, CheckCheck, MoreVertical, UserX } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -8,13 +8,16 @@ import { useIsOnline } from '../lib/presence.jsx'
 
 export default function ChatThread() {
   const { userId: partnerId } = useParams()
-  const { user } = useAuth()
+  const navigate = useNavigate()
+  const { user, profile } = useAuth()
   const isOnline = useIsOnline(partnerId)
 
   const [partner, setPartner] = useState(null)
   const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [isBlocked, setIsBlocked] = useState(false)
   const bottomRef = useRef(null)
 
   useEffect(() => {
@@ -24,6 +27,14 @@ export default function ChatThread() {
       .eq('id', partnerId)
       .maybeSingle()
       .then(({ data }) => setPartner(data))
+
+    supabase
+      .from('blocked_users')
+      .select('*')
+      .eq('blocker_id', user.id)
+      .eq('blocked_id', partnerId)
+      .maybeSingle()
+      .then(({ data }) => setIsBlocked(!!data))
   }, [partnerId])
 
   useEffect(() => {
@@ -42,7 +53,7 @@ export default function ChatThread() {
             (m.sender_id === partnerId && m.receiver_id === user.id)
           if (isThisThread) {
             setMessages((prev) => [...prev, m])
-            if (m.receiver_id === user.id) {
+            if (m.receiver_id === user.id && profile?.read_receipts_enabled !== false) {
               supabase.from('messages').update({ read: true }).eq('id', m.id)
             }
           }
@@ -69,16 +80,18 @@ export default function ChatThread() {
       .order('created_at', { ascending: true })
     setMessages(data ?? [])
 
-    const unreadIds = (data ?? [])
-      .filter((m) => m.receiver_id === user.id && !m.read)
-      .map((m) => m.id)
-    if (unreadIds.length > 0) {
-      await supabase.from('messages').update({ read: true }).in('id', unreadIds)
+    if (profile?.read_receipts_enabled !== false) {
+      const unreadIds = (data ?? [])
+        .filter((m) => m.receiver_id === user.id && !m.read)
+        .map((m) => m.id)
+      if (unreadIds.length > 0) {
+        await supabase.from('messages').update({ read: true }).in('id', unreadIds)
+      }
     }
   }
 
   async function handleSend() {
-    if (!text.trim() || sending) return
+    if (!text.trim() || sending || isBlocked) return
     setSending(true)
     const content = text
     setText('')
@@ -88,6 +101,17 @@ export default function ChatThread() {
       content,
     })
     setSending(false)
+  }
+
+  async function handleBlock() {
+    setMenuOpen(false)
+    if (isBlocked) {
+      await supabase.from('blocked_users').delete().eq('blocker_id', user.id).eq('blocked_id', partnerId)
+      setIsBlocked(false)
+    } else {
+      await supabase.from('blocked_users').insert({ blocker_id: user.id, blocked_id: partnerId })
+      setIsBlocked(true)
+    }
   }
 
   return (
@@ -104,11 +128,32 @@ export default function ChatThread() {
             <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" />
           ) : null}
         </span>
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
           <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
         </div>
+        <div className="relative">
+          <button onClick={() => setMenuOpen((m) => !m)}>
+            <MoreVertical size={18} className="text-gray-400" />
+          </button>
+          {menuOpen ? (
+            <div className="absolute right-0 top-8 bg-white border border-gray-100 rounded-lg shadow-lg z-10 w-40">
+              <button
+                onClick={handleBlock}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500"
+              >
+                <UserX size={14} /> {isBlocked ? 'Unblock' : 'Block'}
+              </button>
+            </div>
+          ) : null}
+        </div>
       </div>
+
+      {isBlocked ? (
+        <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">
+          You've blocked this person. Unblock them to send messages.
+        </div>
+      ) : null}
 
       <div className="screen-scroll px-4 py-3 flex flex-col gap-2">
         {messages.map((m) => {
@@ -138,12 +183,13 @@ export default function ChatThread() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && handleSend()}
-          placeholder="Message…"
-          className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple"
+          placeholder={isBlocked ? 'Unblock to send a message' : 'Message…'}
+          disabled={isBlocked}
+          className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple disabled:opacity-60"
         />
         <button
           onClick={handleSend}
-          disabled={sending}
+          disabled={sending || isBlocked}
           className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60"
         >
           <Send size={16} className="text-white" />
