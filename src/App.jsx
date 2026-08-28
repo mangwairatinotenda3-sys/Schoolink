@@ -51,8 +51,16 @@ function RequireAuth({ children }) {
 }
 
 export default function App() {
+  const { profile } = useAuth()
+  const shellClasses = [
+    'app-shell',
+    'shadow-xl',
+    profile?.dark_mode ? 'dark-mode' : '',
+    profile?.high_contrast ? 'high-contrast' : '',
+  ].filter(Boolean).join(' ')
+
   return (
-    <div className="app-shell shadow-xl">
+    <div className={shellClasses}>
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/sign-in/email" element={<SignInEmail />} />
