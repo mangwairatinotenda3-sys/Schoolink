@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { ChevronRight, UserX } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -18,13 +20,20 @@ function Toggle({ checked, onChange }) {
 }
 
 export default function PrivacySettings() {
+  const navigate = useNavigate()
   const { profile, saveProfileDetails } = useAuth()
   const [showOnline, setShowOnline] = useState(profile?.show_online_status ?? true)
+  const [readReceipts, setReadReceipts] = useState(profile?.read_receipts_enabled ?? true)
   const [visibility, setVisibility] = useState(profile?.profile_visibility || 'everyone')
 
   async function updateShowOnline(value) {
     setShowOnline(value)
     await saveProfileDetails({ show_online_status: value })
+  }
+
+  async function updateReadReceipts(value) {
+    setReadReceipts(value)
+    await saveProfileDetails({ read_receipts_enabled: value })
   }
 
   async function updateVisibility(value) {
@@ -44,7 +53,15 @@ export default function PrivacySettings() {
           <Toggle checked={showOnline} onChange={updateShowOnline} />
         </div>
 
-        <div className="py-3">
+        <div className="flex items-center justify-between py-3 border-b border-gray-100">
+          <div>
+            <p className="font-medium text-sm">Read Receipts</p>
+            <p className="text-xs text-gray-400">Let others see when you've read their messages</p>
+          </div>
+          <Toggle checked={readReceipts} onChange={updateReadReceipts} />
+        </div>
+
+        <div className="py-3 border-b border-gray-100">
           <p className="font-medium text-sm mb-2">Who can see my profile</p>
           {['everyone', 'school_only'].map((v) => (
             <button
@@ -65,7 +82,18 @@ export default function PrivacySettings() {
             </button>
           ))}
         </div>
+
+        <button
+          onClick={() => navigate('/settings/blocked-users')}
+          className="w-full flex items-center justify-between py-3.5"
+        >
+          <span className="flex items-center gap-3">
+            <UserX size={16} className="text-brand-purple" />
+            <span className="text-sm font-medium">Blocked Users</span>
+          </span>
+          <ChevronRight size={18} className="text-gray-300" />
+        </button>
       </div>
     </div>
   )
-}
+      }
