@@ -8,14 +8,6 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#241B4E" />
     <link rel="apple-touch-icon" href="icon.svg" />
-    <script>
-      window.addEventListener('error', function (e) {
-        var box = document.createElement('pre')
-        box.style.cssText = 'white-space:pre-wrap;padding:16px;background:#fee;color:#900;font-size:12px;position:fixed;top:0;left:0;right:0;z-index:99999;'
-        box.textContent = 'ERROR: ' + e.message + '\n' + (e.error && e.error.stack ? e.error.stack : '')
-        document.body.appendChild(box)
-      })
-    </script>
   </head>
   <body class="bg-brand-light">
     <div id="root"></div>
