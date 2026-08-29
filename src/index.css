@@ -21,7 +21,7 @@ body {
   margin: 0 auto;
   height: 100vh;
   height: 100dvh;
-  overflow: hidden;
+  overflow: hidden; /* lock shell so only inner content scrolls */
   background: #fff;
   position: relative;
   display: flex;
@@ -63,12 +63,15 @@ body {
   color: #4b5563 !important;
 }
 
+/* THIS is what actually scrolls */
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-bottom: 84px;
+  -webkit-overflow-scrolling: touch; /* smooth scroll on iPhone */
 }
 
 ::-webkit-scrollbar {
   display: none;
-    }
+  }
