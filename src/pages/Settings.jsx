@@ -62,7 +62,7 @@ export default function Settings() {
   ]
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Settings" />
       <div className="screen-scroll divide-y divide-gray-100 px-4">
         {items.map(({ label, sub, icon: Icon, to }) => (
