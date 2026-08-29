@@ -9,6 +9,7 @@
 
 html, body, #root {
   height: 100%;
+  width: 100%;
 }
 
 body {
@@ -16,11 +17,13 @@ body {
   font-size: calc(1rem * var(--text-scale));
 }
 
+/* Mobile app shell */
 .app-shell {
-  max-width: 480px;
-  margin: 0 auto;
+  width: 100%; /* fill screen on mobile */
+  max-width: 480px; /* cap width on desktop */
+  margin: 0 auto; /* center on desktop */
   height: 100vh;
-  height: 100dvh;
+  height: 100dvh; /* better for mobile browsers */
   overflow: hidden; /* lock shell so only inner content scrolls */
   background: #fff;
   position: relative;
@@ -28,6 +31,15 @@ body {
   flex-direction: column;
 }
 
+/* Make it full width on phones */
+@media (max-width: 480px) {
+  .app-shell {
+    max-width: 100%;
+    margin: 0;
+  }
+}
+
+/* Dark mode */
 .app-shell.dark-mode {
   background: #17131f;
   color: #f2f0f7;
@@ -55,6 +67,7 @@ body {
   border-color: #362f44 !important;
 }
 
+/* High contrast */
 .app-shell.high-contrast {
   filter: contrast(1.3);
 }
@@ -63,15 +76,16 @@ body {
   color: #4b5563 !important;
 }
 
-/* THIS is what actually scrolls */
+/* This is what actually scrolls */
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
   overflow-x: hidden;
-  padding-bottom: 84px;
+  padding-bottom: 84px; /* space for bottom nav */
   -webkit-overflow-scrolling: touch; /* smooth scroll on iPhone */
 }
 
+/* Hide scrollbar */
 ::-webkit-scrollbar {
   display: none;
   }
