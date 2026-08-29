@@ -92,3 +92,72 @@ export default function Home() {
       </div>
 
       {searchOpen? (
+        <div className="px-4 py-2 bg-white border-b border-gray-100 flex items-center gap-2">
+          <input
+            autoFocus
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search posts or people…"
+            className="flex-1 border-gray-200 rounded-full px-4 py-2 text-sm outline-brand-purple"
+          />
+          <button
+            onClick={() => {
+              setSearchOpen(false)
+              setSearchQuery('')
+            }}
+          >
+            <X size={18} className="text-gray-400" />
+          </button>
+        </div>
+      ) : null}
+
+      <div className="screen-scroll">
+        <div className="flex gap-4 px-4 py-4 overflow-x-auto">
+          {shortcuts.map((s) => (
+            <button key={s} onClick={() => handleShortcut(s)} className="flex flex-col items-center gap-1 shrink-0">
+              <span className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center text-xl">
+                🎓
+              </span>
+              <span className="text-[11px] text-gray-500 max-w-[56px] text-center">{s}</span>
+            </button>
+          ))}
+        </div>
+
+        {school? (
+          <div className="mx-4 rounded-xl border border-gray-100 p-4">
+            <p className="font-semibold">{school.name}</p>
+            <p className="text-sm text-gray-500">{school.location}</p>
+            <div className="flex gap-6 mt-3 text-sm">
+              <span><b>{memberCount}</b> Members</span>
+              <span className="text-gray-400">{school.school_type}</span>
+            </div>
+          </div>
+        ) : null}
+
+        <ComposerBar />
+
+        <div className="px-4 mt-4 space-y-4 pb-20"> {/* added pb-20 for bottom nav */}
+          {loading? (
+            <p className="text-center text-gray-400 mt-8">Loading posts…</p>
+          ) : visiblePosts.length === 0? (
+            <div className="text-center text-gray-400 mt-8">
+              {searchQuery? (
+                <p>No posts match "{searchQuery}".</p>
+              ) : (
+                <>
+                  <p>No posts yet.</p>
+                  <p className="text-sm">Be the first to share something with your school.</p>
+                </>
+              )}
+            </div>
+          ) : (
+            visiblePosts.map((post) => <PostCard key={post.id} post={post} />)
+          )}
+        </div>
+      </div>
+
+      <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <BottomNav />
+    </div>
+  )
+}
