@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -5,11 +6,13 @@ import GoogleIcon from '../components/GoogleIcon.jsx'
 
 export default function Welcome() {
   const navigate = useNavigate()
-  const { signInWithGoogle, session } = useAuth()
+  const { signInWithGoogle, session, loading } = useAuth()
 
-  if (session) {
-    navigate('/home', { replace: true })
-  }
+  useEffect(() => {
+    if (session) {
+      navigate('/home', { replace: true })
+    }
+  }, [session, navigate])
 
   return (
     <div className="flex-1 flex flex-col px-6 pt-14 pb-8">
