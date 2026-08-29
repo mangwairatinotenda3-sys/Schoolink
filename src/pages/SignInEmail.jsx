@@ -40,9 +40,9 @@ export default function SignInEmail() {
         >
           Continue
         </button>
-
-        <p className="text-center text-sm text-gray-500 mt-4">
-          Don&apos;t have an account?{' '}
+<p className="text-center text-sm text-gray-500 mt-4">
+          New here? Just continue — we'll set up your account automatically.
+        </p>
           <span className="text-brand-purple font-medium">Sign up</span>
         </p>
       </form>
