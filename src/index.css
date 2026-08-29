@@ -19,6 +19,7 @@ body {
 .app-shell {
   max-width: 480px;
   margin: 0 auto;
+  height: 100vh;
   height: 100dvh;
   overflow: hidden;
   background: #fff;
