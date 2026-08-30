@@ -98,7 +98,7 @@ export default function ChatList() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Chats" />
       <div className="screen-scroll px-4">
         {loading ? (
@@ -119,4 +119,4 @@ export default function ChatList() {
       <BottomNav />
     </div>
   )
-}
+                              }
