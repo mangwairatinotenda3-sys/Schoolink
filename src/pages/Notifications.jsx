@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, UserPlus, CheckCircle } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -10,6 +10,7 @@ const icons = {
   comment: { icon: MessageCircle, color: 'text-blue-500' },
   follow: { icon: UserPlus, color: 'text-brand-purple' },
   approval: { icon: CheckCircle, color: 'text-green-500' },
+  message: { icon: MessageSquare, color: 'text-brand-purple' },
 }
 
 const messages = {
@@ -17,6 +18,7 @@ const messages = {
   comment: (name) => `${name || 'Someone'} commented on your post`,
   follow: (name) => `${name || 'Someone'} started following you`,
   approval: () => `Your request to join the school was approved`,
+  message: (name) => `${name || 'Someone'} sent you a message`,
 }
 
 function timeAgo(dateString) {
@@ -58,7 +60,7 @@ export default function Notifications() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Notifications" />
       <div className="screen-scroll px-4">
         {loading ? (
@@ -88,4 +90,4 @@ export default function Notifications() {
       <BottomNav />
     </div>
   )
-}
+  }
