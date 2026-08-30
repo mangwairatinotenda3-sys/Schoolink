@@ -61,7 +61,7 @@ export default function Profile() {
   ]
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <CoverPhotoUpload />
 
       <div className="px-4 -mt-10">
@@ -167,4 +167,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-      }
+}
