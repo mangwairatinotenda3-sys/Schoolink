@@ -167,4 +167,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-}
+  }
