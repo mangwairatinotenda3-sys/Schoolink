@@ -1,3 +1,4 @@
+import { Bookmark } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -27,7 +28,7 @@ export default function Saved() {
   }, [user])
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Saved" />
       <div className="flex px-4 gap-6 border-b border-gray-100">
         {tabs.map((t) => (
@@ -58,4 +59,4 @@ export default function Saved() {
       <BottomNav />
     </div>
   )
-      }
+        }
