@@ -70,7 +70,7 @@ export default function AddPost() {
 
   if (!isSchoolMember(profile)) {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="app-shell">
         <BackHeader title="Create Post" />
         <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-2">
           <p className="text-gray-500">
@@ -82,9 +82,9 @@ export default function AddPost() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Create Post" />
-      <div className="flex-1 flex flex-col px-4 pt-2">
+      <div className="screen-scroll px-4 pt-2">
         <div className="flex gap-2 overflow-x-auto pb-2">
           {categories.map((c) => (
             <button
@@ -105,7 +105,7 @@ export default function AddPost() {
           onChange={(e) => setContent(e.target.value)}
           placeholder="What's on your mind?"
           rows={6}
-          className="border border-gray-200 rounded-xl p-4 outline-brand-purple resize-none mt-2"
+          className="w-full border border-gray-200 rounded-xl p-4 outline-brand-purple resize-none mt-2"
         />
 
         {imagePreview ? (
@@ -121,7 +121,7 @@ export default function AddPost() {
         ) : (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="mt-3 flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500"
+            className="mt-3 w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500"
           >
             <ImageIcon size={18} />
             Add a photo
@@ -141,4 +141,4 @@ export default function AddPost() {
       </div>
     </div>
   )
-    }
+  }
