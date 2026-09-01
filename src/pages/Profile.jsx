@@ -54,7 +54,7 @@ export default function Profile() {
     ...(isStaffMember(profile)
       ? [{ label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' }]
       : []),
-    { label: 'My Posts', icon: FileText },
+    { label: 'My Posts', icon: FileText, to: '/my-posts' },
     { label: 'Groups & Communities', icon: Users, to: '/communities' },
     { label: 'Connections', icon: Link2 },
     { label: 'Account Information', icon: User, to: '/settings' },
