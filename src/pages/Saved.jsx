@@ -52,7 +52,13 @@ export default function Saved() {
         ) : savedPosts.length === 0 ? (
           <p className="text-center text-gray-400 mt-10">Nothing saved yet — tap the bookmark icon on a post to save it.</p>
         ) : (
-          savedPosts.map((post) => <PostCard key={post.id} post={post} />)
+          savedPosts.map((post) => (
+            <PostCard
+              key={post.id}
+              post={post}
+              onDeleted={(id) => setSavedPosts((prev) => prev.filter((p) => p.id !== id))}
+            />
+          )))
         )}
       </div>
 
