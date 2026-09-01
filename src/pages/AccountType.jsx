@@ -4,7 +4,6 @@ import BackHeader from '../components/BackHeader.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const options = [
-  { label: 'Continue as Guest', value: 'guest' },
   { label: 'Parent / Guardian', value: 'parent' },
   { label: 'Investor', value: 'investor' },
   { label: 'Join as a Student', value: 'join-student' },
@@ -57,4 +56,4 @@ export default function AccountType() {
       </div>
     </div>
   )
-  }
+    }
