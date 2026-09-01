@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -6,13 +6,25 @@ import GoogleIcon from '../components/GoogleIcon.jsx'
 
 export default function Welcome() {
   const navigate = useNavigate()
-  const { signInWithGoogle, session, loading } = useAuth()
+  const { signInWithGoogle, signInAsGuest, session } = useAuth()
+  const [guestBusy, setGuestBusy] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     if (session) {
       navigate('/home', { replace: true })
     }
   }, [session, navigate])
+
+  async function handleGuest() {
+    setGuestBusy(true)
+    setError('')
+    const { error: guestError } = await signInAsGuest()
+    setGuestBusy(false)
+    if (guestError) {
+      setError('Guest access isn\'t available right now. Please try again shortly.')
+    }
+  }
 
   return (
     <div className="flex-1 flex flex-col px-6 pt-14 pb-8">
@@ -35,6 +47,8 @@ export default function Welcome() {
         <div className="text-7xl">🏫</div>
       </div>
 
+      {error ? <p className="text-red-500 text-sm text-center mb-3">{error}</p> : null}
+
       <div className="space-y-3">
         <button
           onClick={() => navigate('/sign-in/email')}
@@ -50,10 +64,11 @@ export default function Welcome() {
           Continue with Google
         </button>
         <button
-          onClick={() => navigate('/home')}
-          className="w-full font-medium py-3.5 rounded-xl text-gray-600"
+          onClick={handleGuest}
+          disabled={guestBusy}
+          className="w-full font-medium py-3.5 rounded-xl text-gray-600 disabled:opacity-60"
         >
-          Continue as Guest
+          {guestBusy ? 'Setting up…' : 'Continue as Guest'}
         </button>
       </div>
 
@@ -64,4 +79,4 @@ export default function Welcome() {
       </p>
     </div>
   )
-      }
+        }
