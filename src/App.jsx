@@ -43,6 +43,8 @@ import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import BlockedUsers from './pages/BlockedUsers.jsx'
+import PostDetail from './pages/PostDetail.jsx'
+import MyPosts from './pages/MyPosts.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -107,6 +109,8 @@ export default function App() {
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="/settings/blocked-users" element={<RequireAuth><BlockedUsers /></RequireAuth>} />
+        <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
+        <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
