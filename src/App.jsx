@@ -35,6 +35,10 @@ import LanguageSettings from './pages/LanguageSettings.jsx'
 import StorageSettings from './pages/StorageSettings.jsx'
 import HelpSettings from './pages/HelpSettings.jsx'
 import UpdatesSettings from './pages/UpdatesSettings.jsx'
+import BlockedUsers from './pages/BlockedUsers.jsx'
+import PostDetail from './pages/PostDetail.jsx'
+import MyPosts from './pages/MyPosts.jsx'
+import Connections from './pages/Connections.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -42,9 +46,6 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import BlockedUsers from './pages/BlockedUsers.jsx'
-import PostDetail from './pages/PostDetail.jsx'
-import MyPosts from './pages/MyPosts.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -100,6 +101,10 @@ export default function App() {
         <Route path="/settings/storage" element={<RequireAuth><StorageSettings /></RequireAuth>} />
         <Route path="/settings/help" element={<RequireAuth><HelpSettings /></RequireAuth>} />
         <Route path="/settings/updates" element={<RequireAuth><UpdatesSettings /></RequireAuth>} />
+        <Route path="/settings/blocked-users" element={<RequireAuth><BlockedUsers /></RequireAuth>} />
+        <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
+        <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
+        <Route path="/connections/:type" element={<RequireAuth><Connections /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
@@ -108,9 +113,6 @@ export default function App() {
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-        <Route path="/settings/blocked-users" element={<RequireAuth><BlockedUsers /></RequireAuth>} />
-        <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
-        <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
