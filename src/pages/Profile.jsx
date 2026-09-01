@@ -56,7 +56,7 @@ export default function Profile() {
       : []),
     { label: 'My Posts', icon: FileText, to: '/my-posts' },
     { label: 'Groups & Communities', icon: Users, to: '/communities' },
-    { label: 'Connections', icon: Link2 },
+    { label: 'Connections', icon: Link2, to: '/connections/following' },
     { label: 'Account Information', icon: User, to: '/settings' },
   ]
 
@@ -84,14 +84,14 @@ export default function Profile() {
             <p className="font-bold">{stats.posts}</p>
             <p className="text-xs text-gray-400">Posts</p>
           </div>
-          <div className="text-center">
+          <button onClick={() => navigate('/connections/followers')} className="text-center">
             <p className="font-bold">{stats.followers}</p>
             <p className="text-xs text-gray-400">Followers</p>
-          </div>
-          <div className="text-center">
+          </button>
+          <button onClick={() => navigate('/connections/following')} className="text-center">
             <p className="font-bold">{stats.following}</p>
             <p className="text-xs text-gray-400">Following</p>
-          </div>
+          </button>
         </div>
 
         <div className="px-4 mt-4">
