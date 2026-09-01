@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle, Bookmark, Send, MoreVertical, Trash2 } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import PhotoViewer from './PhotoViewer.jsx'
 
 export default function PostCard({ post, onDeleted, expandComments }) {
   const navigate = useNavigate()
@@ -17,6 +18,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  const [viewerOpen, setViewerOpen] = useState(false)
 
   const isMine = user && post.author_id === user.id
 
@@ -207,7 +209,15 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       {post.content ? <p className="text-sm mt-2">{post.content}</p> : null}
 
       {post.image_url ? (
-        <img src={post.image_url} alt="" className="w-full rounded-xl mt-2 max-h-80 object-cover" />
+        <img
+          src={post.image_url}
+          alt=""
+          className="w-full rounded-xl mt-2 max-h-80 object-cover cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation()
+            setViewerOpen(true)
+          }}
+        />
       ) : null}
 
       <div className="flex items-center gap-5 mt-3 text-gray-500" onClick={(e) => e.stopPropagation()}>
@@ -248,6 +258,14 @@ export default function PostCard({ post, onDeleted, expandComments }) {
           ) : null}
         </div>
       ) : null}
+
+      {viewerOpen ? (
+        <PhotoViewer
+          imageUrl={post.image_url}
+          postId={post.id}
+          onClose={() => setViewerOpen(false)}
+        />
+      ) : null}
     </div>
   )
-}
+                                 }
