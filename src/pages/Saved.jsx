@@ -27,6 +27,10 @@ export default function Saved() {
       })
   }, [user])
 
+  function handleDeleted(postId) {
+    setSavedPosts((prev) => prev.filter((p) => p.id !== postId))
+  }
+
   return (
     <div className="app-shell">
       <BackHeader title="Saved" />
@@ -53,16 +57,12 @@ export default function Saved() {
           <p className="text-center text-gray-400 mt-10">Nothing saved yet — tap the bookmark icon on a post to save it.</p>
         ) : (
           savedPosts.map((post) => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onDeleted={(id) => setSavedPosts((prev) => prev.filter((p) => p.id !== id))}
-            />
-          )))
+            <PostCard key={post.id} post={post} onDeleted={handleDeleted} />
+          ))
         )}
       </div>
 
       <BottomNav />
     </div>
   )
-        }
+    }
