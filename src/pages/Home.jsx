@@ -151,7 +151,13 @@ export default function Home() {
               )}
             </div>
           ) : (
-            visiblePosts.map((post) => <PostCard key={post.id} post={post} />)
+            visiblePosts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                onDeleted={(id) => setPosts((prev) => prev.filter((p) => p.id !== id))}
+              />
+            )))
           )}
         </div>
       </div>
