@@ -1,50 +1,76 @@
-import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { Users, Send } from 'lucide-react'
-import BackHeader from '../components/BackHeader.jsx'
+import { useEffect, useRef, useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import { Send, Image as ImageIcon, Users } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import CommunityMessageBubble from '../components/CommunityMessageBubble.jsx'
 
 export default function CommunityDetail() {
   const { communityId } = useParams()
+  const navigate = useNavigate()
   const { user, profile } = useAuth()
+  const fileInputRef = useRef(null)
+  const bottomRef = useRef(null)
 
   const [community, setCommunity] = useState(null)
-  const [members, setMembers] = useState([])
-  const [posts, setPosts] = useState([])
+  const [memberCount, setMemberCount] = useState(0)
   const [isMember, setIsMember] = useState(false)
-  const [tab, setTab] = useState('feed')
+  const [messages, setMessages] = useState([])
   const [text, setText] = useState('')
   const [sending, setSending] = useState(false)
+  const [uploading, setUploading] = useState(false)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     loadAll()
+
+    const channel = supabase
+      .channel(`community-${communityId}-${Math.random().toString(36).slice(2)}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'community_messages', filter: `community_id=eq.${communityId}` },
+        (payload) => {
+          setMessages((prev) => [...prev, payload.new])
+        }
+      )
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
   }, [communityId])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages])
 
   async function loadAll() {
     setLoading(true)
 
-    const { data: comm } = await supabase
-      .from('communities')
-      .select('*')
-      .eq('id', communityId)
-      .maybeSingle()
+    const { data: comm } = await supabase.from('communities').select('*').eq('id', communityId).maybeSingle()
     setCommunity(comm)
 
-    const { data: memberRows } = await supabase
+    const { count } = await supabase
       .from('community_members')
-      .select('user_id, profiles(full_name, role)')
+      .select('*', { count: 'exact', head: true })
       .eq('community_id', communityId)
-    setMembers(memberRows ?? [])
-    setIsMember((memberRows ?? []).some((m) => m.user_id === user?.id))
+    setMemberCount(count ?? 0)
 
-    const { data: postRows } = await supabase
-      .from('community_posts')
+    const { data: myMembership } = await supabase
+      .from('community_members')
+      .select('user_id')
+      .eq('community_id', communityId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    setIsMember(!!myMembership)
+
+    const { data: msgs } = await supabase
+      .from('community_messages')
       .select('*')
       .eq('community_id', communityId)
-      .order('created_at', { ascending: false })
-    setPosts(postRows ?? [])
+      .order('created_at', { ascending: true })
+      .limit(200)
+    setMessages(msgs ?? [])
 
     setLoading(false)
   }
@@ -55,128 +81,119 @@ export default function CommunityDetail() {
     loadAll()
   }
 
-  async function handleLeave() {
-    await supabase.from('community_members').delete().eq('community_id', communityId).eq('user_id', user.id)
-    setIsMember(false)
-    loadAll()
-  }
-
-  async function handlePost() {
-    if (!text.trim() || sending) return
+  async function handleSend() {
+    if (!text.trim() || sending || !isMember) return
     setSending(true)
-    const { error } = await supabase.from('community_posts').insert({
+    const content = text
+    setText('')
+    await supabase.from('community_messages').insert({
       community_id: communityId,
-      author_id: user.id,
-      author_name: profile?.full_name || user.email,
-      author_role: profile?.role || '',
-      content: text,
+      sender_id: user.id,
+      sender_name: profile?.full_name || user.email,
+      content,
     })
     setSending(false)
-    if (!error) {
-      setText('')
-      loadAll()
+  }
+
+  async function handleMediaChange(e) {
+    const file = e.target.files?.[0]
+    if (!file || !isMember) return
+    setUploading(true)
+
+    const isVideo = file.type.startsWith('video/')
+    const ext = file.name.split('.').pop()
+    const path = `${communityId}/${user.id}/${Date.now()}.${ext}`
+
+    const { error: uploadError } = await supabase.storage.from('community-media').upload(path, file)
+    if (!uploadError) {
+      const { data } = supabase.storage.from('community-media').getPublicUrl(path)
+      await supabase.from('community_messages').insert({
+        community_id: communityId,
+        sender_id: user.id,
+        sender_name: profile?.full_name || user.email,
+        media_url: data.publicUrl,
+        media_type: isVideo ? 'video' : 'image',
+      })
     }
+    setUploading(false)
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  if (loading) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <BackHeader title="Community" />
-        <div className="screen-scroll px-4 flex items-center justify-center text-gray-400">Loading…</div>
-      </div>
-    )
+  function handleDeleted(id) {
+    setMessages((prev) => prev.filter((m) => m.id !== id))
   }
 
-  if (!community) {
+  if (loading || !community) {
     return (
-      <div className="flex-1 flex flex-col">
-        <BackHeader title="Community" />
-        <div className="screen-scroll px-4 flex items-center justify-center text-gray-400">Not found.</div>
+      <div className="app-shell">
+        <div className="screen-scroll flex items-center justify-center text-gray-400">Loading…</div>
       </div>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader title={community.name} />
-
-      <div className="px-4 pb-2">
-        <p className="text-sm text-gray-500">{community.description}</p>
-        <div className="flex items-center justify-between mt-3">
-          <span className="flex items-center gap-1 text-xs text-gray-400">
-            <Users size={14} /> {members.length} members
+    <div className="app-shell">
+      <button
+        onClick={() => navigate(`/communities/${communityId}/info`)}
+        className="flex items-center gap-3 px-4 py-3 border-b border-gray-100 text-left"
+      >
+        {community.avatar_url ? (
+          <img src={community.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" />
+        ) : (
+          <span className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center">
+            <Users size={18} className="text-brand-purple" />
           </span>
+        )}
+        <div className="min-w-0">
+          <p className="font-semibold text-sm truncate">{community.name}</p>
+          <p className="text-xs text-gray-400">{memberCount} members</p>
+        </div>
+      </button>
+
+      <div className="screen-scroll px-4 py-3 flex flex-col gap-2">
+        {messages.length === 0 ? (
+          <p className="text-center text-gray-400 mt-8">No messages yet. Say hello!</p>
+        ) : (
+          messages.map((m) => (
+            <CommunityMessageBubble
+              key={m.id}
+              message={m}
+              isMine={m.sender_id === user.id}
+              onDeleted={handleDeleted}
+            />
+          ))
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {isMember ? (
+        <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100">
+          <button onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+            <ImageIcon size={20} className={uploading ? 'text-gray-300' : 'text-brand-purple'} />
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*,video/*" onChange={handleMediaChange} className="hidden" />
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            placeholder="Message the group… use @Name to mention"
+            className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple"
+          />
           <button
-            onClick={isMember ? handleLeave : handleJoin}
-            className={`text-xs font-medium px-3 py-1.5 rounded-full border ${
-              isMember ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'
-            }`}
+            onClick={handleSend}
+            disabled={sending}
+            className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60"
           >
-            {isMember ? 'Leave' : 'Join'}
+            <Send size={16} className="text-white" />
           </button>
         </div>
-      </div>
-
-      <div className="flex px-4 gap-6 border-b border-gray-100">
-        {['feed', 'members'].map((t) => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`py-2 text-sm font-medium border-b-2 capitalize ${
-              tab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'
-            }`}
-          >
-            {t}
+      ) : (
+        <div className="px-4 py-3 border-t border-gray-100">
+          <button onClick={handleJoin} className="w-full bg-brand-purple text-white font-medium py-3 rounded-xl text-sm">
+            Join to send messages
           </button>
-        ))}
-      </div>
-
-      <div className="screen-scroll px-4 pt-3">
-        {tab === 'feed' ? (
-          <>
-            {isMember ? (
-              <div className="flex items-center gap-2 mb-4">
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="Share something with the community…"
-                  className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple"
-                />
-                <button
-                  onClick={handlePost}
-                  disabled={sending}
-                  className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60"
-                >
-                  <Send size={16} className="text-white" />
-                </button>
-              </div>
-            ) : null}
-
-            {posts.length === 0 ? (
-              <p className="text-center text-gray-400 mt-8">No posts yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {posts.map((p) => (
-                  <div key={p.id} className="border border-gray-100 rounded-xl p-3">
-                    <p className="font-semibold text-sm">{p.author_name}</p>
-                    <p className="text-xs text-gray-400 mb-1">{p.author_role}</p>
-                    <p className="text-sm">{p.content}</p>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
-        ) : (
-          <div className="divide-y divide-gray-100">
-            {members.map((m) => (
-              <div key={m.user_id} className="py-3">
-                <p className="font-medium text-sm">{m.profiles?.full_name || 'Schoolink member'}</p>
-                <p className="text-xs text-gray-400">{m.profiles?.role || ''}</p>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
-        }
+}
