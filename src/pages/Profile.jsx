@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Link2, User, Pencil, MapPin, GraduationCap } from 'lucide-react'
+import { ChevronRight, UserSquare2, Briefcase, FileText, Users, Link2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarUpload from '../components/AvatarUpload.jsx'
 import CoverPhotoUpload from '../components/CoverPhotoUpload.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { isPendingApproval, isStaffMember } from '../lib/permissions.js'
+import { isPendingApproval, isStaffMember, isSchoolMember } from '../lib/permissions.js'
 
 export default function Profile() {
   const navigate = useNavigate()
@@ -50,14 +50,17 @@ export default function Profile() {
   }
 
   const menuItems = [
-    { label: 'My School Profile', icon: UserSquare2, to: '/school-profile' },
+    ...(isSchoolMember(profile)
+      ? [{ label: 'My School Profile', icon: UserSquare2, to: '/school-profile' }]
+      : []),
     ...(isStaffMember(profile)
       ? [{ label: 'Professional Dashboard', icon: Briefcase, to: '/dashboard' }]
       : []),
     { label: 'My Posts', icon: FileText, to: '/my-posts' },
     { label: 'Groups & Communities', icon: Users, to: '/communities' },
-    { label: 'Connections', icon: Link2, to: '/connections/following' },
-    { label: 'Account Information', icon: User, to: '/settings' },
+    ...(isSchoolMember(profile)
+      ? [{ label: 'Connections', icon: Link2, to: '/connections/following' }]
+      : []),
   ]
 
   return (
@@ -98,14 +101,12 @@ export default function Profile() {
           <div className="flex items-center justify-between">
             <p className="font-semibold text-sm">Personal Details</p>
             <button onClick={() => navigate('/edit-profile-details')}>
-              <Pencil size={15} className="text-gray-400" />
+              <ChevronRight size={15} className="text-gray-400" />
             </button>
           </div>
           <div className="mt-2 space-y-2">
             {profile?.location ? (
-              <p className="flex items-center gap-2 text-sm text-gray-600">
-                <MapPin size={15} className="text-gray-400" /> {profile.location}
-              </p>
+              <p className="text-sm text-gray-600">{profile.location}</p>
             ) : (
               <p className="text-sm text-gray-400">No location added yet</p>
             )}
@@ -116,7 +117,7 @@ export default function Profile() {
           <div className="flex items-center justify-between">
             <p className="font-semibold text-sm">Links</p>
             <button onClick={() => navigate('/edit-profile-details')}>
-              <Pencil size={15} className="text-gray-400" />
+              <ChevronRight size={15} className="text-gray-400" />
             </button>
           </div>
           <div className="mt-2 space-y-1">
@@ -137,7 +138,7 @@ export default function Profile() {
             <p className="font-semibold text-sm mb-2">Education</p>
             <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
               <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0">
-                <GraduationCap size={18} className="text-brand-purple" />
+                <UserSquare2 size={18} className="text-brand-purple" />
               </span>
               <div>
                 <p className="text-sm font-medium">{school.name}</p>
@@ -167,4 +168,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-  }
+    }
