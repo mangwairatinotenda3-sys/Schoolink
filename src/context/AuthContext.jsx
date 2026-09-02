@@ -27,11 +27,11 @@ export function AuthProvider({ children }) {
       return
     }
     supabase
-     .from('profiles')
-     .select('*')
-     .eq('id', session.user.id)
-     .maybeSingle()
-     .then(({ data }) => setProfile(data))
+      .from('profiles')
+      .select('*')
+      .eq('id', session.user.id)
+      .maybeSingle()
+      .then(({ data }) => setProfile(data))
   }, [session])
 
   async function signInWithPassword(email, password) {
@@ -58,15 +58,32 @@ export function AuthProvider({ children }) {
     })
   }
 
+  async function signOut() {
+    return supabase.auth.signOut()
+  }
+
+  async function saveProfileDetails(updates) {
+    if (!session?.user) return { error: new Error('Not signed in') }
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert({ id: session.user.id, ...updates })
+      .select()
+      .maybeSingle()
+    if (!error) setProfile(data)
+    return { data, error }
+  }
+
   const value = {
     session,
-    user: session?.user?? null,
+    user: session?.user ?? null,
     profile,
     loading,
     signInWithPassword,
     signUp,
     signInWithGoogle,
     signInAsGuest,
+    signOut,
+    saveProfileDetails,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
@@ -76,4 +93,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-            }
+                                      }
