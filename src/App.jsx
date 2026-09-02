@@ -46,6 +46,8 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import CommunityGroupInfo from './pages/CommunityGroupInfo.jsx'
+import JoinCommunityByInvite from './pages/JoinCommunityByInvite.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -113,6 +115,8 @@ export default function App() {
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+        <Route path="/communities/join/:inviteCode" element={<RequireAuth><JoinCommunityByInvite /></RequireAuth>} />
+        <Route path="/communities/:communityId/info" element={<RequireAuth><CommunityGroupInfo /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
