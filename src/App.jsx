@@ -48,6 +48,7 @@ import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import CommunityGroupInfo from './pages/CommunityGroupInfo.jsx'
 import JoinCommunityByInvite from './pages/JoinCommunityByInvite.jsx'
+import Polls from './pages/Polls.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -117,6 +118,7 @@ export default function App() {
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
         <Route path="/communities/join/:inviteCode" element={<RequireAuth><JoinCommunityByInvite /></RequireAuth>} />
         <Route path="/communities/:communityId/info" element={<RequireAuth><CommunityGroupInfo /></RequireAuth>} />
+        <Route path="/polls" element={<RequireAuth><Polls /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
