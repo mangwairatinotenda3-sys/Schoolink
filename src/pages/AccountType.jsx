@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 const options = [
   { label: 'Parent / Guardian', value: 'parent' },
   { label: 'Investor', value: 'investor' },
+  { label: 'Alumni', value: 'alumni' },
   { label: 'Join as a Student', value: 'join-student' },
   { label: 'I have a Staff Invite Code', value: 'join' },
   { label: 'Create a School Account', value: 'create' },
@@ -28,6 +29,10 @@ export default function AccountType() {
     }
     if (value === 'create') {
       navigate('/onboarding/create-school')
+      return
+    }
+    if (value === 'alumni') {
+      navigate('/onboarding/select-alumni-school')
       return
     }
     await saveProfileDetails({ account_type: value })
@@ -56,4 +61,4 @@ export default function AccountType() {
       </div>
     </div>
   )
-    }
+              }
