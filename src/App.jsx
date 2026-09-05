@@ -49,6 +49,9 @@ import Dashboard from './pages/Dashboard.jsx'
 import CommunityGroupInfo from './pages/CommunityGroupInfo.jsx'
 import JoinCommunityByInvite from './pages/JoinCommunityByInvite.jsx'
 import Polls from './pages/Polls.jsx'
+import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
+import AlumniDirectory from './pages/AlumniDirectory.jsx'
+import Achievements from './pages/Achievements.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -119,6 +122,9 @@ export default function App() {
         <Route path="/communities/join/:inviteCode" element={<RequireAuth><JoinCommunityByInvite /></RequireAuth>} />
         <Route path="/communities/:communityId/info" element={<RequireAuth><CommunityGroupInfo /></RequireAuth>} />
         <Route path="/polls" element={<RequireAuth><Polls /></RequireAuth>} />
+        <Route path="/onboarding/select-alumni-school" element={<RequireAuth><SelectAlumniSchool /></RequireAuth>} />
+        <Route path="/alumni" element={<RequireAuth><AlumniDirectory /></RequireAuth>} />
+        <Route path="/achievements" element={<RequireAuth><Achievements /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
