@@ -9,7 +9,6 @@
 
 html, body, #root {
   height: 100%;
-  width: 100%;
 }
 
 body {
@@ -17,57 +16,61 @@ body {
   font-size: calc(1rem * var(--text-scale));
 }
 
-/* Mobile app shell */
 .app-shell {
-  width: 100%; /* fill screen on mobile */
-  max-width: 480px; /* cap width on desktop */
-  margin: 0 auto; /* center on desktop */
+  max-width: 480px;
+  margin: 0 auto;
   height: 100vh;
-  height: 100dvh; /* better for mobile browsers */
-  overflow: hidden; /* lock shell so only inner content scrolls */
+  height: 100dvh;
+  overflow: hidden;
   background: #fff;
   position: relative;
   display: flex;
   flex-direction: column;
 }
 
-/* Make it full width on phones */
-@media (max-width: 480px) {
-  .app-shell {
-    max-width: 100%;
-    margin: 0;
-  }
-}
-
-/* Dark mode */
+/* True black/WhatsApp-style dark mode */
 .app-shell.dark-mode {
-  background: #17131f;
-  color: #f2f0f7;
+  background: #000000;
+  color: #ffffff;
 }
 
-.app-shell.dark-mode .bg-white {
-  background-color: #1f1a29 !important;
+.app-shell.dark-mode .bg-white,
+.app-shell.dark-mode .bg-brand-light,
+.app-shell.dark-mode .bg-gray-50,
+.app-shell.dark-mode .bg-gray-100 {
+  background-color: #1a1a1a !important;
 }
 
-.app-shell.dark-mode .bg-brand-light {
-  background-color: #2a2436 !important;
-}
-
-.app-shell.dark-mode .text-brand-navy {
-  color: #f2f0f7 !important;
+.app-shell.dark-mode .text-brand-navy,
+.app-shell.dark-mode .text-gray-600,
+.app-shell.dark-mode .text-gray-700,
+.app-shell.dark-mode .text-gray-800 {
+  color: #ffffff !important;
 }
 
 .app-shell.dark-mode .text-gray-400,
 .app-shell.dark-mode .text-gray-500 {
-  color: #a39cb5 !important;
+  color: #8e8e8e !important;
 }
 
 .app-shell.dark-mode .border-gray-100,
 .app-shell.dark-mode .border-gray-200 {
-  border-color: #362f44 !important;
+  border-color: #2a2a2a !important;
 }
 
-/* High contrast */
+.app-shell.dark-mode input,
+.app-shell.dark-mode textarea,
+.app-shell.dark-mode select {
+  background-color: #1a1a1a !important;
+  color: #ffffff !important;
+  border-color: #2a2a2a !important;
+}
+
+.app-shell.dark-mode input::placeholder,
+.app-shell.dark-mode textarea::placeholder {
+  color: #6e6e6e !important;
+}
+
 .app-shell.high-contrast {
   filter: contrast(1.3);
 }
@@ -76,16 +79,12 @@ body {
   color: #4b5563 !important;
 }
 
-/* This is what actually scrolls */
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
-  padding-bottom: 84px; /* space for bottom nav */
-  -webkit-overflow-scrolling: touch; /* smooth scroll on iPhone */
+  padding-bottom: 84px;
 }
 
-/* Hide scrollbar */
 ::-webkit-scrollbar {
   display: none;
   }
