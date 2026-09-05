@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, X } from 'lucide-react'
+import { Bell, Menu, Search, X, Landmark, FlaskConical, Volleyball, Users, GraduationCap, Grid3x3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient.js'
@@ -9,7 +9,14 @@ import ComposerBar from '../components/ComposerBar.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 
-const shortcuts = ['Your School', 'Science Club', 'Sports Club', 'Parents', 'Alumni']
+const shortcuts = [
+  { label: 'Your School', icon: Landmark, color: 'bg-blue-500', to: (schoolId) => (schoolId ? '/school-profile' : '/onboarding/account-type') },
+  { label: 'Science Club', icon: FlaskConical, color: 'bg-emerald-500', to: () => '/communities' },
+  { label: 'Sports Club', icon: Volleyball, color: 'bg-orange-500', to: () => '/communities' },
+  { label: 'Parents', icon: Users, color: 'bg-purple-500', to: () => '/communities' },
+  { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: () => '/alumni' },
+  { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: () => '/settings' },
+]
 
 export default function Home() {
   const navigate = useNavigate()
@@ -54,12 +61,6 @@ export default function Home() {
       .eq('status', 'active')
       .then(({ count }) => setMemberCount(count ?? 0))
   }, [profile?.school_id])
-
-  function handleShortcut(label) {
-    if (label === 'Your School') {
-      navigate(profile?.school_id ? '/school-profile' : '/onboarding/account-type')
-    }
-  }
 
   const visiblePosts = searchQuery.trim()
     ? posts.filter(
@@ -113,12 +114,16 @@ export default function Home() {
 
       <div className="screen-scroll">
         <div className="flex gap-4 px-4 py-4 overflow-x-auto">
-          {shortcuts.map((s) => (
-            <button key={s} onClick={() => handleShortcut(s)} className="flex flex-col items-center gap-1 shrink-0">
-              <span className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center text-xl">
-                🎓
+          {shortcuts.map(({ label, icon: Icon, color, to }) => (
+            <button
+              key={label}
+              onClick={() => navigate(to(profile?.school_id))}
+              className="flex flex-col items-center gap-1 shrink-0"
+            >
+              <span className={`w-14 h-14 rounded-full ${color} flex items-center justify-center`}>
+                <Icon size={22} className="text-white" />
               </span>
-              <span className="text-[11px] text-gray-500 max-w-[56px] text-center">{s}</span>
+              <span className="text-[11px] text-gray-500 max-w-[56px] text-center">{label}</span>
             </button>
           ))}
         </div>
@@ -166,4 +171,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-}
+  }
