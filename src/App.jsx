@@ -52,6 +52,8 @@ import Polls from './pages/Polls.jsx'
 import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
 import AlumniDirectory from './pages/AlumniDirectory.jsx'
 import Achievements from './pages/Achievements.jsx'
+import CounsellingDashboard from './pages/CounsellingDashboard.jsx'
+import ReceptionistDashboard from './pages/ReceptionistDashboard.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -111,6 +113,8 @@ export default function App() {
         <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
         <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
         <Route path="/connections/:type" element={<RequireAuth><Connections /></RequireAuth>} />
+        <Route path="/counselling" element={<RequireAuth><CounsellingDashboard /></RequireAuth>} />
+        <Route path="/reception" element={<RequireAuth><ReceptionistDashboard /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
