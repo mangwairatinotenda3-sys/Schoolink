@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, X, Landmark, FlaskConical, Volleyball, Users, GraduationCap, Grid3x3 } from 'lucide-react'
+import { Bell, Menu, Search, X, Landmark, FlaskConical, Trophy, Users, GraduationCap, Grid3x3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient.js'
@@ -12,7 +12,7 @@ import { useUnreadCount } from '../lib/useUnreadCount.js'
 const shortcuts = [
   { label: 'Your School', icon: Landmark, color: 'bg-blue-500', to: (schoolId) => (schoolId ? '/school-profile' : '/onboarding/account-type') },
   { label: 'Science Club', icon: FlaskConical, color: 'bg-emerald-500', to: () => '/communities' },
-  { label: 'Sports Club', icon: Volleyball, color: 'bg-orange-500', to: () => '/communities' },
+  { label: 'Sports Club', icon: Trophy, color: 'bg-orange-500', to: () => '/communities' },
   { label: 'Parents', icon: Users, color: 'bg-purple-500', to: () => '/communities' },
   { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: () => '/alumni' },
   { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: () => '/settings' },
