@@ -16,5 +16,12 @@ export default function ThemeProvider({ children }) {
     document.documentElement.style.setProperty('--text-scale', textScales[key] || '1')
   }, [profile?.text_size])
 
+  useEffect(() => {
+    // Explicitly tell the browser which color scheme we're using so it
+    // stops trying to auto-darken the page on its own — that's what was
+    // causing some elements to go dark and others to stay stubbornly white.
+    document.documentElement.style.colorScheme = profile?.dark_mode ? 'dark' : 'light'
+  }, [profile?.dark_mode])
+
   return children
 }
