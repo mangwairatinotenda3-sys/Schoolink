@@ -19,8 +19,10 @@ import {
   ClipboardList,
   Table,
   BarChart3,
-  GraduationCap,
-} from 'lucide-react'
+GraduationCap,
+  HeartHandshake,
+  UserCheck,
+} from 'lucide-react'  
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -49,6 +51,12 @@ export default function Settings() {
       : []),
     ...(canManageDevices(profile)
       ? [{ label: 'ICT Dashboard', sub: 'Device management, resources', icon: Laptop, to: '/ict' }]
+      : []),
+    ...(['Guidance & Counselling', 'Headteacher', 'Deputy Head'].includes(profile?.role)
+      ? [{ label: 'Guidance & Counselling', sub: 'Student appointments', icon: HeartHandshake, to: '/counselling' }]
+      : []),
+    ...(['Receptionist', 'Headteacher', 'Deputy Head'].includes(profile?.role)
+      ? [{ label: 'Receptionist Dashboard', sub: 'Visitors, parent appointments', icon: UserCheck, to: '/reception' }]
       : []),
     { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette, to: '/settings/chat-appearance' },
     { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye, to: '/settings/accessibility' },
