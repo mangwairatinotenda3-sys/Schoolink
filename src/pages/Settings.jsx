@@ -19,6 +19,8 @@ import {
   ClipboardList,
   Table,
   BarChart3,
+  GraduationCap,
+  Trophy,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
@@ -35,6 +37,8 @@ export default function Settings() {
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock, to: '/settings/privacy' },
     { label: 'School Calendar', sub: 'Events, RSVPs', icon: CalendarDays, to: '/calendar' },
     { label: 'Polls & Surveys', sub: 'Vote and see school opinions', icon: BarChart3, to: '/polls' },
+    { label: 'Alumni', sub: 'Connect with former students', icon: GraduationCap, to: '/alumni' },
+    { label: 'School Achievements', sub: 'Awards, records, milestones', icon: Trophy, to: '/achievements' },
     { label: 'Homework & Assignments', sub: 'View and post assignments', icon: ClipboardList, to: '/assignments' },
     { label: 'Timetable', sub: 'Class schedule by day', icon: Table, to: '/timetable' },
     { label: 'Library', sub: 'Novels, textbooks, past exam papers', icon: BookOpen, to: '/library' },
