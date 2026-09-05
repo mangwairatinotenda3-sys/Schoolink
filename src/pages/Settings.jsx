@@ -20,7 +20,6 @@ import {
   Table,
   BarChart3,
   GraduationCap,
-  Trophy,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
