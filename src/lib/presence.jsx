@@ -41,3 +41,7 @@ export function useIsOnline(userId) {
   const onlineIds = useContext(PresenceContext)
   return userId ? onlineIds.has(userId) : false
 }
+
+export function useOnlineIds() {
+  return useContext(PresenceContext)
+}
