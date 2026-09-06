@@ -470,4 +470,101 @@ export default function SchoolProfile() {
                     <input value={form.pass_rate || ''} onChange={(e) => updateField('pass_rate', e.target.value)} placeholder="Pass rate %" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.established_year || ''} onChange={(e) => updateField('established_year', e.target.value)} placeholder="Established year" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.total_students || ''} onChange={(e) => updateField('total_students', e.target.value)} placeholder="Total students" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.total_teachers || ''} onChange={(e) => updateField('total_teachers', e.target.value)} placeholder="Teac
+                                        <input value={form.total_teachers || ''} onChange={(e) => updateField('total_teachers', e.target.value)} placeholder="Teachers" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <input value={form.non_teaching_staff || ''} onChange={(e) => updateField('non_teaching_staff', e.target.value)} placeholder="Non-teaching staff" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <input value={form.total_classes || ''} onChange={(e) => updateField('total_classes', e.target.value)} placeholder="Classes" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                  </div>
+                  <button
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="w-full bg-brand-purple text-white rounded-xl py-2.5 font-medium disabled:opacity-50"
+                  >
+                    {saving? 'Saving...' : 'Save Changes'}
+                  </button>
+                  {message? <p className="text-center text-sm text-green-600">{message}</p> : null}
+                </>
+              ) : null}
+            </div>
+          ) : null}
+
+          {activeTab === 'Staff'? (
+            <div className="space-y-2">
+              {staff.length === 0? <p className="text-center text-gray-400">No staff added yet.</p> : staff.map(s => (
+                <div key={s.id} className="border border-gray-100 rounded-xl p-3 flex items-center justify-between">
+                  <div>
+                    <p className="font-medium text-sm">{s.full_name}</p>
+                    <p className="text-xs text-gray-500">{s.role}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {activeTab === 'Photos'? (
+            <div>
+              {canEdit? (
+                <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingPhoto} className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 flex items-center justify-center gap-2 text-sm text-gray-500 mb-3">
+                  <Plus size={16} /> {uploadingPhoto? 'Uploading...' : 'Add Photo'}
+                </button>
+              ) : null}
+              <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryUpload} className="hidden" />
+              <div className="grid grid-cols-3 gap-2">
+                {gallery.map(g => <img key={g.id} src={g.image_url} className="w-full h-24 object-cover rounded-lg" />)}
+              </div>
+            </div>
+          ) : null}
+
+          {activeTab === 'Events'? (
+            <div className="space-y-2">
+              {events.length === 0? <p className="text-center text-gray-400">No events yet.</p> : events.map(e => (
+                <div key={e.id} className="border border-gray-100 rounded-xl p-3">
+                  <p className="font-medium text-sm">{e.title}</p>
+                  <p className="text-xs text-gray-500">{new Date(e.event_date).toLocaleDateString()}</p>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {activeTab === 'Documents'? (
+            <div>
+              {canEdit? (
+                <button onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="w-full border-2 border-dashed border-gray-200 rounded-xl py-6 flex items-center justify-center gap-2 text-sm text-gray-500 mb-3">
+                  <FileText size={16} /> {uploadingDoc? 'Uploading...' : 'Upload Document'}
+                </button>
+              ) : null}
+              <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.xls,.xlsx" onChange={handleDocUpload} className="hidden" />
+              <div className="space-y-2">
+                {documents.length === 0? <p className="text-center text-gray-400">No documents yet.</p> : documents.map(d => (
+                  <div key={d.id} className="border border-gray-100 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <FileText size={16} className="shrink-0" />
+                        <p className="text-sm truncate">{d.title}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <a href={d.file_url} target="_blank" rel="noreferrer" className="p-1.5 hover:bg-gray-50 rounded-lg">
+                          <Download size={16} />
+                        </a>
+                        <button onClick={() => handleShareDoc(d)} className="p-1.5 hover:bg-gray-50 rounded-lg">
+                          <Share2 size={16} />
+                        </button>
+                        {canEdit? (
+                          <button onClick={() => handleDeleteDoc(d)} className="p-1.5 hover:bg-red-50 text-red-500 rounded-lg">
+                            <Trash2 size={16} />
+                          </button>
+                        ) : null}
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">
+                      Uploaded {new Date(d.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    </div>
+  );
+}
