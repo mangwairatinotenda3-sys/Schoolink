@@ -10,7 +10,7 @@ export default function ComposerBar() {
 
   return (
     <button
-      onClick={() => navigate('/add-post')}
+      onClick={() => navigate('/statuses/create')}
       className="mx-4 mt-3 flex items-center gap-3 bg-gray-50 rounded-full px-3 py-3 text-left w-[calc(100%-2rem)]"
     >
       <span className="relative shrink-0">
@@ -19,12 +19,10 @@ export default function ComposerBar() {
         ) : (
           <span className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-lg">🙂</span>
         )}
-        {isOnline ? (
-          <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-white" />
-        ) : null}
+        {isOnline ? <span className="absolute bottom-0 right-0 w-3 h-3 rounded-full bg-green-500 border-2 border-white" /> : null}
       </span>
       <span className="flex-1 text-gray-400 text-sm">What's on your mind?</span>
       <ImageIcon size={20} className="text-green-500 shrink-0" />
     </button>
   )
-    }
+}
