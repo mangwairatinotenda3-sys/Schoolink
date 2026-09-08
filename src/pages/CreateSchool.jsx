@@ -1,10 +1,18 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { School, Building2, Landmark, University, Wrench, MoreHorizontal } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
-const types = ['Primary School', 'Junior School', 'High School', 'College', 'University', 'Other']
+const types = [
+  { label: 'Primary School', icon: School, color: 'bg-blue-500' },
+  { label: 'Junior School', icon: Building2, color: 'bg-green-500' },
+  { label: 'High School', icon: Landmark, color: 'bg-purple-500' },
+  { label: 'College', icon: University, color: 'bg-orange-500' },
+  { label: 'University', icon: University, color: 'bg-rose-500' },
+  { label: 'Other', icon: Wrench, color: 'bg-gray-500' },
+]
 
 export default function CreateSchool() {
   const navigate = useNavigate()
@@ -58,13 +66,16 @@ export default function CreateSchool() {
         <div className="grid grid-cols-2 gap-3">
           {types.map((t) => (
             <button
-              key={t}
-              onClick={() => setType(t)}
-              className={`py-4 rounded-xl border text-sm font-medium ${
-                type === t ? 'border-brand-purple text-brand-purple bg-brand-light' : 'border-gray-200'
+              key={t.label}
+              onClick={() => setType(t.label)}
+              className={`flex items-center gap-2 py-3 px-3 rounded-xl border ${
+                type === t.label ? 'border-brand-purple bg-brand-light' : 'border-gray-200'
               }`}
             >
-              {t}
+              <span className={`w-8 h-8 rounded-full ${t.color} flex items-center justify-center shrink-0`}>
+                <t.icon size={15} className="text-white" />
+              </span>
+              <span className="text-sm font-medium text-left">{t.label}</span>
             </button>
           ))}
         </div>
@@ -90,4 +101,4 @@ export default function CreateSchool() {
       </div>
     </div>
   )
-               }
+    }
