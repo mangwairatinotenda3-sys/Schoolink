@@ -15,7 +15,7 @@ const shortcuts = [
   { label: 'Sports Club', icon: Trophy, color: 'bg-orange-500', to: () => '/communities' },
   { label: 'Parents', icon: Users, color: 'bg-purple-500', to: () => '/communities' },
   { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: () => '/alumni' },
-  { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: () => '/settings' },
+  { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: () => '/more' },
 ]
 
 export default function Home() {
