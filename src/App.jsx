@@ -12,6 +12,7 @@ import InviteMember from './pages/InviteMember.jsx'
 import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
 import SchoolProfile from './pages/SchoolProfile.jsx'
+import BrowseSchools from './pages/BrowseSchools.jsx'
 import EditProfileDetails from './pages/EditProfileDetails.jsx'
 import Library from './pages/Library.jsx'
 import ChatList from './pages/ChatList.jsx'
@@ -48,6 +49,8 @@ import Achievements from './pages/Achievements.jsx'
 import CounsellingDashboard from './pages/CounsellingDashboard.jsx'
 import ReceptionistDashboard from './pages/ReceptionistDashboard.jsx'
 import MoreHub from './pages/MoreHub.jsx'
+import CreateStatus from './pages/CreateStatus.jsx'
+import StatusViewer from './pages/StatusViewer.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -65,12 +68,7 @@ function RequireAuth({ children }) {
 
 export default function App() {
   const { profile } = useAuth()
-  const shellClasses = [
-    'app-shell',
-    'shadow-xl',
-    profile?.dark_mode ? 'dark-mode' : '',
-    profile?.high_contrast ? 'high-contrast' : '',
-  ].filter(Boolean).join(' ')
+  const shellClasses = ['app-shell', 'shadow-xl', profile?.dark_mode ? 'dark-mode' : '', profile?.high_contrast ? 'high-contrast' : ''].filter(Boolean).join(' ')
 
   return (
     <div className={shellClasses}>
@@ -88,6 +86,8 @@ export default function App() {
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
+        <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
+        <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
         <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
@@ -123,6 +123,8 @@ export default function App() {
         <Route path="/counselling" element={<RequireAuth><CounsellingDashboard /></RequireAuth>} />
         <Route path="/reception" element={<RequireAuth><ReceptionistDashboard /></RequireAuth>} />
         <Route path="/more" element={<RequireAuth><MoreHub /></RequireAuth>} />
+        <Route path="/statuses/create" element={<RequireAuth><CreateStatus /></RequireAuth>} />
+        <Route path="/statuses/:userId" element={<RequireAuth><StatusViewer /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
