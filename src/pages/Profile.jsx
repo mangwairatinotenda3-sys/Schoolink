@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, MapPin, Pencil, Share2, FileText, Link2, GraduationCap, Users } from 'lucide-react'
+import { MapPin, Pencil, Share2, FileText, Link2, GraduationCap, Users, Landmark } from 'lucide-react'
 import AvatarUpload from '../components/AvatarUpload.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import PostCard from '../components/PostCard.jsx'
@@ -24,6 +24,7 @@ export default function Profile() {
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
   const role = profile?.role || 'Schoolink member'
   const links = (profile?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
+  const isMember = isSchoolMember(profile)
 
   useEffect(() => {
     if (!user) return
@@ -36,12 +37,7 @@ export default function Profile() {
       setSchool(null)
       return
     }
-    supabase
-      .from('schools')
-      .select('name, location')
-      .eq('id', profile.school_id)
-      .maybeSingle()
-      .then(({ data }) => setSchool(data))
+    supabase.from('schools').select('name, location').eq('id', profile.school_id).maybeSingle().then(({ data }) => setSchool(data))
   }, [profile?.school_id])
 
   async function loadStats() {
@@ -50,31 +46,20 @@ export default function Profile() {
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
     ])
-    setStats({
-      posts: postsCount ?? 0,
-      followers: followersCount ?? 0,
-      following: followingCount ?? 0,
-    })
+    setStats({ posts: postsCount ?? 0, followers: followersCount ?? 0, following: followingCount ?? 0 })
   }
 
   async function loadPosts() {
     setPostsLoading(true)
-    const { data } = await supabase
-      .from('posts')
-      .select('*')
-      .eq('author_id', user.id)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('posts').select('*').eq('author_id', user.id).order('created_at', { ascending: false })
     setPosts(data ?? [])
     setPostsLoading(false)
   }
 
   function handleShare() {
     const url = window.location.href
-    if (navigator.share) {
-      navigator.share({ title: name, url })
-    } else {
-      navigator.clipboard?.writeText(url)
-    }
+    if (navigator.share) navigator.share({ title: name, url })
+    else navigator.clipboard?.writeText(url)
   }
 
   return (
@@ -96,7 +81,7 @@ export default function Profile() {
 
           <p className="font-bold text-lg mt-3">{name}</p>
           <span className="text-[11px] bg-brand-purple/30 px-2 py-0.5 rounded-full mt-1">{role}</span>
-          {school ? (
+          {isMember && school ? (
             <p className="text-sm text-white/70 flex items-center gap-1 mt-2">
               <MapPin size={13} /> {school.name}
               {isOnline ? <span className="text-green-400 ml-1">· Online</span> : null}
@@ -107,23 +92,17 @@ export default function Profile() {
 
         <div className="grid grid-cols-3 gap-2 mt-5 text-center">
           <div>
-            <span className="w-9 h-9 rounded-full bg-purple-500/30 mx-auto flex items-center justify-center mb-1">
-              <FileText size={16} />
-            </span>
+            <span className="w-9 h-9 rounded-full bg-purple-500/30 mx-auto flex items-center justify-center mb-1"><FileText size={16} /></span>
             <p className="font-bold text-sm">{stats.posts}</p>
             <p className="text-[10px] text-white/50">Posts</p>
           </div>
           <button onClick={() => navigate('/connections/followers')}>
-            <span className="w-9 h-9 rounded-full bg-green-500/30 mx-auto flex items-center justify-center mb-1">
-              <Users size={16} />
-            </span>
+            <span className="w-9 h-9 rounded-full bg-green-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
             <p className="font-bold text-sm">{stats.followers}</p>
             <p className="text-[10px] text-white/50">Followers</p>
           </button>
           <button onClick={() => navigate('/connections/following')}>
-            <span className="w-9 h-9 rounded-full bg-blue-500/30 mx-auto flex items-center justify-center mb-1">
-              <Users size={16} />
-            </span>
+            <span className="w-9 h-9 rounded-full bg-blue-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
             <p className="font-bold text-sm">{stats.following}</p>
             <p className="text-[10px] text-white/50">Following</p>
           </button>
@@ -138,29 +117,23 @@ export default function Profile() {
 
       <div className="screen-scroll px-4">
         <div className="flex gap-2 mt-3">
-          <button
-            onClick={() => navigate('/edit-profile-details')}
-            className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium"
-          >
+          <button onClick={() => navigate('/edit-profile-details')} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium">
             <Pencil size={15} /> Edit Profile
           </button>
-          <button
-            onClick={handleShare}
-            className="flex-1 flex items-center justify-center gap-1.5 border border-brand-purple text-brand-purple rounded-xl py-2.5 text-sm font-medium"
-          >
+          <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-1.5 border border-brand-purple text-brand-purple rounded-xl py-2.5 text-sm font-medium">
             <Share2 size={15} /> Share Profile
           </button>
         </div>
 
+        {isMember ? (
+          <button onClick={() => navigate('/school-profile')} className="w-full flex items-center justify-center gap-1.5 bg-brand-light text-brand-purple rounded-xl py-2.5 text-sm font-medium mt-2">
+            <Landmark size={15} /> My School
+          </button>
+        ) : null}
+
         <div className="flex gap-5 mt-4 border-b border-gray-100">
           {tabs.map((t) => (
-            <button
-              key={t}
-              onClick={() => setActiveTab(t)}
-              className={`pb-2 text-sm font-medium border-b-2 ${
-                activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'
-              }`}
-            >
+            <button key={t} onClick={() => setActiveTab(t)} className={`pb-2 text-sm font-medium border-b-2 ${activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'}`}>
               {t}
             </button>
           ))}
@@ -197,13 +170,11 @@ export default function Profile() {
                   <p className="text-sm text-gray-400">No links added</p>
                 )}
               </div>
-              {school && isSchoolMember(profile) ? (
+              {isMember && school ? (
                 <div>
                   <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Education</p>
                   <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
-                    <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0">
-                      <GraduationCap size={18} className="text-brand-purple" />
-                    </span>
+                    <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><GraduationCap size={18} className="text-brand-purple" /></span>
                     <div>
                       <p className="text-sm font-medium">{school.name}</p>
                       <p className="text-xs text-gray-400">{role}</p>
