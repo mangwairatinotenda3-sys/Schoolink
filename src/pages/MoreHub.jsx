@@ -24,6 +24,7 @@ export default function MoreHub() {
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
     { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
+    { label: 'Browse Schools', icon: MessagesSquare, color: 'bg-blue-600', to: '/schools' },
     ...(isStaffMember(profile) ? [{ label: 'Analytics', icon: BarChart3, color: 'bg-violet-500', to: '/dashboard' }] : []),
     ...(canManageFees(profile) ? [{ label: 'Bursar', icon: DollarSign, color: 'bg-green-600', to: '/bursar' }] : []),
     ...(canManageSports(profile) ? [{ label: 'Coach', icon: Trophy, color: 'bg-orange-600', to: '/coach' }] : []),
