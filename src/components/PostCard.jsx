@@ -30,51 +30,28 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   }, [])
 
   async function loadLikes() {
-    const { count } = await supabase
-      .from('likes')
-      .select('*', { count: 'exact', head: true })
-      .eq('post_id', post.id)
+    const { count } = await supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', post.id)
     setLikeCount(count ?? 0)
-
     if (user) {
-      const { data } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('post_id', post.id)
-        .eq('user_id', user.id)
-        .maybeSingle()
+      const { data } = await supabase.from('likes').select('*').eq('post_id', post.id).eq('user_id', user.id).maybeSingle()
       setLiked(!!data)
     }
   }
 
   async function loadSaved() {
     if (!user) return
-    const { data } = await supabase
-      .from('saved_posts')
-      .select('*')
-      .eq('post_id', post.id)
-      .eq('user_id', user.id)
-      .maybeSingle()
+    const { data } = await supabase.from('saved_posts').select('*').eq('post_id', post.id).eq('user_id', user.id).maybeSingle()
     setSaved(!!data)
   }
 
   async function loadFollow() {
     if (!user || !post.author_id || post.author_id === user.id) return
-    const { data } = await supabase
-      .from('follows')
-      .select('*')
-      .eq('follower_id', user.id)
-      .eq('followed_id', post.author_id)
-      .maybeSingle()
+    const { data } = await supabase.from('follows').select('*').eq('follower_id', user.id).eq('followed_id', post.author_id).maybeSingle()
     setFollowing(!!data)
   }
 
   async function loadComments() {
-    const { data } = await supabase
-      .from('comments')
-      .select('*')
-      .eq('post_id', post.id)
-      .order('created_at', { ascending: true })
+    const { data } = await supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
     setComments(data ?? [])
   }
 
@@ -83,12 +60,10 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     if (!user) return
     if (liked) {
       await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', user.id)
-      setLiked(false)
-      setLikeCount((c) => c - 1)
+      setLiked(false); setLikeCount((c) => c - 1)
     } else {
       await supabase.from('likes').insert({ post_id: post.id, user_id: user.id })
-      setLiked(true)
-      setLikeCount((c) => c + 1)
+      setLiked(true); setLikeCount((c) => c + 1)
     }
   }
 
@@ -126,20 +101,10 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     e.stopPropagation()
     if (!commentText.trim() || !user || submittingComment) return
     setSubmittingComment(true)
-    const { data, error } = await supabase
-      .from('comments')
-      .insert({
-        post_id: post.id,
-        author_id: user.id,
-        author_name: profile?.full_name || user.email,
-        content: commentText,
-      })
-      .select()
-      .maybeSingle()
-    if (!error && data) {
-      setComments((c) => [...c, data])
-      setCommentText('')
-    }
+    const { data, error } = await supabase.from('comments').insert({
+      post_id: post.id, author_id: user.id, author_name: profile?.full_name || user.email, content: commentText,
+    }).select().maybeSingle()
+    if (!error && data) { setComments((c) => [...c, data]); setCommentText('') }
     setSubmittingComment(false)
   }
 
@@ -150,32 +115,30 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     setDeleting(true)
     const { error } = await supabase.from('posts').delete().eq('id', post.id)
     setDeleting(false)
-    if (!error) {
-      onDeleted ? onDeleted(post.id) : navigate(-1)
-    }
+    if (!error) onDeleted ? onDeleted(post.id) : navigate(-1)
   }
 
   function goToPost() {
     if (!expandComments) navigate(`/post/${post.id}`)
   }
 
+  function goToAuthorProfile(e) {
+    e.stopPropagation()
+    if (post.author_id) navigate(`/users/${post.author_id}`)
+  }
+
   return (
-    <div
-      className={`border border-gray-100 rounded-xl p-4 ${deleting ? 'opacity-40' : ''}`}
-      onClick={goToPost}
-    >
+    <div className={`border border-gray-100 rounded-xl p-4 ${deleting ? 'opacity-40' : ''}`} onClick={goToPost}>
       <div className="flex items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="font-semibold truncate">{post.author_name}</p>
+        <button onClick={goToAuthorProfile} className="min-w-0 text-left">
+          <p className="font-semibold truncate hover:underline">{post.author_name}</p>
           <p className="text-xs text-gray-400 truncate">{post.author_role}</p>
-        </div>
+        </button>
         <div className="flex items-center gap-2 shrink-0">
           {user && post.author_id !== user.id ? (
             <button
               onClick={toggleFollow}
-              className={`text-xs font-medium px-3 py-1 rounded-full border ${
-                following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'
-              }`}
+              className={`text-xs font-medium px-3 py-1 rounded-full border ${following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'}`}
             >
               {following ? 'Following' : 'Follow'}
             </button>
@@ -187,10 +150,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
               </button>
               {menuOpen ? (
                 <div className="absolute right-0 top-6 bg-white border border-gray-100 rounded-lg shadow-lg z-10 w-32">
-                  <button
-                    onClick={handleDelete}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500"
-                  >
+                  <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500">
                     <Trash2 size={14} /> Delete
                   </button>
                 </div>
@@ -201,9 +161,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       </div>
 
       {post.category && post.category !== 'General' ? (
-        <span className="inline-block mt-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-light text-brand-purple">
-          {post.category}
-        </span>
+        <span className="inline-block mt-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-light text-brand-purple">{post.category}</span>
       ) : null}
 
       {post.content ? <p className="text-sm mt-2">{post.content}</p> : null}
@@ -213,21 +171,16 @@ export default function PostCard({ post, onDeleted, expandComments }) {
           src={post.image_url}
           alt=""
           className="w-full rounded-xl mt-2 max-h-80 object-cover cursor-pointer"
-          onClick={(e) => {
-            e.stopPropagation()
-            setViewerOpen(true)
-          }}
+          onClick={(e) => { e.stopPropagation(); setViewerOpen(true) }}
         />
       ) : null}
 
       <div className="flex items-center gap-5 mt-3 text-gray-500" onClick={(e) => e.stopPropagation()}>
         <button onClick={toggleLike} className="flex items-center gap-1 text-sm">
-          <Heart size={18} className={liked ? 'text-red-500' : ''} fill={liked ? 'currentColor' : 'none'} />
-          {likeCount}
+          <Heart size={18} className={liked ? 'text-red-500' : ''} fill={liked ? 'currentColor' : 'none'} /> {likeCount}
         </button>
         <button onClick={handleToggleComments} className="flex items-center gap-1 text-sm">
-          <MessageCircle size={18} />
-          {comments.length || ''}
+          <MessageCircle size={18} /> {comments.length || ''}
         </button>
         <button onClick={toggleSave} className="ml-auto">
           <Bookmark size={18} className={saved ? 'text-brand-purple' : ''} fill={saved ? 'currentColor' : 'none'} />
@@ -238,8 +191,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         <div className="mt-3 border-t border-gray-100 pt-3 space-y-2" onClick={(e) => e.stopPropagation()}>
           {comments.map((c) => (
             <div key={c.id} className="text-sm">
-              <span className="font-medium">{c.author_name}</span>{' '}
-              <span className="text-gray-600">{c.content}</span>
+              <span className="font-medium">{c.author_name}</span> <span className="text-gray-600">{c.content}</span>
             </div>
           ))}
           {user ? (
@@ -259,13 +211,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </div>
       ) : null}
 
-      {viewerOpen ? (
-        <PhotoViewer
-          imageUrl={post.image_url}
-          postId={post.id}
-          onClose={() => setViewerOpen(false)}
-        />
-      ) : null}
+      {viewerOpen ? <PhotoViewer imageUrl={post.image_url} postId={post.id} onClose={() => setViewerOpen(false)} /> : null}
     </div>
   )
-                                 }
+}
