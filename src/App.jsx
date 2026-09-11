@@ -58,6 +58,7 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import PublicProfile from './pages/PublicProfile.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -125,6 +126,7 @@ export default function App() {
         <Route path="/more" element={<RequireAuth><MoreHub /></RequireAuth>} />
         <Route path="/statuses/create" element={<RequireAuth><CreateStatus /></RequireAuth>} />
         <Route path="/statuses/:userId" element={<RequireAuth><StatusViewer /></RequireAuth>} />
+        <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
