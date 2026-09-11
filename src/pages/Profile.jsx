@@ -22,21 +22,19 @@ export default function Profile() {
   const [postsLoading, setPostsLoading] = useState(true)
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
-  const role = profile?.role || 'Schoolink member'
+  const role = profile?.role || (profile?.account_type ? profile.account_type[0].toUpperCase() + profile.account_type.slice(1) : 'Schoolink member')
   const links = (profile?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
   const isMember = isSchoolMember(profile)
 
   useEffect(() => {
     if (!user) return
     loadStats()
-    loadPosts()
-  }, [user])
+    if (isMember) loadPosts()
+    else setPostsLoading(false)
+  }, [user, isMember])
 
   useEffect(() => {
-    if (!profile?.school_id) {
-      setSchool(null)
-      return
-    }
+    if (!profile?.school_id) { setSchool(null); return }
     supabase.from('schools').select('name, location').eq('id', profile.school_id).maybeSingle().then(({ data }) => setSchool(data))
   }, [profile?.school_id])
 
@@ -80,33 +78,35 @@ export default function Profile() {
           </div>
 
           <p className="font-bold text-lg mt-3">{name}</p>
+          {profile?.username ? <p className="text-xs text-white/50">@{profile.username}</p> : null}
           <span className="text-[11px] bg-brand-purple/30 px-2 py-0.5 rounded-full mt-1">{role}</span>
           {isMember && school ? (
             <p className="text-sm text-white/70 flex items-center gap-1 mt-2">
-              <MapPin size={13} /> {school.name}
-              {isOnline ? <span className="text-green-400 ml-1">· Online</span> : null}
+              <MapPin size={13} /> {school.name}{isOnline ? <span className="text-green-400 ml-1">· Online</span> : null}
             </p>
           ) : null}
           {profile?.bio ? <p className="text-sm text-white/70 text-center mt-2 max-w-xs">{profile.bio}</p> : null}
         </div>
 
-        <div className="grid grid-cols-3 gap-2 mt-5 text-center">
-          <div>
-            <span className="w-9 h-9 rounded-full bg-purple-500/30 mx-auto flex items-center justify-center mb-1"><FileText size={16} /></span>
-            <p className="font-bold text-sm">{stats.posts}</p>
-            <p className="text-[10px] text-white/50">Posts</p>
+        {isMember ? (
+          <div className="grid grid-cols-3 gap-2 mt-5 text-center">
+            <div>
+              <span className="w-9 h-9 rounded-full bg-purple-500/30 mx-auto flex items-center justify-center mb-1"><FileText size={16} /></span>
+              <p className="font-bold text-sm">{stats.posts}</p>
+              <p className="text-[10px] text-white/50">Posts</p>
+            </div>
+            <button onClick={() => navigate('/connections/followers')}>
+              <span className="w-9 h-9 rounded-full bg-green-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
+              <p className="font-bold text-sm">{stats.followers}</p>
+              <p className="text-[10px] text-white/50">Followers</p>
+            </button>
+            <button onClick={() => navigate('/connections/following')}>
+              <span className="w-9 h-9 rounded-full bg-blue-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
+              <p className="font-bold text-sm">{stats.following}</p>
+              <p className="text-[10px] text-white/50">Following</p>
+            </button>
           </div>
-          <button onClick={() => navigate('/connections/followers')}>
-            <span className="w-9 h-9 rounded-full bg-green-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
-            <p className="font-bold text-sm">{stats.followers}</p>
-            <p className="text-[10px] text-white/50">Followers</p>
-          </button>
-          <button onClick={() => navigate('/connections/following')}>
-            <span className="w-9 h-9 rounded-full bg-blue-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
-            <p className="font-bold text-sm">{stats.following}</p>
-            <p className="text-[10px] text-white/50">Following</p>
-          </button>
-        </div>
+        ) : null}
       </div>
 
       {isPendingApproval(profile) ? (
@@ -131,63 +131,65 @@ export default function Profile() {
           </button>
         ) : null}
 
-        <div className="flex gap-5 mt-4 border-b border-gray-100">
-          {tabs.map((t) => (
-            <button key={t} onClick={() => setActiveTab(t)} className={`pb-2 text-sm font-medium border-b-2 ${activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="py-4 pb-6">
-          {activeTab === 'Posts' ? (
-            postsLoading ? (
-              <p className="text-center text-gray-400 mt-6">Loading…</p>
-            ) : posts.length === 0 ? (
-              <p className="text-center text-gray-400 mt-6">You haven't posted anything yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {posts.map((p) => (
-                  <PostCard key={p.id} post={p} onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))} />
-                ))}
-              </div>
-            )
-          ) : (
-            <div className="space-y-4">
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Location</p>
-                <p className="text-sm text-gray-600">{profile?.location || 'Not set'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Links</p>
-                {links.length > 0 ? (
-                  links.map((link) => (
-                    <a key={link} href={link} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-brand-purple truncate">
-                      <Link2 size={14} className="shrink-0" /> {link}
-                    </a>
-                  ))
-                ) : (
-                  <p className="text-sm text-gray-400">No links added</p>
-                )}
-              </div>
-              {isMember && school ? (
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Education</p>
-                  <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
-                    <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><GraduationCap size={18} className="text-brand-purple" /></span>
-                    <div>
-                      <p className="text-sm font-medium">{school.name}</p>
-                      <p className="text-xs text-gray-400">{role}</p>
-                    </div>
-                  </div>
-                </div>
-              ) : null}
+        {isMember ? (
+          <>
+            <div className="flex gap-5 mt-4 border-b border-gray-100">
+              {tabs.map((t) => (
+                <button key={t} onClick={() => setActiveTab(t)} className={`pb-2 text-sm font-medium border-b-2 ${activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'}`}>
+                  {t}
+                </button>
+              ))}
             </div>
-          )}
-        </div>
+
+            <div className="py-4 pb-6">
+              {activeTab === 'Posts' ? (
+                postsLoading ? (
+                  <p className="text-center text-gray-400 mt-6">Loading…</p>
+                ) : posts.length === 0 ? (
+                  <p className="text-center text-gray-400 mt-6">You haven't posted anything yet.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {posts.map((p) => <PostCard key={p.id} post={p} onDeleted={(id) => setPosts((prev) => prev.filter((x) => x.id !== id))} />)}
+                  </div>
+                )
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Location</p>
+                    <p className="text-sm text-gray-600">{profile?.location || 'Not set'}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Links</p>
+                    {links.length > 0 ? links.map((link) => (
+                      <a key={link} href={link} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm text-brand-purple truncate">
+                        <Link2 size={14} className="shrink-0" /> {link}
+                      </a>
+                    )) : <p className="text-sm text-gray-400">No links added</p>}
+                  </div>
+                  {school ? (
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Education</p>
+                      <div className="flex items-center gap-3 border border-gray-100 rounded-xl p-3">
+                        <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><GraduationCap size={18} className="text-brand-purple" /></span>
+                        <div>
+                          <p className="text-sm font-medium">{school.name}</p>
+                          <p className="text-xs text-gray-400">{role}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div className="py-6 text-center text-gray-400 text-sm">
+            <p>Follow people from their posts or the Chats tab to start conversations with them.</p>
+          </div>
+        )}
       </div>
 
       <BottomNav />
     </div>
   )
-    }
+                                      }
