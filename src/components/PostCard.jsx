@@ -214,4 +214,4 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       {viewerOpen ? <PhotoViewer imageUrl={post.image_url} postId={post.id} onClose={() => setViewerOpen(false)} /> : null}
     </div>
   )
-}
+         }
