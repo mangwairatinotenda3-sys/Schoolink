@@ -319,6 +319,15 @@ export default function SchoolProfile() {
           ) : null}
         </div>
 
+        {profile?.account_type === 'investor' ? (
+          <button
+            onClick={() => navigate(`/schools/${school.id}/propose`)}
+            className="w-full bg-brand-purple text-white font-medium py-2.5 rounded-xl text-sm mt-2"
+          >
+            Send Investment Proposal
+          </button>
+        ) : null}
+
         {aboutText ? (
           <div className="border border-gray-100 rounded-xl p-4 mt-3">
             <p className="font-semibold text-sm mb-1">About School</p>
