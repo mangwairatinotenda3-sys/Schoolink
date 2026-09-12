@@ -6,6 +6,14 @@
   --brand-purple: #6C4CE0;
   --text-scale: 1;
   color-scheme: light;
+
+  /* Light mode colors — unchanged */
+  --app-bg: #F5F4FB;
+  --shell-bg: #fff;
+  --surface: #fff;
+  --text-primary: #24203F;
+  --text-secondary: #7B7890;
+  --border: #ECEAF3;
 }
 
 html, body, #root {
@@ -34,25 +42,104 @@ body {
   flex-direction: column;
 }
 
-/* True black/white dark mode — inverting colors guarantees every element
-   goes dark, not just the ones we manually targeted. Images/videos get
-   inverted a second time so photos still look normal, not like a negative. */
+/* Dark mode */
 .app-shell.dark-mode {
-  filter: invert(1) hue-rotate(180deg);
-  background: #fff;
+  color-scheme: dark;
+  filter: none;
+  background: #0B0920;
+  color: #F7F5FF;
+
+  --app-bg: #0B0920;
+  --shell-bg: #0B0920;
+  --surface: #14112D;
+  --surface-2: #1B1739;
+  --text-primary: #F7F5FF;
+  --text-secondary: #AAA6C1;
+  --text-muted: #85819D;
+  --border: #2B2748;
+  --input-bg: #17132F;
+  --nav-bg: #100D25;
+  --brand-purple: #7C5CFF;
 }
 
+/* Keep images and videos normal in dark mode */
 .app-shell.dark-mode img,
 .app-shell.dark-mode video {
-  filter: invert(1) hue-rotate(180deg);
+  filter: none;
 }
 
+/* High contrast */
 .app-shell.high-contrast {
   filter: contrast(1.3);
 }
 
 .app-shell.dark-mode.high-contrast {
-  filter: invert(1) hue-rotate(180deg) contrast(1.3);
+  filter: contrast(1.3);
+}
+
+/* Main dark surfaces */
+.app-shell.dark-mode .screen-scroll,
+.app-shell.dark-mode main,
+.app-shell.dark-mode section {
+  background-color: var(--app-bg);
+}
+
+/* Cards and panels */
+.app-shell.dark-mode .card,
+.app-shell.dark-mode .surface,
+.app-shell.dark-mode .panel,
+.app-shell.dark-mode .modal,
+.app-shell.dark-mode .settings-card {
+  background-color: var(--surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+/* Text */
+.app-shell.dark-mode h1,
+.app-shell.dark-mode h2,
+.app-shell.dark-mode h3,
+.app-shell.dark-mode h4,
+.app-shell.dark-mode h5,
+.app-shell.dark-mode h6,
+.app-shell.dark-mode p,
+.app-shell.dark-mode span,
+.app-shell.dark-mode label {
+  color: inherit;
+}
+
+/* Inputs */
+.app-shell.dark-mode input,
+.app-shell.dark-mode textarea,
+.app-shell.dark-mode select {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
+
+.app-shell.dark-mode input::placeholder,
+.app-shell.dark-mode textarea::placeholder {
+  color: var(--text-muted);
+}
+
+/* Sticky bottom navigation */
+.app-shell.dark-mode nav,
+.app-shell.dark-mode .bottom-nav,
+.app-shell.dark-mode .bottom-navigation {
+  background-color: var(--nav-bg);
+  border-top-color: var(--border);
+}
+
+/* Dividers */
+.app-shell.dark-mode hr,
+.app-shell.dark-mode .divider {
+  border-color: var(--border);
+}
+
+/* Purple links and active elements */
+.app-shell.dark-mode a,
+.app-shell.dark-mode .active {
+  color: var(--brand-purple);
 }
 
 .screen-scroll {
