@@ -59,6 +59,12 @@ import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import PublicProfile from './pages/PublicProfile.jsx'
+import LoginHistory from './pages/LoginHistory.jsx'
+import TwoFactorSettings from './pages/TwoFactorSettings.jsx'
+import UnifiedSearch from './pages/UnifiedSearch.jsx'
+import SendProposal from './pages/SendProposal.jsx'
+import ViewProposals from './pages/ViewProposals.jsx'
+import ExamResults from './pages/ExamResults.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -127,6 +133,12 @@ export default function App() {
         <Route path="/statuses/create" element={<RequireAuth><CreateStatus /></RequireAuth>} />
         <Route path="/statuses/:userId" element={<RequireAuth><StatusViewer /></RequireAuth>} />
         <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
+        <Route path="/settings/login-history" element={<RequireAuth><LoginHistory /></RequireAuth>} />
+        <Route path="/settings/two-factor" element={<RequireAuth><TwoFactorSettings /></RequireAuth>} />
+        <Route path="/search" element={<RequireAuth><UnifiedSearch /></RequireAuth>} />
+        <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
+        <Route path="/proposals" element={<RequireAuth><ViewProposals /></RequireAuth>} />
+        <Route path="/exam-results" element={<RequireAuth><ExamResults /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
