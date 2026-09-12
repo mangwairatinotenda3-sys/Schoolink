@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Plus, X, DollarSign } from 'lucide-react'
+import { Plus, X, DollarSign, ExternalLink } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -10,7 +10,7 @@ export default function BursarDashboard() {
   const [records, setRecords] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ student_name: '', amount: '', term: '', status: 'pending', notes: '' })
+  const [form, setForm] = useState({ student_name: '', amount: '', term: '', status: 'pending', notes: '', payment_link: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -20,11 +20,7 @@ export default function BursarDashboard() {
 
   async function loadRecords() {
     setLoading(true)
-    const { data } = await supabase
-      .from('fee_records')
-      .select('*')
-      .eq('school_id', profile.school_id)
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('fee_records').select('*').eq('school_id', profile.school_id).order('created_at', { ascending: false })
     setRecords(data ?? [])
     setLoading(false)
   }
@@ -38,17 +34,11 @@ export default function BursarDashboard() {
     setSaving(true)
     setError('')
     const { error: insertError } = await supabase.from('fee_records').insert({
-      ...form,
-      amount: parseFloat(form.amount),
-      school_id: profile.school_id,
-      recorded_by: user.id,
+      ...form, amount: parseFloat(form.amount), school_id: profile.school_id, recorded_by: user.id,
     })
     setSaving(false)
-    if (insertError) {
-      setError(insertError.message)
-      return
-    }
-    setForm({ student_name: '', amount: '', term: '', status: 'pending', notes: '' })
+    if (insertError) { setError(insertError.message); return }
+    setForm({ student_name: '', amount: '', term: '', status: 'pending', notes: '', payment_link: '' })
     setShowForm(false)
     loadRecords()
   }
@@ -58,7 +48,7 @@ export default function BursarDashboard() {
 
   if (!canManageFees(profile)) {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="app-shell">
         <BackHeader title="Bursar Dashboard" />
         <div className="screen-scroll px-6 flex items-center justify-center text-center text-gray-400">
           Only the Bursar and school leadership can view this.
@@ -68,7 +58,7 @@ export default function BursarDashboard() {
   }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="Bursar Dashboard" />
       <div className="screen-scroll px-4">
         <div className="grid grid-cols-2 gap-3 mt-2">
@@ -87,57 +77,29 @@ export default function BursarDashboard() {
             <div className="border border-gray-100 rounded-xl p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <p className="font-semibold text-sm">Add Fee Record</p>
-                <button onClick={() => setShowForm(false)}>
-                  <X size={16} className="text-gray-400" />
-                </button>
+                <button onClick={() => setShowForm(false)}><X size={16} className="text-gray-400" /></button>
               </div>
-              <input
-                value={form.student_name}
-                onChange={(e) => updateForm('student_name', e.target.value)}
-                placeholder="Student name"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-              />
-              <input
-                value={form.amount}
-                onChange={(e) => updateForm('amount', e.target.value)}
-                placeholder="Amount"
-                type="number"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-              />
-              <input
-                value={form.term}
-                onChange={(e) => updateForm('term', e.target.value)}
-                placeholder="Term (e.g. Term 1 2026)"
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-              />
-              <select
-                value={form.status}
-                onChange={(e) => updateForm('status', e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-              >
+              <input value={form.student_name} onChange={(e) => updateForm('student_name', e.target.value)} placeholder="Student name" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+              <input value={form.amount} onChange={(e) => updateForm('amount', e.target.value)} placeholder="Amount" type="number" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+              <input value={form.term} onChange={(e) => updateForm('term', e.target.value)} placeholder="Term (e.g. Term 1 2026)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+              <select value={form.status} onChange={(e) => updateForm('status', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple">
                 <option value="pending">Pending</option>
                 <option value="paid">Paid</option>
               </select>
+              <input value={form.notes} onChange={(e) => updateForm('notes', e.target.value)} placeholder="Notes (optional)" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
               <input
-                value={form.notes}
-                onChange={(e) => updateForm('notes', e.target.value)}
-                placeholder="Notes (optional)"
+                value={form.payment_link}
+                onChange={(e) => updateForm('payment_link', e.target.value)}
+                placeholder="Real payment link (Stripe/PayPal/Paynow — optional)"
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
               />
               {error ? <p className="text-red-500 text-xs">{error}</p> : null}
-              <button
-                onClick={handleAdd}
-                disabled={saving}
-                className="w-full bg-brand-purple text-white font-medium py-2.5 rounded-lg text-sm disabled:opacity-60"
-              >
+              <button onClick={handleAdd} disabled={saving} className="w-full bg-brand-purple text-white font-medium py-2.5 rounded-lg text-sm disabled:opacity-60">
                 {saving ? 'Saving…' : 'Add Record'}
               </button>
             </div>
           ) : (
-            <button
-              onClick={() => setShowForm(true)}
-              className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500"
-            >
+            <button onClick={() => setShowForm(true)} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500">
               <Plus size={16} /> Add Fee Record
             </button>
           )}
@@ -151,20 +113,23 @@ export default function BursarDashboard() {
           ) : (
             <div className="divide-y divide-gray-100">
               {records.map((r) => (
-                <div key={r.id} className="py-3 flex items-center gap-3">
-                  <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0">
-                    <DollarSign size={16} className="text-brand-purple" />
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm">{r.student_name}</p>
-                    <p className="text-xs text-gray-400">{r.term} {r.notes ? `· ${r.notes}` : ''}</p>
+                <div key={r.id} className="py-3">
+                  <div className="flex items-center gap-3">
+                    <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><DollarSign size={16} className="text-brand-purple" /></span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-sm">{r.student_name}</p>
+                      <p className="text-xs text-gray-400">{r.term} {r.notes ? `· ${r.notes}` : ''}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="font-semibold text-sm">${Number(r.amount).toFixed(2)}</p>
+                      <p className={`text-[10px] font-medium ${r.status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>{r.status}</p>
+                    </div>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="font-semibold text-sm">${Number(r.amount).toFixed(2)}</p>
-                    <p className={`text-[10px] font-medium ${r.status === 'paid' ? 'text-green-600' : 'text-orange-500'}`}>
-                      {r.status}
-                    </p>
-                  </div>
+                  {r.payment_link ? (
+                    <a href={r.payment_link} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-xs text-brand-purple font-medium mt-2 ml-12">
+                      <ExternalLink size={12} /> Pay Now
+                    </a>
+                  ) : null}
                 </div>
               ))}
             </div>
@@ -173,4 +138,4 @@ export default function BursarDashboard() {
       </div>
     </div>
   )
-  }
+}
