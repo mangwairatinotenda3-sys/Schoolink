@@ -14,8 +14,11 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
+      if (event === 'SIGNED_IN' && session?.user) {
+        logLogin(session.user.id, 'session')
+      }
     })
 
     return () => listener.subscription.unsubscribe()
@@ -34,18 +37,27 @@ export function AuthProvider({ children }) {
       .then(({ data }) => setProfile(data))
   }, [session])
 
+  async function logLogin(userId, method) {
+    await supabase.from('login_history').insert({ user_id: userId, method })
+  }
+
   async function signInWithPassword(email, password) {
-    return supabase.auth.signInWithPassword({ email, password })
+    const result = await supabase.auth.signInWithPassword({ email, password })
+    if (!result.error && result.data?.user) logLogin(result.data.user.id, 'email')
+    return result
   }
 
   async function signUp(email, password) {
-    return supabase.auth.signUp({ email, password })
+    const result = await supabase.auth.signUp({ email, password })
+    if (!result.error && result.data?.user) logLogin(result.data.user.id, 'email (new account)')
+    return result
   }
 
   async function signInAsGuest() {
     const { data, error } = await supabase.auth.signInAnonymously()
     if (!error && data?.user) {
       await supabase.from('profiles').upsert({ id: data.user.id, account_type: 'guest' })
+      logLogin(data.user.id, 'guest')
     }
     return { data, error }
   }
@@ -93,4 +105,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-                                      }
+            }
