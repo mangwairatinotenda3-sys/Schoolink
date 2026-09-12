@@ -53,7 +53,8 @@ export default function EditProfileDetails() {
         />
         {usernameError ? <p className="text-red-500 text-xs mt-1">{usernameError}</p> : null}
 
-        <label className="text-sm font-medium mt-4 mb-2">Bio</label>
+        <label className="text-sm font-medium mt-4 mb-2">Location</label>
+        <input
           value={location}
           onChange={(e) => setLocation(e.target.value)}
           placeholder="Harare, Zimbabwe"
@@ -80,4 +81,4 @@ export default function EditProfileDetails() {
       </div>
     </div>
   )
-    }
+                                       }
