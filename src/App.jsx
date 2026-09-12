@@ -65,6 +65,10 @@ import UnifiedSearch from './pages/UnifiedSearch.jsx'
 import SendProposal from './pages/SendProposal.jsx'
 import ViewProposals from './pages/ViewProposals.jsx'
 import ExamResults from './pages/ExamResults.jsx'
+import CommunityJoinRequests from './pages/CommunityJoinRequests.jsx'
+import ChatOptions from './pages/ChatOptions.jsx'
+import StarredMessages from './pages/StarredMessages.jsx'
+import FavouriteChats from './pages/FavouriteChats.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -139,6 +143,10 @@ export default function App() {
         <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
         <Route path="/proposals" element={<RequireAuth><ViewProposals /></RequireAuth>} />
         <Route path="/exam-results" element={<RequireAuth><ExamResults /></RequireAuth>} />
+        <Route path="/communities/:communityId/requests" element={<RequireAuth><CommunityJoinRequests /></RequireAuth>} />
+        <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
+        <Route path="/settings/starred" element={<RequireAuth><StarredMessages /></RequireAuth>} />
+        <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
