@@ -137,6 +137,10 @@ export default function ChatList() {
   return (
     <div className="app-shell">
       <BackHeader title="Chats" />
+      <div className="flex gap-2 px-4 pt-2">
+        <button onClick={() => navigate('/settings/favourite-chats')} className="text-xs font-medium text-brand-purple border border-brand-purple rounded-full px-3 py-1">Favourites</button>
+        <button onClick={() => navigate('/settings/starred')} className="text-xs font-medium text-brand-purple border border-brand-purple rounded-full px-3 py-1">Starred</button>
+      </div>
 
       <div className="flex px-4 gap-5 border-b border-gray-100">
         {[{ key: 'chats', label: 'Chats' }, { key: 'following', label: 'Following' }, { key: 'followers', label: 'Followers' }].map((t) => (
