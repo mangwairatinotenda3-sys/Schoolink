@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Camera, Copy, Share2, UserX, UserPlus, LogOut, Trash2, X } from 'lucide-react'
+import { Camera, Copy, Share2, UserX, UserPlus, LogOut, Trash2, X, ShieldCheck, Shield } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -16,6 +16,7 @@ export default function CommunityGroupInfo() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
+  const [pendingCount, setPendingCount] = useState(0)
 
   const [showAddMember, setShowAddMember] = useState(false)
   const [addByEmail, setAddByEmail] = useState('')
@@ -25,6 +26,9 @@ export default function CommunityGroupInfo() {
   const [addError, setAddError] = useState('')
   const [addSuccess, setAddSuccess] = useState('')
 
+  const [postingMode, setPostingMode] = useState('everyone')
+  const [savingSettings, setSavingSettings] = useState(false)
+
   useEffect(() => {
     loadAll()
   }, [communityId])
@@ -33,13 +37,16 @@ export default function CommunityGroupInfo() {
     setLoading(true)
     const { data: comm } = await supabase.from('communities').select('*').eq('id', communityId).maybeSingle()
     setCommunity(comm)
+    setPostingMode(comm?.posting_mode || 'everyone')
 
-    const { data: memberRows } = await supabase
-      .from('community_members')
-      .select('user_id, role, profiles(full_name, role, avatar_url)')
-      .eq('community_id', communityId)
+    const { data: memberRows } = await supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId)
     setMembers(memberRows ?? [])
     setIsAdmin((memberRows ?? []).some((m) => m.user_id === user.id && m.role === 'admin'))
+
+    if (comm?.is_private) {
+      const { count } = await supabase.from('community_join_requests').select('*', { count: 'exact', head: true }).eq('community_id', communityId).eq('status', 'pending')
+      setPendingCount(count ?? 0)
+    }
     setLoading(false)
   }
 
@@ -70,24 +77,14 @@ export default function CommunityGroupInfo() {
   }
 
   function shareInvite() {
-    if (navigator.share) {
-      navigator.share({ title: community.name, text: `Join ${community.name} on Schoolink`, url: inviteLink() })
-    } else {
-      copyInvite()
-    }
+    if (navigator.share) navigator.share({ title: community.name, text: `Join ${community.name} on Schoolink`, url: inviteLink() })
+    else copyInvite()
   }
 
   async function searchByName(query) {
     setAddByName(query)
-    if (!query.trim()) {
-      setNameResults([])
-      return
-    }
-    const { data } = await supabase
-      .from('profiles')
-      .select('id, full_name, role')
-      .ilike('full_name', `%${query}%`)
-      .limit(8)
+    if (!query.trim()) { setNameResults([]); return }
+    const { data } = await supabase.from('profiles').select('id, full_name, role').ilike('full_name', `%${query}%`).limit(8)
     setNameResults(data ?? [])
   }
 
@@ -101,29 +98,36 @@ export default function CommunityGroupInfo() {
       return
     }
     setAddSuccess(`${label} added!`)
-    setAddByEmail('')
-    setAddByName('')
-    setNameResults([])
+    setAddByEmail(''); setAddByName(''); setNameResults([])
     loadAll()
     setTimeout(() => setAddSuccess(''), 2000)
   }
 
   async function addByEmailSubmit() {
     if (!addByEmail.trim()) return
-    setAddBusy(true)
-    setAddError('')
+    setAddBusy(true); setAddError('')
     const { data, error } = await supabase.rpc('find_profile_by_email', { lookup_email: addByEmail.trim() })
     setAddBusy(false)
-    if (error || !data || data.length === 0) {
-      setAddError('No Schoolink account found with that email.')
-      return
-    }
+    if (error || !data || data.length === 0) { setAddError('No Schoolink account found with that email.'); return }
     addMemberById(data[0].id, data[0].full_name || addByEmail)
   }
 
   async function handleRemove(memberId) {
     if (!window.confirm('Remove this member from the community?')) return
     await supabase.from('community_members').delete().eq('community_id', communityId).eq('user_id', memberId)
+    loadAll()
+  }
+
+  async function handleToggleAdmin(member) {
+    const newRole = member.role === 'admin' ? 'member' : 'admin'
+    if (newRole === 'member') {
+      const adminCount = members.filter((m) => m.role === 'admin').length
+      if (adminCount <= 1) {
+        alert("Can't remove the last admin — promote someone else first.")
+        return
+      }
+    }
+    await supabase.from('community_members').update({ role: newRole }).eq('community_id', communityId).eq('user_id', member.user_id)
     loadAll()
   }
 
@@ -137,6 +141,12 @@ export default function CommunityGroupInfo() {
     if (!window.confirm('Delete this community for everyone? This cannot be undone.')) return
     await supabase.from('communities').delete().eq('id', communityId)
     navigate('/communities')
+  }
+
+  async function savePostingMode() {
+    setSavingSettings(true)
+    await supabase.from('communities').update({ posting_mode: postingMode }).eq('id', communityId)
+    setSavingSettings(false)
   }
 
   if (loading || !community) {
@@ -154,37 +164,45 @@ export default function CommunityGroupInfo() {
       <div className="screen-scroll px-4 pt-2">
         <div className="flex flex-col items-center py-4">
           <div className="relative">
-            {community.avatar_url ? (
-              <img src={community.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover" />
-            ) : (
-              <span className="w-24 h-24 rounded-full bg-brand-light flex items-center justify-center text-3xl">🏘️</span>
-            )}
+            {community.avatar_url ? <img src={community.avatar_url} alt="" className="w-24 h-24 rounded-full object-cover" /> : <span className="w-24 h-24 rounded-full bg-brand-light flex items-center justify-center text-3xl">🏘️</span>}
             {isAdmin ? (
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={uploading}
-                className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white"
-              >
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="absolute bottom-0 right-0 w-8 h-8 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white">
                 <Camera size={14} className="text-white" />
               </button>
             ) : null}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
           </div>
           <p className="font-semibold text-lg mt-3">{community.name}</p>
-          <p className="text-sm text-gray-400">{members.length} members</p>
+          <p className="text-sm text-gray-400">{members.length} members {community.is_private ? '· Private' : ''}</p>
           {community.description ? <p className="text-sm text-gray-600 text-center mt-2">{community.description}</p> : null}
         </div>
+
+        {isAdmin && community.is_private && pendingCount > 0 ? (
+          <button onClick={() => navigate(`/communities/${communityId}/requests`)} className="w-full flex items-center justify-between border border-brand-purple rounded-xl p-3 mb-3">
+            <span className="text-sm font-medium text-brand-purple">Join Requests</span>
+            <span className="bg-brand-purple text-white text-xs rounded-full px-2 py-0.5">{pendingCount}</span>
+          </button>
+        ) : null}
+
+        {isAdmin ? (
+          <div className="border border-gray-100 rounded-xl p-4 mb-3">
+            <p className="font-medium text-sm mb-2">Who can post?</p>
+            <select value={postingMode} onChange={(e) => { setPostingMode(e.target.value); }} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple mb-2">
+              <option value="everyone">Everyone</option>
+              <option value="admins_only">Admins only</option>
+            </select>
+            <button onClick={savePostingMode} disabled={savingSettings} className="w-full bg-brand-purple text-white rounded-lg py-2 text-sm font-medium disabled:opacity-60">
+              {savingSettings ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        ) : null}
 
         <div className="border border-gray-100 rounded-xl p-4 mt-2">
           <p className="font-medium text-sm mb-2">Invite Link</p>
           <p className="text-xs text-gray-400 truncate mb-3">{inviteLink()}</p>
           <div className="flex gap-2">
-            <button onClick={copyInvite} className="flex-1 flex items-center justify-center gap-1 border border-gray-200 rounded-lg py-2 text-sm">
-              <Copy size={14} /> Copy
-            </button>
-            <button onClick={shareInvite} className="flex-1 flex items-center justify-center gap-1 bg-brand-purple text-white rounded-lg py-2 text-sm">
-              <Share2 size={14} /> Share
-            </button>
+            <button onClick={copyInvite} className="flex-1 flex items-center justify-center gap-1 border border-gray-200 rounded-lg py-2 text-sm"><Copy size={14} /> Copy</button>
+            <button onClick={shareInvite} className="flex-1 flex items-center justify-center gap-1 bg-brand-purple text-white rounded-lg py-2 text-sm"><Share2 size={14} /> Share</button>
           </div>
         </div>
 
@@ -196,37 +214,19 @@ export default function CommunityGroupInfo() {
               <div className="border border-gray-100 rounded-xl p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-medium text-sm">Add Member</p>
-                  <button onClick={() => setShowAddMember(false)}>
-                    <X size={16} className="text-gray-400" />
-                  </button>
+                  <button onClick={() => setShowAddMember(false)}><X size={16} className="text-gray-400" /></button>
                 </div>
                 <p className="text-xs text-gray-400 mb-1">By email</p>
                 <div className="flex gap-2 mb-3">
-                  <input
-                    value={addByEmail}
-                    onChange={(e) => setAddByEmail(e.target.value)}
-                    placeholder="name@school.com"
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-                  />
-                  <button onClick={addByEmailSubmit} disabled={addBusy} className="bg-brand-purple text-white px-3 rounded-lg text-sm disabled:opacity-60">
-                    Add
-                  </button>
+                  <input value={addByEmail} onChange={(e) => setAddByEmail(e.target.value)} placeholder="name@school.com" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                  <button onClick={addByEmailSubmit} disabled={addBusy} className="bg-brand-purple text-white px-3 rounded-lg text-sm disabled:opacity-60">Add</button>
                 </div>
                 <p className="text-xs text-gray-400 mb-1">Or search by name</p>
-                <input
-                  value={addByName}
-                  onChange={(e) => searchByName(e.target.value)}
-                  placeholder="Search Schoolink members…"
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple"
-                />
+                <input value={addByName} onChange={(e) => searchByName(e.target.value)} placeholder="Search Schoolink members…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                 {nameResults.length > 0 ? (
                   <div className="mt-2 divide-y divide-gray-100">
                     {nameResults.map((r) => (
-                      <button
-                        key={r.id}
-                        onClick={() => addMemberById(r.id, r.full_name)}
-                        className="w-full flex items-center justify-between py-2 text-left"
-                      >
+                      <button key={r.id} onClick={() => addMemberById(r.id, r.full_name)} className="w-full flex items-center justify-between py-2 text-left">
                         <span className="text-sm">{r.full_name || 'Schoolink member'}</span>
                         <span className="text-xs text-brand-purple">Add</span>
                       </button>
@@ -236,10 +236,7 @@ export default function CommunityGroupInfo() {
                 {addError ? <p className="text-red-500 text-xs mt-2">{addError}</p> : null}
               </div>
             ) : (
-              <button
-                onClick={() => setShowAddMember(true)}
-                className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500"
-              >
+              <button onClick={() => setShowAddMember(true)} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500">
                 <UserPlus size={16} /> Add Member
               </button>
             )}
@@ -251,22 +248,22 @@ export default function CommunityGroupInfo() {
           {members.map((m) => (
             <div key={m.user_id} className="flex items-center justify-between py-3">
               <div className="flex items-center gap-3 min-w-0">
-                {m.profiles?.avatar_url ? (
-                  <img src={m.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
-                ) : (
-                  <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-sm shrink-0">🙂</span>
-                )}
+                {m.profiles?.avatar_url ? <img src={m.profiles.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" /> : <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-sm shrink-0">🙂</span>}
                 <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{m.profiles?.full_name || 'Schoolink member'}</p>
-                  <p className="text-xs text-gray-400 truncate">
-                    {m.role === 'admin' ? 'Admin · ' : ''}{m.profiles?.role || ''}
+                  <p className="text-sm font-medium truncate flex items-center gap-1">
+                    {m.profiles?.full_name || 'Schoolink member'}
+                    {m.role === 'admin' ? <ShieldCheck size={13} className="text-brand-purple shrink-0" /> : null}
                   </p>
+                  <p className="text-xs text-gray-400 truncate">{m.role === 'admin' ? 'Admin · ' : ''}{m.profiles?.role || ''}</p>
                 </div>
               </div>
               {isAdmin && m.user_id !== user.id ? (
-                <button onClick={() => handleRemove(m.user_id)} className="text-red-500 shrink-0">
-                  <UserX size={16} />
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button onClick={() => handleToggleAdmin(m)} title={m.role === 'admin' ? 'Remove admin' : 'Make admin'}>
+                    <Shield size={16} className={m.role === 'admin' ? 'text-brand-purple' : 'text-gray-300'} />
+                  </button>
+                  <button onClick={() => handleRemove(m.user_id)} className="text-red-500"><UserX size={16} /></button>
+                </div>
               ) : null}
             </div>
           ))}
@@ -274,15 +271,11 @@ export default function CommunityGroupInfo() {
 
         <div className="h-px bg-gray-100 my-5" />
 
-        <button onClick={handleLeave} className="w-full flex items-center gap-2 text-red-500 py-3 text-sm font-medium">
-          <LogOut size={16} /> Leave Community
-        </button>
+        <button onClick={handleLeave} className="w-full flex items-center gap-2 text-red-500 py-3 text-sm font-medium"><LogOut size={16} /> Leave Community</button>
         {isAdmin ? (
-          <button onClick={handleDeleteCommunity} className="w-full flex items-center gap-2 text-red-600 py-3 text-sm font-medium mb-6">
-            <Trash2 size={16} /> Delete Community
-          </button>
+          <button onClick={handleDeleteCommunity} className="w-full flex items-center gap-2 text-red-600 py-3 text-sm font-medium mb-6"><Trash2 size={16} /> Delete Community</button>
         ) : null}
       </div>
     </div>
   )
-}
+    }
