@@ -1,34 +1,51 @@
 import { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 
-const languages = ['English (United States)', 'Shona', 'Ndebele', 'French', 'Portuguese']
+const languages = [
+  { code: 'en', label: 'English (United States)', verified: true },
+  { code: 'sn', label: 'Shona', verified: false },
+  { code: 'nd', label: 'Ndebele', verified: false },
+  { code: 'fr', label: 'French', verified: false },
+  { code: 'pt', label: 'Portuguese', verified: false },
+]
 
 export default function LanguageSettings() {
-  const [selected, setSelected] = useState('English (United States)')
+  const { profile, saveProfileDetails } = useAuth()
+  const [selected, setSelected] = useState(profile?.language || 'en')
+  const [saving, setSaving] = useState(false)
+
+  async function handleSelect(code) {
+    setSelected(code)
+    setSaving(true)
+    await saveProfileDetails({ language: code })
+    setSaving(false)
+  }
 
   return (
-    <div className="flex-1 flex flex-col">
+    <div className="app-shell">
       <BackHeader title="App Language" />
-      <div className="flex-1 flex flex-col px-6 pt-4">
+      <div className="screen-scroll px-6 pt-4">
         {languages.map((lang) => (
           <button
-            key={lang}
-            onClick={() => setSelected(lang)}
+            key={lang.code}
+            onClick={() => handleSelect(lang.code)}
             className="w-full flex items-center justify-between py-3.5 border-b border-gray-100"
           >
-            <span className="text-sm">{lang}</span>
-            <span
-              className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
-                selected === lang ? 'border-brand-purple' : 'border-gray-300'
-              }`}
-            >
-              {selected === lang ? <span className="w-2.5 h-2.5 rounded-full bg-brand-purple" /> : null}
+            <span className="flex items-center gap-2 text-sm">
+              {lang.label}
+              {!lang.verified ? <AlertTriangle size={13} className="text-amber-500" /> : null}
+            </span>
+            <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected === lang.code ? 'border-brand-purple' : 'border-gray-300'}`}>
+              {selected === lang.code ? <span className="w-2.5 h-2.5 rounded-full bg-brand-purple" /> : null}
             </span>
           </button>
         ))}
         <p className="text-xs text-gray-400 mt-4">
-          Full translations are still in progress — the app will remain in English for now.
+          ⚠️ Languages other than English aren't fully translated yet — they'll show English text until reviewed by a fluent speaker.
         </p>
+        {saving ? <p className="text-xs text-brand-purple mt-2">Saving…</p> : null}
       </div>
     </div>
   )
