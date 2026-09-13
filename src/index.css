@@ -8,7 +8,6 @@
   --text-scale: 1;
   color-scheme: light;
 
-  /* Light mode colors */
   --app-bg: #F5F4FB;
   --shell-bg: #fff;
   --surface: #fff;
@@ -21,13 +20,8 @@
   --nav-bg: #fff;
 }
 
-html, body, #root {
-  height: 100%;
-}
-
-html, body {
-  background: var(--app-bg);
-}
+html, body, #root { height: 100%; }
+html, body { background: var(--app-bg); }
 
 body {
   font-size: calc(1rem * var(--text-scale));
@@ -48,146 +42,91 @@ body {
   flex-direction: column;
 }
 
-/* ================= DARK MODE ================= */
-.app-shell.dark-mode {
-  color-scheme: dark;
-  background: #0B0920;
-  color: #F7F5FF;
+.screen-scroll { flex: 1; overflow-y: auto; padding-bottom: 84px; }
+::-webkit-scrollbar { display: none; }
 
-  --app-bg: #0B0920;
-  --shell-bg: #0B0920;
-  --surface: #14112D;
-  --surface-2: #1B1739;
-  --text-primary: #F7F5FF;
-  --text-secondary: #AAA6C1;
-  --text-muted: #85819D;
-  --border: #2B2748;
-  --input-bg: #17132F;
-  --nav-bg: #100D25;
-  --brand-purple: #7C5CFF;
-  --brand-light: #1B1739;
-}
+/* ========= DARK MODE OVERRIDES ========= */
+@layer components {
+  .app-shell.dark-mode {
+    color-scheme: dark;
+    background: #0B0920 !important;
+    color: #F7F5FF !important;
 
-/* Keep images and videos normal */
-.app-shell.dark-mode img,
-.app-shell.dark-mode video {
-  filter: none;
-}
+    --app-bg: #0B0920;
+    --shell-bg: #0B0920;
+    --surface: #14112D;
+    --surface-2: #1B1739;
+    --text-primary: #F7F5FF;
+    --text-secondary: #AAA6C1;
+    --text-muted: #85819D;
+    --border: #2B2748;
+    --input-bg: #17132F;
+    --nav-bg: #100D25;
+    --brand-purple: #7C5CFF;
+  }
 
-/* HEADER FIX */
-.app-shell.dark-mode header,
-.app-shell.dark-mode .app-header {
-  background-color: var(--surface);
-  border-bottom: 1px solid var(--border);
-}
+  /* Force override all bg-white */
+  .app-shell.dark-mode .bg-white {
+    background-color: var(--surface) !important;
+  }
 
-.app-shell.dark-mode .text-brand-navy,
-.app-shell.dark-mode .font-bold {
-  color: var(--text-primary) !important;
-}
+  /* Header + Schoolink text */
+  .app-shell.dark-mode header,
+  .app-shell.dark-mode .app-header {
+    background-color: var(--surface) !important;
+    border-bottom: 1px solid var(--border) !important;
+  }
+  .app-shell.dark-mode h1,
+  .app-shell.dark-mode .font-bold {
+    color: var(--text-primary) !important;
+  }
 
-/* CARDS / POSTS FIX */
-.app-shell.dark-mode .card,
-.app-shell.dark-mode article,
-.app-shell.dark-mode .bg-white {
-  background-color: var(--surface) !important;
-  border-color: var(--border) !important;
-  color: var(--text-primary);
-}
+  /* Input "What's on your mind" */
+  .app-shell.dark-mode input {
+    background-color: var(--input-bg) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border) !important;
+  }
+  .app-shell.dark-mode input::placeholder {
+    color: var(--text-muted) !important;
+  }
 
-/* SIDEBAR / DRAWER FIX */
-.app-shell.dark-mode .drawer,
-.app-shell.dark-mode aside,
-.app-shell.dark-mode [role="dialog"] {
-  background-color: var(--surface-2) !important;
-  color: var(--text-primary) !important;
-  border-right: 1px solid var(--border);
-}
+  /* Top icon labels: Your School, Science Club etc */
+  .app-shell.dark-mode .text-xs,
+  .app-shell.dark-mode .text-sm {
+    color: var(--text-secondary) !important;
+  }
 
-.app-shell.dark-mode .drawer .text-gray-400,
-.app-shell.dark-mode .drawer span { 
-  color: var(--text-muted) !important; 
-}
+  /* Post cards */
+  .app-shell.dark-mode article,
+  .app-shell.dark-mode .card {
+    background-color: var(--surface) !important;
+    border: 1px solid var(--border) !important;
+  }
 
-.app-shell.dark-mode .drawer a,
-.app-shell.dark-mode .drawer button {
-  color: var(--text-secondary) !important;
-}
+  /* All gray text */
+  .app-shell.dark-mode .text-gray-900,
+  .app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
+  .app-shell.dark-mode .text-gray-600,
+  .app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+  .app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
 
-.app-shell.dark-mode .drawer a:hover,
-.app-shell.dark-mode .drawer button:hover {
-  background-color: var(--surface) !important;
-  color: var(--text-primary) !important;
-}
+  /* Sidebar / Drawer */
+  .app-shell.dark-mode .drawer,
+  .app-shell.dark-mode aside {
+    background-color: var(--surface-2) !important;
+    color: var(--text-primary) !important;
+  }
 
-/* INPUT BAR + "WHAT'S ON YOUR MIND" FIX */
-.app-shell.dark-mode input[placeholder="What's on your mind?"],
-.app-shell.dark-mode .bg-white.rounded-full {
-  background-color: var(--input-bg) !important;
-  border: 1px solid var(--border) !important;
-}
+  /* Bottom nav */
+  .app-shell.dark-mode nav {
+    background-color: var(--nav-bg) !important;
+    border-top: 1px solid var(--border) !important;
+  }
 
-.app-shell.dark-mode input::placeholder {
-  color: var(--text-muted) !important;
-}
-
-/* TOP ICON LABELS + SMALL TEXT FIX */
-.app-shell.dark-mode .text-xs,
-.app-shell.dark-mode .text-sm {
-  color: var(--text-secondary) !important;
-}
-
-.app-shell.dark-mode .text-gray-500 {
-  color: var(--text-muted) !important;
-}
-
-/* POST AUTHOR TEXT */
-.app-shell.dark-mode .font-semibold {
-  color: var(--text-primary) !important;
-}
-
-/* GENERAL TEXT OVERRIDES */
-.app-shell.dark-mode .text-gray-900,
-.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
-.app-shell.dark-mode .text-gray-600,
-.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
-.app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
-
-.app-shell.dark-mode .border,
-.app-shell.dark-mode .border-gray-100 { border-color: var(--border) !important; }
-
-/* INPUTS */
-.app-shell.dark-mode input,
-.app-shell.dark-mode textarea,
-.app-shell.dark-mode select {
-  background-color: var(--input-bg);
-  color: var(--text-primary);
-  border-color: var(--border);
-}
-
-.app-shell.dark-mode input::placeholder,
-.app-shell.dark-mode textarea::placeholder {
-  color: var(--text-muted);
-}
-
-/* NAV / BOTTOM BAR */
-.app-shell.dark-mode nav,
-.app-shell.dark-mode .bottom-nav {
-  background-color: var(--nav-bg);
-  border-top: 1px solid var(--border);
-}
-
-/* TOP ICONS ROW BACKGROUND */
-.app-shell.dark-mode .bg-white.rounded-full { 
-  background-color: var(--surface-2) !important; 
-}
-
-.screen-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding-bottom: 84px;
-}
-
-::-webkit-scrollbar {
-  display: none;
+  /* Borders */
+  .app-shell.dark-mode .border,
+  .app-shell.dark-mode .border-gray-100 {
+    border-color: var(--border) !important;
+  }
 }
