@@ -20,8 +20,13 @@
   --nav-bg: #fff;
 }
 
-html, body, #root { height: 100%; }
-html, body { background: var(--app-bg); }
+html, body, #root {
+  height: 100%;
+}
+
+html, body {
+  background: var(--app-bg);
+}
 
 body {
   font-size: calc(1rem * var(--text-scale));
@@ -42,95 +47,91 @@ body {
   flex-direction: column;
 }
 
-.screen-scroll { flex: 1; overflow-y: auto; padding-bottom: 84px; }
-::-webkit-scrollbar { display: none; }
+/* ================= DARK MODE ================= */
+.app-shell.dark-mode {
+  color-scheme: dark;
+  background: #0B0920;
+  color: #F7F5FF;
 
-/* ========= DARK MODE OVERRIDES ========= */
-@layer components {
-  .app-shell.dark-mode {
-    color-scheme: dark;
-    background: #0B0920 !important;
-    color: #F7F5FF !important;
+  --app-bg: #0B0920;
+  --shell-bg: #0B0920;
+  --surface: #14112D;
+  --surface-2: #1B1739;
+  --text-primary: #F7F5FF;
+  --text-secondary: #AAA6C1;
+  --text-muted: #85819D;
+  --border: #2B2748;
+  --input-bg: #17132F;
+  --nav-bg: #100D25;
+  --brand-purple: #7C5CFF;
+  --brand-light: #1B1739;
+}
 
-    --app-bg: #0B0920;
-    --shell-bg: #0B0920;
-    --surface: #14112D;
-    --surface-2: #1B1739;
-    --text-primary: #F7F5FF;
-    --text-secondary: #AAA6C1;
-    --text-muted: #85819D;
-    --border: #2B2748;
-    --input-bg: #17132F;
-    --nav-bg: #100D25;
-    --brand-purple: #7C5CFF;
-  }
+.app-shell.dark-mode img,
+.app-shell.dark-mode video {
+  filter: none;
+}
 
-  /* STICKY HEADER FIX - THIS IS THE KEY ONE */
-  .app-shell.dark-mode header,
-  .app-shell.dark-mode .sticky,
-  .app-shell.dark-mode [class*="sticky"] {
-    background-color: var(--surface) !important;
-    border-bottom: 1px solid var(--border) !important;
-    backdrop-filter: none !important;
-  }
+/* Real header/composer/card backgrounds used across the app */
+.app-shell.dark-mode .bg-white {
+  background-color: var(--surface) !important;
+}
 
-  /* Force Schoolink text white */
-  .app-shell.dark-mode header h1,
-  .app-shell.dark-mode .text-brand-navy {
-    color: var(--text-primary) !important;
-  }
+.app-shell.dark-mode .bg-gray-50,
+.app-shell.dark-mode .bg-gray-100 {
+  background-color: var(--surface-2) !important;
+}
 
-  /* Force override ALL bg-white in dark mode */
-  .app-shell.dark-mode .bg-white {
-    background-color: var(--surface) !important;
-  }
+.app-shell.dark-mode .text-brand-navy {
+  color: var(--text-primary) !important;
+}
 
-  /* Input "What's on your mind" */
-  .app-shell.dark-mode input {
-    background-color: var(--input-bg) !important;
-    color: var(--text-primary) !important;
-    border: 1px solid var(--border) !important;
-  }
-  .app-shell.dark-mode input::placeholder {
-    color: var(--text-muted) !important;
-  }
+/* SIDEBAR / DRAWER (matches SideDrawer.jsx's actual classes) */
+.app-shell.dark-mode aside,
+.app-shell.dark-mode [role="dialog"] {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+}
 
-  /* Top icon labels */
-  .app-shell.dark-mode .text-xs,
-  .app-shell.dark-mode .text-sm {
-    color: var(--text-secondary) !important;
-  }
+/* TEXT OVERRIDES */
+.app-shell.dark-mode .text-gray-900,
+.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
+.app-shell.dark-mode .text-gray-700,
+.app-shell.dark-mode .text-gray-600,
+.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+.app-shell.dark-mode .text-gray-400,
+.app-shell.dark-mode .text-gray-300 { color: var(--text-muted) !important; }
 
-  /* Post cards */
-  .app-shell.dark-mode article,
-  .app-shell.dark-mode .card {
-    background-color: var(--surface) !important;
-    border: 1px solid var(--border) !important;
-  }
+.app-shell.dark-mode .border,
+.app-shell.dark-mode .border-gray-100,
+.app-shell.dark-mode .border-gray-200 { border-color: var(--border) !important; }
 
-  /* All gray text */
-  .app-shell.dark-mode .text-gray-900,
-  .app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
-  .app-shell.dark-mode .text-gray-600,
-  .app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
-  .app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
+/* INPUTS */
+.app-shell.dark-mode input,
+.app-shell.dark-mode textarea,
+.app-shell.dark-mode select {
+  background-color: var(--input-bg);
+  color: var(--text-primary);
+  border-color: var(--border);
+}
 
-  /* Sidebar */
-  .app-shell.dark-mode .drawer,
-  .app-shell.dark-mode aside {
-    background-color: var(--surface-2) !important;
-    color: var(--text-primary) !important;
-  }
+.app-shell.dark-mode input::placeholder,
+.app-shell.dark-mode textarea::placeholder {
+  color: var(--text-muted);
+}
 
-  /* Bottom nav */
-  .app-shell.dark-mode nav {
-    background-color: var(--nav-bg) !important;
-    border-top: 1px solid var(--border) !important;
-  }
+/* NAV / BOTTOM BAR */
+.app-shell.dark-mode nav {
+  background-color: var(--nav-bg);
+  border-top: 1px solid var(--border);
+}
 
-  /* Borders */
-  .app-shell.dark-mode .border,
-  .app-shell.dark-mode .border-gray-100 {
-    border-color: var(--border) !important;
-  }
-    }
+.screen-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 84px;
+}
+
+::-webkit-scrollbar {
+  display: none;
+}
