@@ -69,6 +69,8 @@ import CommunityJoinRequests from './pages/CommunityJoinRequests.jsx'
 import ChatOptions from './pages/ChatOptions.jsx'
 import StarredMessages from './pages/StarredMessages.jsx'
 import FavouriteChats from './pages/FavouriteChats.jsx'
+import CommunityMedia from './pages/CommunityMedia.jsx'
+import CreateGroupFromChat from './pages/CreateGroupFromChat.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -147,6 +149,8 @@ export default function App() {
         <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
         <Route path="/settings/starred" element={<RequireAuth><StarredMessages /></RequireAuth>} />
         <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
+        <Route path="/communities/:communityId/media" element={<RequireAuth><CommunityMedia /></RequireAuth>} />
+        <Route path="/chats/:userId/create-group" element={<RequireAuth><CreateGroupFromChat /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
