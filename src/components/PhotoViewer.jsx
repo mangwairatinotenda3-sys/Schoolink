@@ -224,7 +224,7 @@ export default function PhotoViewer({ images = [], initialIndex = 0, postId, onC
           alt=""
           draggable={false}
           onLoad={() => setImgLoaded(true)}
-          className="max-w-full max-h-full select-none object-contain"
+          className="w-full h-full select-none object-contain"
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transition: gesture.current.mode? 'none' : 'transform 0.15s ease-out',
