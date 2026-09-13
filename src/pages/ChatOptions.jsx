@@ -1,18 +1,25 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { User, Image as ImageIcon, Star, Heart, BellOff, Ban, Flag, Trash2, ChevronRight } from 'lucide-react'
+import { User, Image as ImageIcon, Star, Heart, BellOff, Ban, Flag, Trash2, ChevronRight, Timer, UsersRound } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+
+const durations = [
+  { label: '24 hours', seconds: 86400 },
+  { label: '7 days', seconds: 604800 },
+  { label: '90 days', seconds: 7776000 },
+]
 
 export default function ChatOptions() {
   const { userId: partnerId } = useParams()
   const navigate = useNavigate()
   const { user } = useAuth()
   const [partner, setPartner] = useState(null)
-  const [settings, setSettings] = useState({ muted: false })
+  const [settings, setSettings] = useState({ muted: false, disappearing_enabled: false, disappearing_seconds: 86400 })
   const [isFavourite, setIsFavourite] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
+  const [showDurationPicker, setShowDurationPicker] = useState(false)
 
   useEffect(() => {
     supabase.from('profiles').select('*').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
@@ -26,6 +33,23 @@ export default function ChatOptions() {
   async function toggleMute() {
     const next = { ...settings, muted: !settings.muted }
     setSettings(next)
+    await supabase.from('chat_settings').upsert({ user_id: user.id, partner_id: partnerId, ...next })
+  }
+
+  async function toggleDisappearing() {
+    if (!settings.disappearing_enabled) {
+      setShowDurationPicker(true)
+      return
+    }
+    const next = { ...settings, disappearing_enabled: false }
+    setSettings(next)
+    await supabase.from('chat_settings').upsert({ user_id: user.id, partner_id: partnerId, ...next })
+  }
+
+  async function chooseDuration(seconds) {
+    const next = { ...settings, disappearing_enabled: true, disappearing_seconds: seconds }
+    setSettings(next)
+    setShowDurationPicker(false)
     await supabase.from('chat_settings').upsert({ user_id: user.id, partner_id: partnerId, ...next })
   }
 
@@ -80,9 +104,11 @@ export default function ChatOptions() {
           <span className="text-[11px] bg-brand-light text-brand-purple px-2 py-0.5 rounded-full mt-1">{partner?.role}</span>
         </div>
 
-        <div className="bg-brand-light rounded-xl p-3 text-center text-xs text-brand-purple mt-2">
-          🔒 Private conversation — only visible to the two of you.
-        </div>
+        <div className="bg-brand-light rounded-xl p-3 text-center text-xs text-brand-purple mt-2">🔒 Private conversation — only visible to the two of you.</div>
+
+        <button onClick={() => navigate(`/chats/${partnerId}/create-group`)} className="w-full flex items-center gap-2 justify-center border border-brand-purple text-brand-purple rounded-xl py-2.5 text-sm font-medium mt-3">
+          <UsersRound size={15} /> Create Group with {partner?.full_name || 'them'}
+        </button>
 
         <div className="divide-y divide-gray-100 mt-4">
           {rows.map(({ label, icon: Icon, action }) => (
@@ -91,6 +117,19 @@ export default function ChatOptions() {
               <ChevronRight size={16} className="text-gray-300" />
             </button>
           ))}
+
+          <button onClick={toggleDisappearing} className="w-full flex items-center justify-between py-3.5">
+            <span className="flex items-center gap-3"><Timer size={17} className="text-brand-purple" /><span className="text-sm font-medium">Disappearing Messages</span></span>
+            <span className="text-xs text-gray-400">{settings.disappearing_enabled ? durations.find((d) => d.seconds === settings.disappearing_seconds)?.label || 'On' : 'Off'}</span>
+          </button>
+
+          {showDurationPicker ? (
+            <div className="py-2">
+              {durations.map((d) => (
+                <button key={d.seconds} onClick={() => chooseDuration(d.seconds)} className="w-full text-left py-2 text-sm text-gray-600">{d.label}</button>
+              ))}
+            </div>
+          ) : null}
         </div>
 
         <div className="h-px bg-gray-100 my-4" />
