@@ -65,20 +65,24 @@ body {
     --brand-purple: #7C5CFF;
   }
 
-  /* Force override all bg-white */
-  .app-shell.dark-mode .bg-white {
-    background-color: var(--surface) !important;
-  }
-
-  /* Header + Schoolink text */
+  /* STICKY HEADER FIX - THIS IS THE KEY ONE */
   .app-shell.dark-mode header,
-  .app-shell.dark-mode .app-header {
+  .app-shell.dark-mode .sticky,
+  .app-shell.dark-mode [class*="sticky"] {
     background-color: var(--surface) !important;
     border-bottom: 1px solid var(--border) !important;
+    backdrop-filter: none !important;
   }
-  .app-shell.dark-mode h1,
-  .app-shell.dark-mode .font-bold {
+
+  /* Force Schoolink text white */
+  .app-shell.dark-mode header h1,
+  .app-shell.dark-mode .text-brand-navy {
     color: var(--text-primary) !important;
+  }
+
+  /* Force override ALL bg-white in dark mode */
+  .app-shell.dark-mode .bg-white {
+    background-color: var(--surface) !important;
   }
 
   /* Input "What's on your mind" */
@@ -91,7 +95,7 @@ body {
     color: var(--text-muted) !important;
   }
 
-  /* Top icon labels: Your School, Science Club etc */
+  /* Top icon labels */
   .app-shell.dark-mode .text-xs,
   .app-shell.dark-mode .text-sm {
     color: var(--text-secondary) !important;
@@ -111,7 +115,7 @@ body {
   .app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
   .app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
 
-  /* Sidebar / Drawer */
+  /* Sidebar */
   .app-shell.dark-mode .drawer,
   .app-shell.dark-mode aside {
     background-color: var(--surface-2) !important;
@@ -129,4 +133,4 @@ body {
   .app-shell.dark-mode .border-gray-100 {
     border-color: var(--border) !important;
   }
-}
+    }
