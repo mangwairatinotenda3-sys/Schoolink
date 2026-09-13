@@ -120,7 +120,33 @@ body {
   color: var(--text-primary) !important;
 }
 
-/* TEXT OVERRIDES */
+/* INPUT BAR + "WHAT'S ON YOUR MIND" FIX */
+.app-shell.dark-mode input[placeholder="What's on your mind?"],
+.app-shell.dark-mode .bg-white.rounded-full {
+  background-color: var(--input-bg) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.app-shell.dark-mode input::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* TOP ICON LABELS + SMALL TEXT FIX */
+.app-shell.dark-mode .text-xs,
+.app-shell.dark-mode .text-sm {
+  color: var(--text-secondary) !important;
+}
+
+.app-shell.dark-mode .text-gray-500 {
+  color: var(--text-muted) !important;
+}
+
+/* POST AUTHOR TEXT */
+.app-shell.dark-mode .font-semibold {
+  color: var(--text-primary) !important;
+}
+
+/* GENERAL TEXT OVERRIDES */
 .app-shell.dark-mode .text-gray-900,
 .app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
 .app-shell.dark-mode .text-gray-600,
@@ -151,7 +177,7 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* TOP ICONS ROW */
+/* TOP ICONS ROW BACKGROUND */
 .app-shell.dark-mode .bg-white.rounded-full { 
   background-color: var(--surface-2) !important; 
 }
