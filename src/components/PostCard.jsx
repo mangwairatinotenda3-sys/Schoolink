@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, Bookmark, Send, MoreVertical, Trash2 } from 'lucide-react'
+import { Heart, MessageCircle, Bookmark, Send, MoreVertical, Trash2, FileText } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import PhotoViewer from './PhotoViewer.jsx'
@@ -18,9 +18,10 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   const [submittingComment, setSubmittingComment] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [viewerOpen, setViewerOpen] = useState(false)
+  const [viewerImage, setViewerImage] = useState(null)
 
   const isMine = user && post.author_id === user.id
+  const images = post.image_urls && post.image_urls.length > 0 ? post.image_urls : post.image_url ? [post.image_url] : []
 
   useEffect(() => {
     loadLikes()
@@ -136,23 +137,16 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </button>
         <div className="flex items-center gap-2 shrink-0">
           {user && post.author_id !== user.id ? (
-            <button
-              onClick={toggleFollow}
-              className={`text-xs font-medium px-3 py-1 rounded-full border ${following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'}`}
-            >
+            <button onClick={toggleFollow} className={`text-xs font-medium px-3 py-1 rounded-full border ${following ? 'text-gray-400 border-gray-200' : 'text-brand-purple border-brand-purple'}`}>
               {following ? 'Following' : 'Follow'}
             </button>
           ) : null}
           {isMine ? (
             <div className="relative" onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setMenuOpen((m) => !m)}>
-                <MoreVertical size={18} className="text-gray-400" />
-              </button>
+              <button onClick={() => setMenuOpen((m) => !m)}><MoreVertical size={18} className="text-gray-400" /></button>
               {menuOpen ? (
                 <div className="absolute right-0 top-6 bg-white border border-gray-100 rounded-lg shadow-lg z-10 w-32">
-                  <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500">
-                    <Trash2 size={14} /> Delete
-                  </button>
+                  <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500"><Trash2 size={14} /> Delete</button>
                 </div>
               ) : null}
             </div>
@@ -166,13 +160,42 @@ export default function PostCard({ post, onDeleted, expandComments }) {
 
       {post.content ? <p className="text-sm mt-2">{post.content}</p> : null}
 
-      {post.image_url ? (
+      {images.length === 1 ? (
         <img
-          src={post.image_url}
+          src={images[0]}
           alt=""
           className="w-full rounded-xl mt-2 max-h-80 object-cover cursor-pointer"
-          onClick={(e) => { e.stopPropagation(); setViewerOpen(true) }}
+          onClick={(e) => { e.stopPropagation(); setViewerImage(images[0]) }}
         />
+      ) : images.length > 1 ? (
+        <div className="grid grid-cols-3 gap-1 mt-2">
+          {images.map((url, i) => (
+            <img
+              key={i}
+              src={url}
+              alt=""
+              className="w-full h-24 object-cover rounded-lg cursor-pointer"
+              onClick={(e) => { e.stopPropagation(); setViewerImage(url) }}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {post.video_url ? (
+        <video src={post.video_url} controls className="w-full rounded-xl mt-2 max-h-80" onClick={(e) => e.stopPropagation()} />
+      ) : null}
+
+      {post.file_url ? (
+        <a
+          href={post.file_url}
+          target="_blank"
+          rel="noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex items-center gap-2 mt-2 border border-gray-100 rounded-xl p-3"
+        >
+          <FileText size={18} className="text-brand-purple shrink-0" />
+          <span className="text-sm truncate">{post.file_name || 'Shared file'}</span>
+        </a>
       ) : null}
 
       <div className="flex items-center gap-5 mt-3 text-gray-500" onClick={(e) => e.stopPropagation()}>
@@ -211,7 +234,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </div>
       ) : null}
 
-      {viewerOpen ? <PhotoViewer imageUrl={post.image_url} postId={post.id} onClose={() => setViewerOpen(false)} /> : null}
+      {viewerImage ? <PhotoViewer imageUrl={viewerImage} postId={post.id} onClose={() => setViewerImage(null)} /> : null}
     </div>
   )
-         }
+}
