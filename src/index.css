@@ -1,4 +1,4 @@
-@tailwind base;
+1@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
@@ -7,13 +7,17 @@
   --text-scale: 1;
   color-scheme: light;
 
-  /* Light mode colors — unchanged */
+  /* Light mode colors */
   --app-bg: #F5F4FB;
   --shell-bg: #fff;
   --surface: #fff;
   --text-primary: #24203F;
   --text-secondary: #7B7890;
+  --text-muted: #A0A0B0;
   --border: #ECEAF3;
+  --input-bg: #F5F4FB;
+  --nav-bg: #fff;
+  --brand-light: #ede9fe;
 }
 
 html, body, #root {
@@ -21,12 +25,13 @@ html, body, #root {
 }
 
 html, body {
-  background: #F5F4FB;
+  background: var(--app-bg);
 }
 
 body {
-  @apply bg-brand-light text-brand-navy;
   font-size: calc(1rem * var(--text-scale));
+  color: var(--text-primary);
+  transition: background-color 0.3s, color 0.3s;
 }
 
 .app-shell {
@@ -36,7 +41,7 @@ body {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  background: #fff;
+  background: var(--shell-bg);
   position: relative;
   display: flex;
   flex-direction: column;
@@ -45,7 +50,6 @@ body {
 /* Dark mode */
 .app-shell.dark-mode {
   color-scheme: dark;
-  filter: none;
   background: #0B0920;
   color: #F7F5FF;
 
@@ -60,6 +64,7 @@ body {
   --input-bg: #17132F;
   --nav-bg: #100D25;
   --brand-purple: #7C5CFF;
+  --brand-light: #1B1739;
 }
 
 /* Keep images and videos normal in dark mode */
@@ -70,10 +75,6 @@ body {
 
 /* High contrast */
 .app-shell.high-contrast {
-  filter: contrast(1.3);
-}
-
-.app-shell.dark-mode.high-contrast {
   filter: contrast(1.3);
 }
 
@@ -89,24 +90,36 @@ body {
 .app-shell.dark-mode .surface,
 .app-shell.dark-mode .panel,
 .app-shell.dark-mode .modal,
-.app-shell.dark-mode .settings-card {
+.app-shell.dark-mode .settings-card,
+.app-shell.dark-mode .border-gray-100 {
   background-color: var(--surface);
   border-color: var(--border);
   color: var(--text-primary);
 }
 
-/* Text */
+/* Text overrides for Tailwind classes */
 .app-shell.dark-mode h1,
 .app-shell.dark-mode h2,
 .app-shell.dark-mode h3,
 .app-shell.dark-mode h4,
 .app-shell.dark-mode h5,
 .app-shell.dark-mode h6,
+.app-shell.dark-mode .font-semibold,
+.app-shell.dark-mode .font-medium {
+  color: var(--text-primary);
+}
+
 .app-shell.dark-mode p,
 .app-shell.dark-mode span,
 .app-shell.dark-mode label {
-  color: inherit;
+  color: var(--text-secondary);
 }
+
+.app-shell.dark-mode .text-gray-900,
+.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
+.app-shell.dark-mode .text-gray-600,
+.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+.app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
 
 /* Inputs */
 .app-shell.dark-mode input,
@@ -127,20 +140,26 @@ body {
 .app-shell.dark-mode .bottom-nav,
 .app-shell.dark-mode .bottom-navigation {
   background-color: var(--nav-bg);
-  border-top-color: var(--border);
+  border-top: 1px solid var(--border);
 }
 
 /* Dividers */
 .app-shell.dark-mode hr,
-.app-shell.dark-mode .divider {
+.app-shell.dark-mode .divider,
+.app-shell.dark-mode .border {
   border-color: var(--border);
 }
 
 /* Purple links and active elements */
 .app-shell.dark-mode a,
-.app-shell.dark-mode .active {
+.app-shell.dark-mode .active,
+.app-shell.dark-mode .text-brand-purple {
   color: var(--brand-purple);
 }
+
+/* Fix white bg in posts */
+.app-shell.dark-mode .bg-white { background-color: var(--surface) !important; }
+.app-shell.dark-mode .bg-gray-50 { background-color: var(--surface-2) !important; }
 
 .screen-scroll {
   flex: 1;
