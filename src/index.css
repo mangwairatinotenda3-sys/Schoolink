@@ -126,24 +126,30 @@ body {
   border-top: 1px solid var(--border);
 }
 
-/* ===== FIX: REMOVE WHITE LINES BETWEEN POSTS ===== */
-.app-shell.dark-mode.divide-y > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border)!important;
-}
-.app-shell.dark-mode.border-b,
-.app-shell.dark-mode.border-t {
-  border-color: var(--border)!important;
-}
-.app-shell.dark-mode hr {
-  border-color: var(--border)!important;
-}
-/* ================================================== */
-
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
   padding-bottom: 84px;
 }
+
+/* ===== FIX: REMOVE WHITE LINES / DIVIDERS ===== */
+.app-shell.dark-mode [class*="divide-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border)!important;
+}
+
+.app-shell.dark-mode [class*="border-gray-"] {
+  border-color: var(--border)!important;
+}
+
+.app-shell.dark-mode [class*="border-b"],
+.app-shell.dark-mode [class*="border-t"] {
+  border-color: var(--border)!important;
+}
+
+.app-shell.dark-mode hr {
+  border-color: var(--border)!important;
+}
+/* ============================================= */
 
 ::-webkit-scrollbar {
   display: none;
