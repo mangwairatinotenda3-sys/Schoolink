@@ -73,38 +73,38 @@ body {
 }
 
 /* Real header/composer/card backgrounds used across the app */
-.app-shell.dark-mode .bg-white {
-  background-color: var(--surface) !important;
+.app-shell.dark-mode.bg-white {
+  background-color: var(--surface)!important;
 }
 
-.app-shell.dark-mode .bg-gray-50,
-.app-shell.dark-mode .bg-gray-100 {
-  background-color: var(--surface-2) !important;
+.app-shell.dark-mode.bg-gray-50,
+.app-shell.dark-mode.bg-gray-100 {
+  background-color: var(--surface-2)!important;
 }
 
-.app-shell.dark-mode .text-brand-navy {
-  color: var(--text-primary) !important;
+.app-shell.dark-mode.text-brand-navy {
+  color: var(--text-primary)!important;
 }
 
 /* SIDEBAR / DRAWER (matches SideDrawer.jsx's actual classes) */
 .app-shell.dark-mode aside,
 .app-shell.dark-mode [role="dialog"] {
-  background-color: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--surface-2)!important;
+  color: var(--text-primary)!important;
 }
 
 /* TEXT OVERRIDES */
-.app-shell.dark-mode .text-gray-900,
-.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
-.app-shell.dark-mode .text-gray-700,
-.app-shell.dark-mode .text-gray-600,
-.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
-.app-shell.dark-mode .text-gray-400,
-.app-shell.dark-mode .text-gray-300 { color: var(--text-muted) !important; }
+.app-shell.dark-mode.text-gray-900,
+.app-shell.dark-mode.text-gray-800 { color: var(--text-primary)!important; }
+.app-shell.dark-mode.text-gray-700,
+.app-shell.dark-mode.text-gray-600,
+.app-shell.dark-mode.text-gray-500 { color: var(--text-secondary)!important; }
+.app-shell.dark-mode.text-gray-400,
+.app-shell.dark-mode.text-gray-300 { color: var(--text-muted)!important; }
 
-.app-shell.dark-mode .border,
-.app-shell.dark-mode .border-gray-100,
-.app-shell.dark-mode .border-gray-200 { border-color: var(--border) !important; }
+.app-shell.dark-mode.border,
+.app-shell.dark-mode.border-gray-100,
+.app-shell.dark-mode.border-gray-200 { border-color: var(--border)!important; }
 
 /* INPUTS */
 .app-shell.dark-mode input,
@@ -125,6 +125,19 @@ body {
   background-color: var(--nav-bg);
   border-top: 1px solid var(--border);
 }
+
+/* ===== FIX: REMOVE WHITE LINES BETWEEN POSTS ===== */
+.app-shell.dark-mode.divide-y > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border)!important;
+}
+.app-shell.dark-mode.border-b,
+.app-shell.dark-mode.border-t {
+  border-color: var(--border)!important;
+}
+.app-shell.dark-mode hr {
+  border-color: var(--border)!important;
+}
+/* ================================================== */
 
 .screen-scroll {
   flex: 1;
