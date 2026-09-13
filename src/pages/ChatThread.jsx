@@ -1,18 +1,25 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import ForwardPicker from '../components/ForwardPicker.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
 
 const QUICK_REACTIONS = ['❤️', '😂', '👍', '😮', '😢']
 
-function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar, allMessages }) {
+function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar, onForward, allMessages }) {
   const [showBar, setShowBar] = useState(false)
   const repliedTo = m.reply_to_id ? allMessages.find((x) => x.id === m.reply_to_id) : null
   const myReactions = reactions[m.id] ?? []
   const isStarred = starred.has(m.id)
+
+  function handleCopy(e) {
+    e.stopPropagation()
+    if (m.content) navigator.clipboard?.writeText(m.content)
+    setShowBar(false)
+  }
 
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
@@ -21,12 +28,11 @@ function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar
           {repliedTo ? <div className={`text-xs border-l-2 pl-2 mb-1 opacity-80 ${isMine ? 'border-white/50' : 'border-brand-purple/50'}`}>{repliedTo.content}</div> : null}
           {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls className="max-w-full" /> : null}
           {m.media_type === 'image' && m.media_url ? <img src={m.media_url} alt="" className="rounded-lg max-h-64 object-cover mb-1" /> : null}
-          {m.content ? <p>{m.content}</p> : null}
-          {isMine ? (
-            <span className="flex justify-end mt-1">
-              {m.read ? <CheckCheck size={14} className="text-blue-200" /> : <Check size={14} className="text-white/70" />}
-            </span>
+          {m.media_type === 'file' && m.media_url ? (
+            <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
           ) : null}
+          {m.content && m.media_type !== 'file' ? <p>{m.content}</p> : null}
+          {isMine ? <span className="flex justify-end mt-1">{m.read ? <CheckCheck size={14} className="text-blue-200" /> : <Check size={14} className="text-white/70" />}</span> : null}
         </div>
 
         {(myReactions.length > 0 || isStarred) ? (
@@ -39,10 +45,12 @@ function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar
         {showBar ? (
           <div className="flex items-center gap-1 mt-1 bg-white border border-gray-100 rounded-full px-2 py-1 shadow w-fit">
             {QUICK_REACTIONS.map((emoji) => (
-              <button key={emoji} onClick={() => { onReact(m.id, emoji); setShowBar(false) }} className="text-base">{emoji}</button>
+              <button key={emoji} onClick={(e) => { e.stopPropagation(); onReact(m.id, emoji); setShowBar(false) }} className="text-base">{emoji}</button>
             ))}
-            <button onClick={() => { onReply(m); setShowBar(false) }} className="pl-1 border-l border-gray-100 ml-1"><CornerUpLeft size={14} className="text-gray-400" /></button>
-            <button onClick={() => { onStar(m.id, isStarred); setShowBar(false) }}><Star size={14} className={isStarred ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} /></button>
+            <button onClick={(e) => { e.stopPropagation(); onReply(m); setShowBar(false) }} className="pl-1 border-l border-gray-100 ml-1"><CornerUpLeft size={14} className="text-gray-400" /></button>
+            <button onClick={(e) => { e.stopPropagation(); onStar(m.id, isStarred); setShowBar(false) }}><Star size={14} className={isStarred ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} /></button>
+            {m.content ? <button onClick={handleCopy}><Copy size={14} className="text-gray-400" /></button> : null}
+            <button onClick={(e) => { e.stopPropagation(); onForward(m); setShowBar(false) }}><Forward size={14} className="text-gray-400" /></button>
           </div>
         ) : null}
       </div>
@@ -55,6 +63,7 @@ export default function ChatThread() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const isOnline = useIsOnline(partnerId)
+  const photoInputRef = useRef(null)
   const fileInputRef = useRef(null)
 
   const [partner, setPartner] = useState(null)
@@ -66,7 +75,9 @@ export default function ChatThread() {
   const [sending, setSending] = useState(false)
   const [isBlocked, setIsBlocked] = useState(false)
   const [recording, setRecording] = useState(false)
-  const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [uploading, setUploading] = useState(false)
+  const [forwarding, setForwarding] = useState(null)
+  const [myChatSettings, setMyChatSettings] = useState({ disappearing_enabled: false, disappearing_seconds: 86400 })
   const bottomRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -74,6 +85,9 @@ export default function ChatThread() {
   useEffect(() => {
     supabase.from('profiles').select('full_name, avatar_url, role').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
     supabase.from('blocked_users').select('*').eq('blocker_id', user.id).eq('blocked_id', partnerId).maybeSingle().then(({ data }) => setIsBlocked(!!data))
+    supabase.from('chat_settings').select('*').eq('user_id', user.id).eq('partner_id', partnerId).maybeSingle().then(({ data }) => {
+      if (data) setMyChatSettings(data)
+    })
   }, [partnerId])
 
   useEffect(() => {
@@ -103,20 +117,31 @@ export default function ChatThread() {
       .select('*')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${partnerId}),and(sender_id.eq.${partnerId},receiver_id.eq.${user.id})`)
       .order('created_at', { ascending: true })
-    setMessages(data ?? [])
 
-    if (data && data.length > 0) {
-      const { data: allReactions } = await supabase.from('message_reactions').select('*').in('message_id', data.map((m) => m.id))
+    const now = new Date()
+    const active = (data ?? []).filter((m) => !m.expire_at || new Date(m.expire_at) > now)
+    const expired = (data ?? []).filter((m) => m.expire_at && new Date(m.expire_at) <= now)
+    if (expired.length > 0) {
+      await supabase.from('messages').delete().in('id', expired.map((m) => m.id))
+    }
+    setMessages(active)
+
+    if (active.length > 0) {
+      const { data: allReactions } = await supabase.from('message_reactions').select('*').in('message_id', active.map((m) => m.id))
       const grouped = {}
       for (const r of allReactions ?? []) grouped[r.message_id] = [...(grouped[r.message_id] ?? []), r.emoji]
       setReactions(grouped)
 
-      const { data: starredRows } = await supabase.from('starred_messages').select('message_id').eq('user_id', user.id).in('message_id', data.map((m) => m.id))
+      const { data: starredRows } = await supabase.from('starred_messages').select('message_id').eq('user_id', user.id).in('message_id', active.map((m) => m.id))
       setStarred(new Set((starredRows ?? []).map((s) => s.message_id)))
     }
 
-    const unreadIds = (data ?? []).filter((m) => m.receiver_id === user.id && !m.read).map((m) => m.id)
+    const unreadIds = active.filter((m) => m.receiver_id === user.id && !m.read).map((m) => m.id)
     if (unreadIds.length > 0) await supabase.from('messages').update({ read: true }).in('id', unreadIds)
+  }
+
+  function computeExpiry() {
+    return myChatSettings.disappearing_enabled ? new Date(Date.now() + myChatSettings.disappearing_seconds * 1000).toISOString() : null
   }
 
   async function handleReact(messageId, emoji) {
@@ -140,23 +165,37 @@ export default function ChatThread() {
     const content = text
     const replyId = replyTo?.id ?? null
     setText(''); setReplyTo(null)
-    await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, content, reply_to_id: replyId })
+    await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, content, reply_to_id: replyId, expire_at: computeExpiry() })
     setSending(false)
   }
 
   async function handlePhotoChange(e) {
     const files = Array.from(e.target.files || [])
     if (files.length === 0 || isBlocked) return
-    setUploadingPhoto(true)
+    setUploading(true)
     for (const file of files) {
       const path = `${user.id}/${Date.now()}-${file.name}`
       const { error } = await supabase.storage.from('chat-media').upload(path, file)
       if (!error) {
         const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-        await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'image' })
+        await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'image', expire_at: computeExpiry() })
       }
     }
-    setUploadingPhoto(false)
+    setUploading(false)
+    if (photoInputRef.current) photoInputRef.current.value = ''
+  }
+
+  async function handleFileChange(e) {
+    const file = e.target.files?.[0]
+    if (!file || isBlocked) return
+    setUploading(true)
+    const path = `${user.id}/${Date.now()}-${file.name}`
+    const { error } = await supabase.storage.from('chat-media').upload(path, file)
+    if (!error) {
+      const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
+      await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'file', content: file.name, expire_at: computeExpiry() })
+    }
+    setUploading(false)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -186,8 +225,15 @@ export default function ChatThread() {
     const { error } = await supabase.storage.from('chat-media').upload(path, blob)
     if (!error) {
       const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-      await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio' })
+      await supabase.from('messages').insert({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio', expire_at: computeExpiry() })
     }
+  }
+
+  async function handleForwardSend(recipientId) {
+    if (!forwarding) return
+    await supabase.from('messages').insert({ sender_id: user.id, receiver_id: recipientId, content: forwarding.content, media_url: forwarding.media_url, media_type: forwarding.media_type })
+    setForwarding(null)
+    navigate(`/chats/${recipientId}`)
   }
 
   return (
@@ -206,10 +252,11 @@ export default function ChatThread() {
       </div>
 
       {isBlocked ? <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">You've blocked this person. Unblock to send messages.</div> : null}
+      {myChatSettings.disappearing_enabled ? <div className="bg-brand-light text-brand-purple text-[11px] text-center py-1.5 px-4">Disappearing messages are on</div> : null}
 
       <div className="screen-scroll px-4 py-3 flex flex-col gap-3">
         {messages.map((m) => (
-          <MessageBubble key={m.id} m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} onReact={handleReact} onReply={setReplyTo} onStar={handleStar} allMessages={messages} />
+          <MessageBubble key={m.id} m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} onReact={handleReact} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} allMessages={messages} />
         ))}
         <div ref={bottomRef} />
       </div>
@@ -222,10 +269,10 @@ export default function ChatThread() {
       ) : null}
 
       <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100">
-        <button onClick={() => fileInputRef.current?.click()} disabled={isBlocked || uploadingPhoto}>
-          <ImageIcon size={18} className={uploadingPhoto ? 'text-gray-300' : 'text-gray-500'} />
-        </button>
-        <input ref={fileInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+        <button onClick={() => photoInputRef.current?.click()} disabled={isBlocked || uploading}><ImageIcon size={18} className={uploading ? 'text-gray-300' : 'text-gray-500'} /></button>
+        <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
+        <button onClick={() => fileInputRef.current?.click()} disabled={isBlocked || uploading}><Paperclip size={17} className={uploading ? 'text-gray-300' : 'text-gray-500'} /></button>
+        <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
         <button onClick={recording ? stopRecording : startRecording} disabled={isBlocked} className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${recording ? 'bg-red-500' : 'bg-gray-100'} disabled:opacity-60`}>
           {recording ? <Square size={14} className="text-white" /> : <Mic size={16} className="text-gray-500" />}
         </button>
@@ -239,6 +286,8 @@ export default function ChatThread() {
         />
         <button onClick={handleSend} disabled={sending || isBlocked || recording} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60"><Send size={16} className="text-white" /></button>
       </div>
+
+      {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
     </div>
   )
-  }
+    }
