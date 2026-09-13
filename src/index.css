@@ -4,6 +4,7 @@
 
 :root {
   --brand-purple: #6C4CE0;
+  --brand-light: #F5F4FB;
   --text-scale: 1;
   color-scheme: light;
 
@@ -11,13 +12,13 @@
   --app-bg: #F5F4FB;
   --shell-bg: #fff;
   --surface: #fff;
+  --surface-2: #F7F6FD;
   --text-primary: #24203F;
   --text-secondary: #7B7890;
   --text-muted: #A0A0B0;
   --border: #ECEAF3;
   --input-bg: #F5F4FB;
   --nav-bg: #fff;
-  --brand-light: #ede9fe;
 }
 
 html, body, #root {
@@ -47,7 +48,7 @@ body {
   flex-direction: column;
 }
 
-/* Dark mode */
+/* ================= DARK MODE ================= */
 .app-shell.dark-mode {
   color-scheme: dark;
   background: #0B0920;
@@ -67,61 +68,69 @@ body {
   --brand-light: #1B1739;
 }
 
-/* Keep images and videos normal in dark mode */
+/* Keep images and videos normal */
 .app-shell.dark-mode img,
 .app-shell.dark-mode video {
   filter: none;
 }
 
-/* High contrast */
-.app-shell.high-contrast {
-  filter: contrast(1.3);
-}
-
-/* Main dark surfaces */
-.app-shell.dark-mode .screen-scroll,
-.app-shell.dark-mode main,
-.app-shell.dark-mode section {
-  background-color: var(--app-bg);
-}
-
-/* Cards and panels */
-.app-shell.dark-mode .card,
-.app-shell.dark-mode .surface,
-.app-shell.dark-mode .panel,
-.app-shell.dark-mode .modal,
-.app-shell.dark-mode .settings-card,
-.app-shell.dark-mode .border-gray-100 {
+/* HEADER FIX */
+.app-shell.dark-mode header,
+.app-shell.dark-mode .app-header {
   background-color: var(--surface);
-  border-color: var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.app-shell.dark-mode .text-brand-navy,
+.app-shell.dark-mode .font-bold {
+  color: var(--text-primary) !important;
+}
+
+/* CARDS / POSTS FIX */
+.app-shell.dark-mode .card,
+.app-shell.dark-mode article,
+.app-shell.dark-mode .bg-white {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
   color: var(--text-primary);
 }
 
-/* Text overrides for Tailwind classes */
-.app-shell.dark-mode h1,
-.app-shell.dark-mode h2,
-.app-shell.dark-mode h3,
-.app-shell.dark-mode h4,
-.app-shell.dark-mode h5,
-.app-shell.dark-mode h6,
-.app-shell.dark-mode .font-semibold,
-.app-shell.dark-mode .font-medium {
-  color: var(--text-primary);
+/* SIDEBAR / DRAWER FIX */
+.app-shell.dark-mode .drawer,
+.app-shell.dark-mode aside,
+.app-shell.dark-mode [role="dialog"] {
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
+  border-right: 1px solid var(--border);
 }
 
-.app-shell.dark-mode p,
-.app-shell.dark-mode span,
-.app-shell.dark-mode label {
-  color: var(--text-secondary);
+.app-shell.dark-mode .drawer .text-gray-400,
+.app-shell.dark-mode .drawer span { 
+  color: var(--text-muted) !important; 
 }
 
+.app-shell.dark-mode .drawer a,
+.app-shell.dark-mode .drawer button {
+  color: var(--text-secondary) !important;
+}
+
+.app-shell.dark-mode .drawer a:hover,
+.app-shell.dark-mode .drawer button:hover {
+  background-color: var(--surface) !important;
+  color: var(--text-primary) !important;
+}
+
+/* TEXT OVERRIDES */
 .app-shell.dark-mode .text-gray-900,
 .app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
 .app-shell.dark-mode .text-gray-600,
 .app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
 .app-shell.dark-mode .text-gray-400 { color: var(--text-muted) !important; }
 
-/* Inputs */
+.app-shell.dark-mode .border,
+.app-shell.dark-mode .border-gray-100 { border-color: var(--border) !important; }
+
+/* INPUTS */
 .app-shell.dark-mode input,
 .app-shell.dark-mode textarea,
 .app-shell.dark-mode select {
@@ -135,31 +144,17 @@ body {
   color: var(--text-muted);
 }
 
-/* Sticky bottom navigation */
+/* NAV / BOTTOM BAR */
 .app-shell.dark-mode nav,
-.app-shell.dark-mode .bottom-nav,
-.app-shell.dark-mode .bottom-navigation {
+.app-shell.dark-mode .bottom-nav {
   background-color: var(--nav-bg);
   border-top: 1px solid var(--border);
 }
 
-/* Dividers */
-.app-shell.dark-mode hr,
-.app-shell.dark-mode .divider,
-.app-shell.dark-mode .border {
-  border-color: var(--border);
+/* TOP ICONS ROW */
+.app-shell.dark-mode .bg-white.rounded-full { 
+  background-color: var(--surface-2) !important; 
 }
-
-/* Purple links and active elements */
-.app-shell.dark-mode a,
-.app-shell.dark-mode .active,
-.app-shell.dark-mode .text-brand-purple {
-  color: var(--brand-purple);
-}
-
-/* Fix white bg in posts */
-.app-shell.dark-mode .bg-white { background-color: var(--surface) !important; }
-.app-shell.dark-mode .bg-gray-50 { background-color: var(--surface-2) !important; }
 
 .screen-scroll {
   flex: 1;
