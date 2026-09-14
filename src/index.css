@@ -26,15 +26,19 @@ html {
   font-size: calc(16px * var(--text-scale));
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
 }
 
-html, body {
+html,
+body {
   background: var(--app-bg);
 }
 
 body {
+  margin: 0;
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
 }
@@ -53,6 +57,7 @@ body {
 }
 
 /* ================= DARK MODE ================= */
+
 .app-shell.dark-mode {
   color-scheme: dark;
   background: #0B0920;
@@ -70,6 +75,14 @@ body {
   --nav-bg: #100D25;
   --brand-purple: #7C5CFF;
   --brand-light: #1B1739;
+}
+
+/* ================= WHITE LINES FIX ================= */
+
+/* Makes the area outside the 480px app dark too */
+html:has(.app-shell.dark-mode),
+body:has(.app-shell.dark-mode) {
+  background: #0B0920 !important;
 }
 
 .app-shell.dark-mode img,
@@ -97,22 +110,41 @@ body {
 }
 
 .app-shell.dark-mode .text-gray-900,
-.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
+.app-shell.dark-mode .text-gray-800 {
+  color: var(--text-primary) !important;
+}
+
 .app-shell.dark-mode .text-gray-700,
 .app-shell.dark-mode .text-gray-600,
-.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+.app-shell.dark-mode .text-gray-500 {
+  color: var(--text-secondary) !important;
+}
+
 .app-shell.dark-mode .text-gray-400,
-.app-shell.dark-mode .text-gray-300 { color: var(--text-muted) !important; }
+.app-shell.dark-mode .text-gray-300 {
+  color: var(--text-muted) !important;
+}
 
 .app-shell.dark-mode .border,
 .app-shell.dark-mode .border-gray-100,
-.app-shell.dark-mode .border-gray-200 { border-color: var(--border) !important; }
+.app-shell.dark-mode .border-gray-200 {
+  border-color: var(--border) !important;
+}
 
-/* The white lines fix — divide-y/divide-x use a different mechanism
-   than border-*, so they need their own override */
+/* Tailwind divide lines */
 .app-shell.dark-mode .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
   border-color: var(--border) !important;
 }
+
+.app-shell.dark-mode .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+.app-shell.dark-mode .divide-gray-300 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
+}
+
+/* ================= DARK MODE INPUTS ================= */
 
 .app-shell.dark-mode input,
 .app-shell.dark-mode textarea,
@@ -127,16 +159,23 @@ body {
   color: var(--text-muted);
 }
 
+/* ================= DARK MODE NAVIGATION ================= */
+
 .app-shell.dark-mode nav {
   background-color: var(--nav-bg);
   border-top: 1px solid var(--border);
 }
 
+/* ================= SCROLL AREA ================= */
+
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding-bottom: 84px;
 }
+
+/* ================= SCROLLBAR ================= */
 
 ::-webkit-scrollbar {
   display: none;
