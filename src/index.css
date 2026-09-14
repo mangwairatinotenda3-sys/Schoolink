@@ -35,6 +35,7 @@ body,
 html,
 body {
   background: var(--app-bg);
+  transition: background-color 0.3s; /* added for smooth theme switch */
 }
 
 body {
@@ -79,10 +80,16 @@ body {
 
 /* ================= WHITE LINES FIX ================= */
 
-/* Makes the area outside the 480px app dark too */
+/* Makes the area outside the 480px app dark too - Modern browsers */
 html:has(.app-shell.dark-mode),
 body:has(.app-shell.dark-mode) {
-  background: #0B0920 !important;
+  background: #0B0920!important;
+}
+
+/* Fallback for Android WebView / iOS < 15.4 - Add.dark to html/body with JS */
+html.dark,
+body.dark {
+  background: #0B0920!important;
 }
 
 .app-shell.dark-mode img,
@@ -90,58 +97,58 @@ body:has(.app-shell.dark-mode) {
   filter: none;
 }
 
-.app-shell.dark-mode .bg-white {
-  background-color: var(--surface) !important;
+.app-shell.dark-mode.bg-white {
+  background-color: var(--surface)!important;
 }
 
-.app-shell.dark-mode .bg-gray-50,
-.app-shell.dark-mode .bg-gray-100 {
-  background-color: var(--surface-2) !important;
+.app-shell.dark-mode.bg-gray-50,
+.app-shell.dark-mode.bg-gray-100 {
+  background-color: var(--surface-2)!important;
 }
 
-.app-shell.dark-mode .text-brand-navy {
-  color: var(--text-primary) !important;
+.app-shell.dark-mode.text-brand-navy {
+  color: var(--text-primary)!important;
 }
 
 .app-shell.dark-mode aside,
 .app-shell.dark-mode [role="dialog"] {
-  background-color: var(--surface-2) !important;
-  color: var(--text-primary) !important;
+  background-color: var(--surface-2)!important;
+  color: var(--text-primary)!important;
 }
 
-.app-shell.dark-mode .text-gray-900,
-.app-shell.dark-mode .text-gray-800 {
-  color: var(--text-primary) !important;
+.app-shell.dark-mode.text-gray-900,
+.app-shell.dark-mode.text-gray-800 {
+  color: var(--text-primary)!important;
 }
 
-.app-shell.dark-mode .text-gray-700,
-.app-shell.dark-mode .text-gray-600,
-.app-shell.dark-mode .text-gray-500 {
-  color: var(--text-secondary) !important;
+.app-shell.dark-mode.text-gray-700,
+.app-shell.dark-mode.text-gray-600,
+.app-shell.dark-mode.text-gray-500 {
+  color: var(--text-secondary)!important;
 }
 
-.app-shell.dark-mode .text-gray-400,
-.app-shell.dark-mode .text-gray-300 {
-  color: var(--text-muted) !important;
+.app-shell.dark-mode.text-gray-400,
+.app-shell.dark-mode.text-gray-300 {
+  color: var(--text-muted)!important;
 }
 
-.app-shell.dark-mode .border,
-.app-shell.dark-mode .border-gray-100,
-.app-shell.dark-mode .border-gray-200 {
-  border-color: var(--border) !important;
+.app-shell.dark-mode.border,
+.app-shell.dark-mode.border-gray-100,
+.app-shell.dark-mode.border-gray-200 {
+  border-color: var(--border)!important;
 }
 
 /* Tailwind divide lines */
-.app-shell.dark-mode .divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border) !important;
+.app-shell.dark-mode.divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border)!important;
 }
 
-.app-shell.dark-mode .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border) !important;
+.app-shell.dark-mode.divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border)!important;
 }
 
-.app-shell.dark-mode .divide-gray-300 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border) !important;
+.app-shell.dark-mode.divide-gray-300 > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border)!important;
 }
 
 /* ================= DARK MODE INPUTS ================= */
@@ -177,6 +184,9 @@ body:has(.app-shell.dark-mode) {
 
 /* ================= SCROLLBAR ================= */
 
+* {
+  scrollbar-width: none; /* Firefox support added */
+}
 ::-webkit-scrollbar {
   display: none;
   }
