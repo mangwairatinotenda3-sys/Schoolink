@@ -21,25 +21,18 @@
 }
 
 html {
-  /* rem units are always measured from here, not from body —
-     this is what actually makes the text-size setting work */
   font-size: calc(16px * var(--text-scale));
 }
 
-html,
-body,
-#root {
+html, body, #root {
   height: 100%;
 }
 
-html,
-body {
+html, body {
   background: var(--app-bg);
-  transition: background-color 0.3s; /* added for smooth theme switch */
 }
 
 body {
-  margin: 0;
   color: var(--text-primary);
   transition: background-color 0.3s, color 0.3s;
 }
@@ -58,7 +51,6 @@ body {
 }
 
 /* ================= DARK MODE ================= */
-
 .app-shell.dark-mode {
   color-scheme: dark;
   background: #0B0920;
@@ -78,80 +70,53 @@ body {
   --brand-light: #1B1739;
 }
 
-/* ================= WHITE LINES FIX ================= */
-
-/* Makes the area outside the 480px app dark too - Modern browsers */
-html:has(.app-shell.dark-mode),
-body:has(.app-shell.dark-mode) {
-  background: #0B0920!important;
-}
-
-/* Fallback for Android WebView / iOS < 15.4 - Add.dark to html/body with JS */
-html.dark,
-body.dark {
-  background: #0B0920!important;
-}
-
 .app-shell.dark-mode img,
 .app-shell.dark-mode video {
   filter: none;
 }
 
-.app-shell.dark-mode.bg-white {
-  background-color: var(--surface)!important;
+.app-shell.dark-mode .bg-white {
+  background-color: var(--surface) !important;
 }
 
-.app-shell.dark-mode.bg-gray-50,
-.app-shell.dark-mode.bg-gray-100 {
-  background-color: var(--surface-2)!important;
+.app-shell.dark-mode .bg-gray-50,
+.app-shell.dark-mode .bg-gray-100 {
+  background-color: var(--surface-2) !important;
 }
 
-.app-shell.dark-mode.text-brand-navy {
-  color: var(--text-primary)!important;
+.app-shell.dark-mode .text-brand-navy {
+  color: var(--text-primary) !important;
 }
 
 .app-shell.dark-mode aside,
 .app-shell.dark-mode [role="dialog"] {
-  background-color: var(--surface-2)!important;
-  color: var(--text-primary)!important;
+  background-color: var(--surface-2) !important;
+  color: var(--text-primary) !important;
 }
 
-.app-shell.dark-mode.text-gray-900,
-.app-shell.dark-mode.text-gray-800 {
-  color: var(--text-primary)!important;
+.app-shell.dark-mode .text-gray-900,
+.app-shell.dark-mode .text-gray-800 { color: var(--text-primary) !important; }
+.app-shell.dark-mode .text-gray-700,
+.app-shell.dark-mode .text-gray-600,
+.app-shell.dark-mode .text-gray-500 { color: var(--text-secondary) !important; }
+.app-shell.dark-mode .text-gray-400,
+.app-shell.dark-mode .text-gray-300 { color: var(--text-muted) !important; }
+
+/* Every border/divider variant used across the app, forced dark.
+   Includes both the plain border-* utilities and Tailwind's
+   divide-y/divide-x utilities (which use a different selector shape). */
+.app-shell.dark-mode [class*="border-gray-"],
+.app-shell.dark-mode [class*="border-t"],
+.app-shell.dark-mode [class*="border-b"],
+.app-shell.dark-mode [class*="border-l"],
+.app-shell.dark-mode [class*="border-r"],
+.app-shell.dark-mode .border {
+  border-color: var(--border) !important;
 }
 
-.app-shell.dark-mode.text-gray-700,
-.app-shell.dark-mode.text-gray-600,
-.app-shell.dark-mode.text-gray-500 {
-  color: var(--text-secondary)!important;
+.app-shell.dark-mode [class*="divide-gray-"] > :not([hidden]) ~ :not([hidden]) {
+  border-color: var(--border) !important;
 }
-
-.app-shell.dark-mode.text-gray-400,
-.app-shell.dark-mode.text-gray-300 {
-  color: var(--text-muted)!important;
-}
-
-.app-shell.dark-mode.border,
-.app-shell.dark-mode.border-gray-100,
-.app-shell.dark-mode.border-gray-200 {
-  border-color: var(--border)!important;
-}
-
-/* Tailwind divide lines */
-.app-shell.dark-mode.divide-gray-100 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border)!important;
-}
-
-.app-shell.dark-mode.divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border)!important;
-}
-
-.app-shell.dark-mode.divide-gray-300 > :not([hidden]) ~ :not([hidden]) {
-  border-color: var(--border)!important;
-}
-
-/* ================= DARK MODE INPUTS ================= */
 
 .app-shell.dark-mode input,
 .app-shell.dark-mode textarea,
@@ -166,27 +131,26 @@ body.dark {
   color: var(--text-muted);
 }
 
-/* ================= DARK MODE NAVIGATION ================= */
-
 .app-shell.dark-mode nav {
   background-color: var(--nav-bg);
-  border-top: none;
+  border-top: 1px solid var(--border);
 }
 
-/* ================= SCROLL AREA ================= */
+/* HIGH CONTRAST — this got accidentally dropped last edit, restoring it */
+.app-shell.high-contrast {
+  filter: contrast(1.35);
+}
+
+.app-shell.dark-mode.high-contrast {
+  filter: contrast(1.35) brightness(1.1);
+}
 
 .screen-scroll {
   flex: 1;
   overflow-y: auto;
-  overflow-x: hidden;
   padding-bottom: 84px;
 }
 
-/* ================= SCROLLBAR ================= */
-
-* {
-  scrollbar-width: none; /* Firefox support added */
-}
 ::-webkit-scrollbar {
   display: none;
   }
