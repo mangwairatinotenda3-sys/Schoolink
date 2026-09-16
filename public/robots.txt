@@ -1,4 +1,3 @@
-User-agent: *
-Allow: /
-
 Sitemap: https://mangwairatinotenda3-sys.github.io/Schoolink/sitemap.xml
+User-agent: *
+Disallow:
