@@ -2,18 +2,18 @@ import { useEffect, useState } from 'react'
 import { GraduationCap } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useTranslation } from '../lib/i18n.jsx'
 import GoogleIcon from '../components/GoogleIcon.jsx'
 
 export default function Welcome() {
   const navigate = useNavigate()
   const { signInWithGoogle, signInAsGuest, session } = useAuth()
+  const { t } = useTranslation()
   const [guestBusy, setGuestBusy] = useState(false)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (session) {
-      navigate('/home', { replace: true })
-    }
+    if (session) navigate('/home', { replace: true })
   }, [session, navigate])
 
   async function handleGuest() {
@@ -21,9 +21,7 @@ export default function Welcome() {
     setError('')
     const { error: guestError } = await signInAsGuest()
     setGuestBusy(false)
-    if (guestError) {
-      setError("Guest access isn't available right now. Please try again shortly.")
-    }
+    if (guestError) setError("Guest access isn't available right now. Please try again shortly.")
   }
 
   return (
@@ -38,10 +36,8 @@ export default function Welcome() {
         </div>
       </div>
 
-      <h2 className="text-2xl font-bold mt-8">Welcome to Schoolink</h2>
-      <p className="text-gray-500 mt-2">
-        Your all-in-one platform for schools, staff, parents and communities.
-      </p>
+      <h2 className="text-2xl font-bold mt-8">{t('welcomeTitle')}</h2>
+      <p className="text-gray-500 mt-2">{t('welcomeTagline')}</p>
 
       <div className="flex-1 flex items-center justify-center">
         <div className="text-7xl">🏫</div>
@@ -50,33 +46,20 @@ export default function Welcome() {
       {error ? <p className="text-red-500 text-sm text-center mb-3">{error}</p> : null}
 
       <div className="space-y-3">
-        <button
-          onClick={() => navigate('/sign-in/email')}
-          className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl"
-        >
-          Sign in with Email
+        <button onClick={() => navigate('/sign-in/email')} className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl">
+          {t('signInEmail')}
         </button>
-        <button
-          onClick={signInWithGoogle}
-          className="w-full border border-gray-200 font-medium py-3.5 rounded-xl flex items-center justify-center gap-2"
-        >
-          <GoogleIcon size={18} />
-          Continue with Google
+        <button onClick={signInWithGoogle} className="w-full border border-gray-200 font-medium py-3.5 rounded-xl flex items-center justify-center gap-2">
+          <GoogleIcon size={18} /> {t('continueGoogle')}
         </button>
-        <button
-          onClick={handleGuest}
-          disabled={guestBusy}
-          className="w-full font-medium py-3.5 rounded-xl text-gray-600 disabled:opacity-60"
-        >
-          {guestBusy ? 'Setting up…' : 'Continue as Guest'}
+        <button onClick={handleGuest} disabled={guestBusy} className="w-full font-medium py-3.5 rounded-xl text-gray-600 disabled:opacity-60">
+          {guestBusy ? 'Setting up…' : t('continueGuest')}
         </button>
       </div>
 
       <p className="text-center text-xs text-gray-400 mt-4">
-        By continuing, you agree to our{' '}
-        <span className="text-brand-purple">Terms of Service</span> and{' '}
-        <span className="text-brand-purple">Privacy Policy</span>
+        {t('agree')} <span className="text-brand-purple">Terms of Service</span> and <span className="text-brand-purple">Privacy Policy</span>
       </p>
     </div>
   )
-      }
+                 }
