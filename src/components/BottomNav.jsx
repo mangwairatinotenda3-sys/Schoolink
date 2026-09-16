@@ -1,26 +1,24 @@
 import { Home, MessageCircle, PlusCircle, Bell, User } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
-
-const items = [
-  { to: '/home', label: 'Home', icon: Home },
-  { to: '/chats', label: 'Chats', icon: MessageCircle },
-  { to: '/add-post', label: 'Post', icon: PlusCircle, primary: true },
-  { to: '/notifications', label: 'Alerts', icon: Bell, showBadge: true },
-  { to: '/profile', label: 'Profile', icon: User },
-]
+import { useTranslation } from '../lib/i18n.jsx'
 
 export default function BottomNav() {
   const unread = useUnreadCount()
+  const { t } = useTranslation()
+
+  const items = [
+    { to: '/home', label: t('home'), icon: Home },
+    { to: '/chats', label: t('chats'), icon: MessageCircle },
+    { to: '/add-post', label: t('post'), icon: PlusCircle, primary: true },
+    { to: '/notifications', label: t('alerts'), icon: Bell, showBadge: true },
+    { to: '/profile', label: t('profile'), icon: User },
+  ]
 
   return (
     <nav className="absolute bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-2 px-2">
       {items.map(({ to, label, icon: Icon, primary, showBadge }) => (
-        <NavLink
-          key={to}
-          to={to}
-          className="flex flex-col items-center gap-1 text-[11px] text-gray-500 relative"
-        >
+        <NavLink key={to} to={to} className="flex flex-col items-center gap-1 text-[11px] text-gray-500 relative">
           {({ isActive }) =>
             primary ? (
               <>
@@ -47,4 +45,4 @@ export default function BottomNav() {
       ))}
     </nav>
   )
-  }
+                   }
