@@ -136,12 +136,19 @@ export default function CommunityGroupInfo() {
     await supabase.from('community_members').delete().eq('community_id', communityId).eq('user_id', user.id)
     navigate('/communities')
   }
-
-  async function handleDeleteCommunity() {
+async function handleDeleteCommunity() {
     if (!window.confirm('Delete this community for everyone? This cannot be undone.')) return
-    await supabase.from('communities').delete().eq('id', communityId)
+    const { data, error } = await supabase.from('communities').delete().eq('id', communityId).select()
+    if (error) {
+      alert(`Couldn't delete: ${error.message}`)
+      return
+    }
+    if (!data || data.length === 0) {
+      alert("Delete didn't take effect — you may not have admin permission, or a database permission needs to be re-applied.")
+      return
+    }
     navigate('/communities')
-  }
+      }
 
   async function savePostingMode() {
     setSavingSettings(true)
