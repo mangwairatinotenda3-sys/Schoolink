@@ -59,13 +59,20 @@ export default function Communities() {
       setMyCommunityIds((prev) => new Set(prev).add(community.id))
     }
   }
-
-  async function handleDelete(communityId) {
+async function handleDelete(communityId) {
     setOpenMenuId(null)
     if (!window.confirm('Delete this community for everyone? This cannot be undone.')) return
-    const { error } = await supabase.from('communities').delete().eq('id', communityId)
-    if (!error) setCommunities((prev) => prev.filter((c) => c.id !== communityId))
-  }
+    const { data, error } = await supabase.from('communities').delete().eq('id', communityId).select()
+    if (error) {
+      alert(`Couldn't delete: ${error.message}`)
+      return
+    }
+    if (!data || data.length === 0) {
+      alert("Delete didn't take effect — you may not have admin permission on this community, or a database permission needs to be re-applied.")
+      return
+    }
+    setCommunities((prev) => prev.filter((c) => c.id !== communityId))
+        }
 
   const filtered = communities.filter((c) => {
     const q = query.toLowerCase().trim()
