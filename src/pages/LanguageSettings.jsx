@@ -63,11 +63,18 @@ export default function LanguageSettings() {
   const [saving, setSaving] = useState(false)
   const [query, setQuery] = useState('')
 
+  const [saveError, setSaveError] = useState('')
+
   async function handleSelect(code) {
-    setSelected(code)
     setSaving(true)
-    await saveProfileDetails({ language: code })
+    setSaveError('')
+    const { error } = await saveProfileDetails({ language: code })
     setSaving(false)
+    if (error) {
+      setSaveError(`Couldn't save: ${error.message}`)
+      return
+    }
+    setSelected(code)
   }
 
   const filtered = languages.filter((l) => l.label.toLowerCase().includes(query.toLowerCase().trim()))
@@ -112,6 +119,7 @@ export default function LanguageSettings() {
         )}
 
         {saving ? <p className="text-xs text-brand-purple mt-3">Saving…</p> : null}
+        {saveError ? <p className="text-xs text-red-500 mt-3">{saveError}</p> : null}
       </div>
     </div>
   )
