@@ -1,84 +1,40 @@
 import { useState } from 'react'
-import { AlertTriangle, Search } from 'lucide-react'
+import { Search, Check } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
-import { useAuth } from '../context/AuthContext.jsx'
+import { translatePageTo, resetToOriginalLanguage, isCurrentlyTranslated } from '../lib/googleTranslate.js'
 
 const languages = [
-  { code: 'en', label: 'English', verified: true },
-  // African languages
-  { code: 'sn', label: 'Shona' },
-  { code: 'nd', label: 'Ndebele' },
-  { code: 'zu', label: 'Zulu' },
-  { code: 'xh', label: 'Xhosa' },
-  { code: 'af', label: 'Afrikaans' },
-  { code: 'ny', label: 'Chichewa / Nyanja' },
-  { code: 'bem', label: 'Bemba' },
-  { code: 'sw', label: 'Swahili' },
-  { code: 'yo', label: 'Yoruba' },
-  { code: 'ig', label: 'Igbo' },
-  { code: 'ha', label: 'Hausa' },
-  { code: 'am', label: 'Amharic' },
-  { code: 'so', label: 'Somali' },
-  { code: 'rw', label: 'Kinyarwanda' },
-  { code: 'st', label: 'Sesotho' },
-  { code: 'tn', label: 'Setswana' },
-  // European languages
-  { code: 'fr', label: 'French' },
-  { code: 'pt', label: 'Portuguese' },
-  { code: 'es', label: 'Spanish' },
-  { code: 'de', label: 'German' },
-  { code: 'it', label: 'Italian' },
-  { code: 'nl', label: 'Dutch' },
-  { code: 'ru', label: 'Russian' },
-  { code: 'pl', label: 'Polish' },
-  { code: 'uk', label: 'Ukrainian' },
-  { code: 'ro', label: 'Romanian' },
-  { code: 'el', label: 'Greek' },
-  { code: 'sv', label: 'Swedish' },
-  { code: 'tr', label: 'Turkish' },
-  // Asian languages
-  { code: 'zh', label: 'Chinese (Mandarin)' },
-  { code: 'ja', label: 'Japanese' },
-  { code: 'ko', label: 'Korean' },
-  { code: 'hi', label: 'Hindi' },
-  { code: 'bn', label: 'Bengali' },
-  { code: 'ur', label: 'Urdu' },
-  { code: 'pa', label: 'Punjabi' },
-  { code: 'ta', label: 'Tamil' },
-  { code: 'te', label: 'Telugu' },
-  { code: 'vi', label: 'Vietnamese' },
-  { code: 'th', label: 'Thai' },
-  { code: 'id', label: 'Indonesian' },
-  { code: 'ms', label: 'Malay' },
-  { code: 'fil', label: 'Filipino (Tagalog)' },
-  // Middle Eastern
-  { code: 'ar', label: 'Arabic' },
-  { code: 'he', label: 'Hebrew' },
-  { code: 'fa', label: 'Persian (Farsi)' },
+  { code: 'en', label: 'English' },
+  { code: 'sn', label: 'Shona' }, { code: 'nd', label: 'Ndebele' }, { code: 'zu', label: 'Zulu' },
+  { code: 'xh', label: 'Xhosa' }, { code: 'af', label: 'Afrikaans' }, { code: 'ny', label: 'Chichewa / Nyanja' },
+  { code: 'sw', label: 'Swahili' }, { code: 'yo', label: 'Yoruba' }, { code: 'ig', label: 'Igbo' },
+  { code: 'ha', label: 'Hausa' }, { code: 'am', label: 'Amharic' }, { code: 'so', label: 'Somali' },
+  { code: 'rw', label: 'Kinyarwanda' }, { code: 'st', label: 'Sesotho' }, { code: 'tn', label: 'Setswana' },
+  { code: 'fr', label: 'French' }, { code: 'pt', label: 'Portuguese' }, { code: 'es', label: 'Spanish' },
+  { code: 'de', label: 'German' }, { code: 'it', label: 'Italian' }, { code: 'nl', label: 'Dutch' },
+  { code: 'ru', label: 'Russian' }, { code: 'pl', label: 'Polish' }, { code: 'uk', label: 'Ukrainian' },
+  { code: 'ro', label: 'Romanian' }, { code: 'el', label: 'Greek' }, { code: 'sv', label: 'Swedish' },
+  { code: 'tr', label: 'Turkish' }, { code: 'zh-CN', label: 'Chinese (Mandarin)' }, { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' }, { code: 'hi', label: 'Hindi' }, { code: 'bn', label: 'Bengali' },
+  { code: 'ur', label: 'Urdu' }, { code: 'pa', label: 'Punjabi' }, { code: 'ta', label: 'Tamil' },
+  { code: 'te', label: 'Telugu' }, { code: 'vi', label: 'Vietnamese' }, { code: 'th', label: 'Thai' },
+  { code: 'id', label: 'Indonesian' }, { code: 'ms', label: 'Malay' }, { code: 'fil', label: 'Filipino (Tagalog)' },
+  { code: 'ar', label: 'Arabic' }, { code: 'he', label: 'Hebrew' }, { code: 'fa', label: 'Persian (Farsi)' },
 ]
 
 export default function LanguageSettings() {
-  const { profile, saveProfileDetails } = useAuth()
-  const [selected, setSelected] = useState(profile?.language || 'en')
-  const [saving, setSaving] = useState(false)
   const [query, setQuery] = useState('')
+  const currentlyTranslated = isCurrentlyTranslated()
 
-  const [saveError, setSaveError] = useState('')
-
-  async function handleSelect(code) {
-    setSaving(true)
-    setSaveError('')
-    const { error } = await saveProfileDetails({ language: code })
-    setSaving(false)
-    if (error) {
-      setSaveError(`Couldn't save: ${error.message}`)
-      return
+  function handleSelect(code) {
+    if (code === 'en') {
+      resetToOriginalLanguage()
+    } else {
+      translatePageTo(code)
     }
-    setSelected(code)
   }
 
   const filtered = languages.filter((l) => l.label.toLowerCase().includes(query.toLowerCase().trim()))
-  const currentLabel = languages.find((l) => l.code === selected)?.label || 'English'
 
   return (
     <div className="app-shell">
@@ -95,32 +51,27 @@ export default function LanguageSettings() {
         </div>
 
         <p className="text-xs text-gray-400 mb-3">
-          ⚠️ Only English is fully verified right now. Other languages show English text until reviewed by a fluent speaker — selecting one just sets your preference for when translations are added.
+          Translation is powered by Google Translate — real, live translation of the whole app, not something we've hand-written. Quality can vary by language.
         </p>
 
         {filtered.length === 0 ? (
           <p className="text-center text-gray-400 py-8">No languages match "{query}".</p>
         ) : (
-          filtered.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => handleSelect(lang.code)}
-              className="w-full flex items-center justify-between py-3.5 border-b border-gray-100"
-            >
-              <span className="flex items-center gap-2 text-sm">
-                {lang.label}
-                {!lang.verified ? <AlertTriangle size={13} className="text-amber-500" /> : null}
-              </span>
-              <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selected === lang.code ? 'border-brand-purple' : 'border-gray-300'}`}>
-                {selected === lang.code ? <span className="w-2.5 h-2.5 rounded-full bg-brand-purple" /> : null}
-              </span>
-            </button>
-          ))
+          filtered.map((lang) => {
+            const isActive = lang.code === 'en' ? !currentlyTranslated : false
+            return (
+              <button
+                key={lang.code}
+                onClick={() => handleSelect(lang.code)}
+                className="w-full flex items-center justify-between py-3.5 border-b border-gray-100"
+              >
+                <span className="text-sm">{lang.label}</span>
+                {isActive ? <Check size={16} className="text-brand-purple" /> : null}
+              </button>
+            )
+          })
         )}
-
-        {saving ? <p className="text-xs text-brand-purple mt-3">Saving…</p> : null}
-        {saveError ? <p className="text-xs text-red-500 mt-3">{saveError}</p> : null}
       </div>
     </div>
   )
-   }
+                                     }
