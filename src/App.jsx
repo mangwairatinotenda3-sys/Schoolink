@@ -72,6 +72,7 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
+import TranslateBanner from './components/TranslateBanner.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -86,6 +87,7 @@ export default function App() {
 
   return (
     <div className={shellClasses}>
+      <TranslateBanner />
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/sign-in/email" element={<SignInEmail />} />
