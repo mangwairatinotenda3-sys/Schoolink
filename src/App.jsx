@@ -8,6 +8,7 @@ import AccountType from './pages/AccountType.jsx'
 import CreateSchool from './pages/CreateSchool.jsx'
 import JoinSchool from './pages/JoinSchool.jsx'
 import JoinAsStudent from './pages/JoinAsStudent.jsx'
+import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
 import InviteMember from './pages/InviteMember.jsx'
 import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
@@ -17,11 +18,16 @@ import EditProfileDetails from './pages/EditProfileDetails.jsx'
 import Library from './pages/Library.jsx'
 import ChatList from './pages/ChatList.jsx'
 import ChatThread from './pages/ChatThread.jsx'
+import ChatOptions from './pages/ChatOptions.jsx'
+import NewChatPicker from './pages/NewChatPicker.jsx'
+import CreateGroupFromChat from './pages/CreateGroupFromChat.jsx'
 import Communities from './pages/Communities.jsx'
 import CreateCommunity from './pages/CreateCommunity.jsx'
-import CommunityDetail from './pages/CommunityDetail.jsx'
+import CommunityJoinRequests from './pages/CommunityJoinRequests.jsx'
 import CommunityGroupInfo from './pages/CommunityGroupInfo.jsx'
+import CommunityMedia from './pages/CommunityMedia.jsx'
 import JoinCommunityByInvite from './pages/JoinCommunityByInvite.jsx'
+import CommunityDetail from './pages/CommunityDetail.jsx'
 import BursarDashboard from './pages/BursarDashboard.jsx'
 import CoachDashboard from './pages/CoachDashboard.jsx'
 import ICTDashboard from './pages/ICTDashboard.jsx'
@@ -39,11 +45,14 @@ import StorageSettings from './pages/StorageSettings.jsx'
 import HelpSettings from './pages/HelpSettings.jsx'
 import UpdatesSettings from './pages/UpdatesSettings.jsx'
 import BlockedUsers from './pages/BlockedUsers.jsx'
+import StarredMessages from './pages/StarredMessages.jsx'
+import FavouriteChats from './pages/FavouriteChats.jsx'
+import LoginHistory from './pages/LoginHistory.jsx'
+import TwoFactorSettings from './pages/TwoFactorSettings.jsx'
 import PostDetail from './pages/PostDetail.jsx'
 import MyPosts from './pages/MyPosts.jsx'
 import Connections from './pages/Connections.jsx'
 import Polls from './pages/Polls.jsx'
-import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
 import AlumniDirectory from './pages/AlumniDirectory.jsx'
 import Achievements from './pages/Achievements.jsx'
 import CounsellingDashboard from './pages/CounsellingDashboard.jsx'
@@ -51,6 +60,11 @@ import ReceptionistDashboard from './pages/ReceptionistDashboard.jsx'
 import MoreHub from './pages/MoreHub.jsx'
 import CreateStatus from './pages/CreateStatus.jsx'
 import StatusViewer from './pages/StatusViewer.jsx'
+import UnifiedSearch from './pages/UnifiedSearch.jsx'
+import SendProposal from './pages/SendProposal.jsx'
+import ViewProposals from './pages/ViewProposals.jsx'
+import ExamResults from './pages/ExamResults.jsx'
+import PublicProfile from './pages/PublicProfile.jsx'
 import Home from './pages/Home.jsx'
 import Profile from './pages/Profile.jsx'
 import Settings from './pages/Settings.jsx'
@@ -58,19 +72,6 @@ import Saved from './pages/Saved.jsx'
 import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import PublicProfile from './pages/PublicProfile.jsx'
-import LoginHistory from './pages/LoginHistory.jsx'
-import TwoFactorSettings from './pages/TwoFactorSettings.jsx'
-import UnifiedSearch from './pages/UnifiedSearch.jsx'
-import SendProposal from './pages/SendProposal.jsx'
-import ViewProposals from './pages/ViewProposals.jsx'
-import ExamResults from './pages/ExamResults.jsx'
-import CommunityJoinRequests from './pages/CommunityJoinRequests.jsx'
-import ChatOptions from './pages/ChatOptions.jsx'
-import StarredMessages from './pages/StarredMessages.jsx'
-import FavouriteChats from './pages/FavouriteChats.jsx'
-import CommunityMedia from './pages/CommunityMedia.jsx'
-import CreateGroupFromChat from './pages/CreateGroupFromChat.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -101,15 +102,24 @@ export default function App() {
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
         <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
+        <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
         <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
+
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
+        <Route path="/chats/new" element={<RequireAuth><NewChatPicker /></RequireAuth>} />
         <Route path="/chats/:userId" element={<RequireAuth><ChatThread /></RequireAuth>} />
+        <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
+        <Route path="/chats/:userId/create-group" element={<RequireAuth><CreateGroupFromChat /></RequireAuth>} />
+
         <Route path="/communities" element={<RequireAuth><Communities /></RequireAuth>} />
         <Route path="/communities/create" element={<RequireAuth><CreateCommunity /></RequireAuth>} />
         <Route path="/communities/join/:inviteCode" element={<RequireAuth><JoinCommunityByInvite /></RequireAuth>} />
+        <Route path="/communities/:communityId/requests" element={<RequireAuth><CommunityJoinRequests /></RequireAuth>} />
         <Route path="/communities/:communityId/info" element={<RequireAuth><CommunityGroupInfo /></RequireAuth>} />
+        <Route path="/communities/:communityId/media" element={<RequireAuth><CommunityMedia /></RequireAuth>} />
         <Route path="/communities/:communityId" element={<RequireAuth><CommunityDetail /></RequireAuth>} />
+
         <Route path="/bursar" element={<RequireAuth><BursarDashboard /></RequireAuth>} />
         <Route path="/coach" element={<RequireAuth><CoachDashboard /></RequireAuth>} />
         <Route path="/ict" element={<RequireAuth><ICTDashboard /></RequireAuth>} />
@@ -117,6 +127,7 @@ export default function App() {
         <Route path="/calendar/create" element={<RequireAuth><CreateEvent /></RequireAuth>} />
         <Route path="/assignments" element={<RequireAuth><Assignments /></RequireAuth>} />
         <Route path="/timetable" element={<RequireAuth><Timetable /></RequireAuth>} />
+
         <Route path="/settings/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
         <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
         <Route path="/settings/notifications" element={<RequireAuth><NotificationSettings /></RequireAuth>} />
@@ -127,6 +138,11 @@ export default function App() {
         <Route path="/settings/help" element={<RequireAuth><HelpSettings /></RequireAuth>} />
         <Route path="/settings/updates" element={<RequireAuth><UpdatesSettings /></RequireAuth>} />
         <Route path="/settings/blocked-users" element={<RequireAuth><BlockedUsers /></RequireAuth>} />
+        <Route path="/settings/starred" element={<RequireAuth><StarredMessages /></RequireAuth>} />
+        <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
+        <Route path="/settings/login-history" element={<RequireAuth><LoginHistory /></RequireAuth>} />
+        <Route path="/settings/two-factor" element={<RequireAuth><TwoFactorSettings /></RequireAuth>} />
+
         <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
         <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
         <Route path="/connections/:type" element={<RequireAuth><Connections /></RequireAuth>} />
@@ -138,19 +154,10 @@ export default function App() {
         <Route path="/more" element={<RequireAuth><MoreHub /></RequireAuth>} />
         <Route path="/statuses/create" element={<RequireAuth><CreateStatus /></RequireAuth>} />
         <Route path="/statuses/:userId" element={<RequireAuth><StatusViewer /></RequireAuth>} />
-        <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
-        <Route path="/settings/login-history" element={<RequireAuth><LoginHistory /></RequireAuth>} />
-        <Route path="/settings/two-factor" element={<RequireAuth><TwoFactorSettings /></RequireAuth>} />
         <Route path="/search" element={<RequireAuth><UnifiedSearch /></RequireAuth>} />
-        <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
         <Route path="/proposals" element={<RequireAuth><ViewProposals /></RequireAuth>} />
         <Route path="/exam-results" element={<RequireAuth><ExamResults /></RequireAuth>} />
-        <Route path="/communities/:communityId/requests" element={<RequireAuth><CommunityJoinRequests /></RequireAuth>} />
-        <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
-        <Route path="/settings/starred" element={<RequireAuth><StarredMessages /></RequireAuth>} />
-        <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
-        <Route path="/communities/:communityId/media" element={<RequireAuth><CommunityMedia /></RequireAuth>} />
-        <Route path="/chats/:userId/create-group" element={<RequireAuth><CreateGroupFromChat /></RequireAuth>} />
+        <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
