@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { MessageSquare, MapPin } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import PostCard from '../components/PostCard.jsx'
+import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -19,6 +20,7 @@ export default function PublicProfile() {
   const [isFollowing, setIsFollowing] = useState(false)
   const [followerCount, setFollowerCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [viewingAvatar, setViewingAvatar] = useState(null)
 
   const isMe = userId === user.id
 
@@ -81,14 +83,14 @@ export default function PublicProfile() {
       <BackHeader title={person.username ? `@${person.username}` : 'Profile'} />
       <div className="screen-scroll px-4 pt-3">
         <div className="flex flex-col items-center">
-          <span className="relative">
+          <button onClick={() => person.avatar_url && setViewingAvatar(person.avatar_url)} className="relative">
             {person.avatar_url ? (
               <img src={person.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover" />
             ) : (
               <span className="w-20 h-20 rounded-full bg-brand-light flex items-center justify-center text-2xl">🙂</span>
             )}
             {isOnline ? <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-500 border-2 border-white" /> : null}
-          </span>
+          </button>
           <p className="font-bold text-lg mt-2">{person.full_name || 'Schoolink member'}</p>
           {person.username ? <p className="text-sm text-gray-400">@{person.username}</p> : null}
           <span className="text-[11px] bg-brand-light text-brand-purple px-2 py-0.5 rounded-full mt-1">{person.role || person.account_type}</span>
@@ -131,6 +133,8 @@ export default function PublicProfile() {
           </div>
         ) : null}
       </div>
+
+      {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-}
+         }
