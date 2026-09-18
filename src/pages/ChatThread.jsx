@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
+import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
@@ -78,6 +79,7 @@ export default function ChatThread() {
   const [uploading, setUploading] = useState(false)
   const [forwarding, setForwarding] = useState(null)
   const [myChatSettings, setMyChatSettings] = useState({ disappearing_enabled: false, disappearing_seconds: 86400 })
+  const [viewingAvatar, setViewingAvatar] = useState(null)
   const bottomRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
@@ -240,10 +242,10 @@ export default function ChatThread() {
     <div className="app-shell">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
         <BackHeader />
-        <span className="relative -ml-2">
+        <button onClick={() => partner?.avatar_url && setViewingAvatar(partner.avatar_url)} className="relative -ml-2">
           {partner?.avatar_url ? <img src={partner.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-lg">🙂</span>}
           {isOnline ? <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" /> : null}
-        </span>
+        </button>
         <div className="min-w-0 flex-1">
           <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
           <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
@@ -288,6 +290,7 @@ export default function ChatThread() {
       </div>
 
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
+      {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-    }
+  }
