@@ -293,4 +293,4 @@ export default function ChatThread() {
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-  }
+                                                                                                                                                                }
