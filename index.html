@@ -8,11 +8,25 @@
     <link rel="manifest" href="manifest.webmanifest" />
     <meta name="theme-color" content="#241B4E" />
     <meta name="color-scheme" content="light dark" />
+    <style>
+      /* Hide Google Translate's default banner/toolbar — we trigger
+         translation silently via our own UI instead. */
+      .goog-te-banner-frame, .skiptranslate { display: none !important; }
+      body { top: 0 !important; }
+      #google_translate_element { display: none; }
+    </style>
     <link rel="apple-touch-icon" href="icon.svg" />
     <meta name="google-site-verification" content="g4VnVcehS-luze252KWrTjTmy0PvzHrajhvJm9zOYrg" />
   </head>
   <body class="bg-brand-light">
     <div id="root"></div>
+    <div id="google_translate_element"></div>
     <script type="module" src="/src/main.jsx"></script>
-  </body>
+    <script>
+      function googleTranslateElementInit() {
+        new google.translate.TranslateElement({ pageLanguage: 'en', autoDisplay: false }, 'google_translate_element')
+      }
+    </script>
+    <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
+      </body>
 </html>
