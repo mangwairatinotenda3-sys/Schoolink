@@ -73,7 +73,6 @@ import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import TranslateBanner from './components/TranslateBanner.jsx'
-import CallScreen from './pages/CallScreen.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -169,7 +168,6 @@ export default function App() {
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
-        <Route path="/calls/:roomId" element={<RequireAuth><CallScreen /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
