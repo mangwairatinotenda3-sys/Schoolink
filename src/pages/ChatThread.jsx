@@ -262,8 +262,6 @@ export default function ChatThread() {
           <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
           <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
         </div>
-        <button onClick={() => handleStartCall('audio')} className="shrink-0"><Phone size={18} className="text-brand-purple" /></button>
-        <button onClick={() => handleStartCall('video')} className="shrink-0"><Video size={18} className="text-brand-purple" /></button>
         <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
       </div>
 
