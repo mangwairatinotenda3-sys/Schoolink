@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Image as ImageIcon, Paperclip, Users, ShieldCheck } from 'lucide-react'
+import { Send, Image as ImageIcon, Paperclip, Users, ShieldCheck, Video } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import CommunityMessageBubble from '../components/CommunityMessageBubble.jsx'
@@ -129,6 +129,15 @@ export default function CommunityDetail() {
     navigate(`/chats/${recipientId}`)
   }
 
+  async function handleStartGroupCall() {
+    const { data: members } = await supabase.from('community_members').select('user_id').eq('community_id', communityId)
+    const notifRows = (members ?? [])
+      .filter((m) => m.user_id !== user.id)
+      .map((m) => ({ recipient_id: m.user_id, actor_id: user.id, actor_name: profile?.full_name || user.email, type: 'call' }))
+    if (notifRows.length > 0) await supabase.from('notifications').insert(notifRows)
+    navigate(`/calls/schoolink-community-${communityId}?title=${encodeURIComponent(community.name)}`)
+  }
+
   if (loading || !community) {
     return <div className="app-shell"><div className="screen-scroll flex items-center justify-center text-gray-400">Loading…</div></div>
   }
@@ -143,6 +152,9 @@ export default function CommunityDetail() {
             <p className="text-xs text-gray-400">{memberCount} members</p>
           </div>
         </button>
+        {isMember ? (
+          <button onClick={handleStartGroupCall} className="shrink-0 px-3"><Video size={19} className="text-brand-purple" /></button>
+        ) : null}
         <button onClick={() => navigate(`/communities/${communityId}/media`)} className="text-xs text-brand-purple font-medium pr-4">Media</button>
       </div>
 
@@ -191,4 +203,4 @@ export default function CommunityDetail() {
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
     </div>
   )
-      }
+    }
