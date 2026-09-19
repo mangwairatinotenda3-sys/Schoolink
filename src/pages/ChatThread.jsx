@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Phone, Video } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
@@ -238,6 +238,18 @@ export default function ChatThread() {
     navigate(`/chats/${recipientId}`)
   }
 
+  async function handleStartCall(mediaType) {
+    const sortedIds = [user.id, partnerId].sort()
+    const roomId = `schoolink-dm-${sortedIds.join('-')}`
+    await supabase.from('notifications').insert({
+      recipient_id: partnerId,
+      actor_id: user.id,
+      actor_name: profile?.full_name || user.email,
+      type: 'call',
+    })
+    navigate(`/calls/${roomId}?title=${encodeURIComponent(partner?.full_name || 'Call')}&video=${mediaType === 'video' ? '1' : '0'}`)
+  }
+
   return (
     <div className="app-shell">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
@@ -250,6 +262,8 @@ export default function ChatThread() {
           <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
           <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
         </div>
+        <button onClick={() => handleStartCall('audio')} className="shrink-0"><Phone size={18} className="text-brand-purple" /></button>
+        <button onClick={() => handleStartCall('video')} className="shrink-0"><Video size={18} className="text-brand-purple" /></button>
         <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
       </div>
 
@@ -293,4 +307,4 @@ export default function ChatThread() {
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-                                                                                                                                                                }
+                                                  }
