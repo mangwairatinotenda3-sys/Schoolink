@@ -15,6 +15,7 @@ export default function Profile() {
   const navigate = useNavigate()
   const { profile, user } = useAuth()
   const isOnline = useIsOnline(user?.id)
+  const [hasStatus, setHasStatus] = useState(false)
   const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0 })
   const [school, setSchool] = useState(null)
   const [activeTab, setActiveTab] = useState('Posts')
@@ -22,13 +23,15 @@ export default function Profile() {
   const [postsLoading, setPostsLoading] = useState(true)
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
-  const role = profile?.role || (profile?.account_type ? profile.account_type[0].toUpperCase() + profile.account_type.slice(1) : 'Schoolink member')
+  const role = profile?.role || 'Schoolink member'
   const links = (profile?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
   const isMember = isSchoolMember(profile)
 
   useEffect(() => {
     if (!user) return
     loadStats()
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+    supabase.from('statuses').select('id').eq('user_id', user.id).gt('created_at', cutoff).limit(1).then(({ data }) => setHasStatus((data ?? []).length > 0))
     if (isMember) loadPosts()
     else setPostsLoading(false)
   }, [user, isMember])
@@ -67,7 +70,7 @@ export default function Profile() {
 
         <div className="flex flex-col items-center mt-2">
           <div className="relative">
-            <span className="w-24 h-24 rounded-full bg-white p-1 flex items-center justify-center">
+            <span className={`w-24 h-24 rounded-full bg-white p-1 flex items-center justify-center ${hasStatus ? 'ring-2 ring-offset-2 ring-offset-brand-navy ring-green-400' : ''}`}>
               <AvatarUpload />
             </span>
             {isOnline ? (
@@ -192,4 +195,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-                                      }
+  }
