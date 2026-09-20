@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, Phone } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -11,7 +11,7 @@ const icons = {
   follow: { icon: UserPlus, color: 'text-brand-purple' },
   approval: { icon: CheckCircle, color: 'text-green-500' },
   message: { icon: MessageSquare, color: 'text-brand-purple' },
-  call: { icon: Phone, color: 'text-green-600' },
+  mention: { icon: MessageCircle, color: 'text-amber-500' },
 }
 
 const messages = {
@@ -20,7 +20,7 @@ const messages = {
   follow: (name) => `${name || 'Someone'} started following you`,
   approval: () => `Your request to join the school was approved`,
   message: (name) => `${name || 'Someone'} sent you a message`,
-  call: (name) => `${name || 'Someone'} started a call`,
+  mention: (name) => `${name || 'Someone'} mentioned you`,
 }
 
 function timeAgo(dateString) {
