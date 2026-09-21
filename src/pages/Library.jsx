@@ -12,7 +12,7 @@ export default function Library() {
   const fileInputRef = useRef(null)
   const [resources, setResources] = useState([])
   const [loading, setLoading] = useState(true)
-  const [query, setQuery] = useState('Computer science')
+  const [query, setQuery] = useState('')
   const [category, setCategory] = useState('All')
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState({ title: '', author: '', category: 'Novel', language: '', country: '', exam_board: '', year: '', file_url: '' })
@@ -35,28 +35,55 @@ export default function Library() {
     setSearchingExternal(true)
     try {
       let searchQ = q
-      if (category === 'Shona') searchQ = `${q} shona`
+      if (category === 'Shona') searchQ = `${q} shona language`
       if (category === 'Ndebele') searchQ = `${q} ndebele`
-      if (category === 'Zimsec') searchQ = `${q} zimsec`
-      if (category === 'Cambridge') searchQ = `${q} cambridge igcse`
-      if (category === 'Past Paper') searchQ = `${q} past paper`
+      if (category === 'Zimsec') searchQ = `${q} zimsec past paper`
+      if (category === 'Cambridge') searchQ = `${q} cambridge igcse past paper`
+      if (category === 'Past Paper') searchQ = `${q} past paper pdf`
 
-      const [gRes, oRes] = await Promise.all([
-        fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQ)}&maxResults=8`).then(r=>r.json()).catch(()=>({})),
-        fetch(`https://openlibrary.org/search.json?q=${encodeURIComponent(searchQ)}&limit=8`).then(r=>r.json()).catch(()=>({}))
-      ])
-      let books = []
-      if (gRes.items) books = books.concat(gRes.items.map(i=>({
-        title:i.volumeInfo.title, author:i.volumeInfo.authors?.join(', ')||'Unknown',
-        cover:i.volumeInfo.imageLinks?.thumbnail, file_url:i.volumeInfo.previewLink,
-        year:i.volumeInfo.publishedDate?.slice(0,4)||'', source:'google'
-      })))
-      if (oRes.docs) books = books.concat(oRes.docs.map(d=>({
-        title:d.title, author:d.author_name?.[0]||'Unknown',
-        cover:d.cover_i?`https://covers.openlibrary.org/b/id/${d.cover_i}-M.jpg`:null,
-        file_url:`https://openlibrary.org${d.key}`, year:d.first_publish_year||'', source:'openlibrary'
-      })))
-      setExternalResults(books.slice(0,10))
+      const results = []
+
+      // DIRECT PDF FROM INTERNET ARCHIVE - NO LOGIN
+      try {
+        const iaUrl = `https://archive.org/advancedsearch.php?q=${encodeURIComponent(searchQ)}+AND+mediatype:texts&fl[]=identifier,title,creator,year&sort[]=downloads+desc&rows=10&page=1&output=json`
+        const iaRes = await fetch(iaUrl).then(r=>r.json())
+        if (iaRes.response?.docs) {
+          iaRes.response.docs.forEach(d => {
+            results.push({
+              title: d.title,
+              author: d.creator || 'Unknown',
+              year: d.year || '',
+              cover: `https://archive.org/services/img/${d.identifier}`,
+              // Direct PDF - opens straight, no sign in
+              file_url: `https://archive.org/download/${d.identifier}/${d.identifier}.pdf`,
+              source: 'Archive',
+              direct: true
+            })
+          })
+        }
+      } catch {}
+
+      // Google Books - only FULL view books
+      try {
+        const gRes = await fetch(`https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(searchQ)}&filter=free-ebooks&maxResults=6`).then(r=>r.json()).catch(()=>({}))
+        if (gRes.items) {
+          gRes.items.forEach(i => {
+            if (i.accessInfo?.pdf?.isAvailable) {
+              results.push({
+                title: i.volumeInfo.title,
+                author: i.volumeInfo.authors?.join(', ') || 'Unknown',
+                cover: i.volumeInfo.imageLinks?.thumbnail?.replace('http://','https://'),
+                file_url: i.volumeInfo.previewLink,
+                year: i.volumeInfo.publishedDate?.slice(0,4) || '',
+                source: 'Google Books',
+                direct: true
+              })
+            }
+          })
+        }
+      } catch {}
+
+      setExternalResults(results.slice(0,12))
     } catch {}
     setSearchingExternal(false)
   }
@@ -106,13 +133,15 @@ export default function Library() {
     return matchCat && matchQ
   })
 
+  const placeholder = "https://via.placeholder.com/48x64/6b7280/ffffff?text=B"
+
   return (
     <div className="flex-1 flex flex-col bg-background">
       <BackHeader title="Library" />
       <div className="px-4 pt-2 pb-2">
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Computer science" className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-purple" />
+          <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="Search Shona, Ndebele, Zimsec, Cambridge..." className="w-full bg-card border border-border rounded-xl pl-9 pr-4 py-2.5 text-sm text-foreground outline-none focus:border-brand-purple" />
         </div>
         <div className="flex gap-2 overflow-x-auto mt-3 pb-1 scrollbar-hide flex-wrap">
           {categories.map(c=>(
@@ -146,7 +175,7 @@ export default function Library() {
       )}
 
       <div className="screen-scroll px-4 pb-10 space-y-3">
-        {filtered.map(r=>(
+        {loading? <p className="text-center text-muted-foreground text-xs mt-6">Loading...</p> : filtered.map(r=>(
           <div key={r.id} className="bg-card border border-border/50 rounded-xl p-3 flex gap-3">
             <span className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0"><BookOpen size={18} className="text-muted-foreground"/></span>
             <div className="min-w-0 flex-1">
@@ -164,19 +193,24 @@ export default function Library() {
         {query.trim().length>=2 && (
           <div className="pt-2">
             <p className="text-sm font-semibold text-foreground">Online Results for {query}</p>
-            <p className="text-xs text-muted-foreground mb-3">not yet in your library</p>
+            <p className="text-xs text-muted-foreground mb-3">Direct open - no sign in</p>
             <div className="space-y-3">
               {externalResults.map((book,i)=>(
                 <div key={i} className="bg-card border border-border/50 rounded-xl p-3 flex gap-3">
                   <div className="relative shrink-0">
-                    <img src={book.cover||`https://via.placeholder.com/48x64/334155/ffffff?text=${book.title?.[0]||'B'}`} alt="" className="w-12 h-16 object-cover rounded-lg" />
-                    <span className="absolute -top-1.5 -right-1.5 text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-sky-100 text-sky-700">ONLINE</span>
+                    <img
+                      src={book.cover||placeholder}
+                      onError={(e)=>{e.currentTarget.src=placeholder}}
+                      alt=""
+                      className="w-12 h-16 object-cover rounded-lg bg-muted"
+                    />
+                    <span className="absolute -top-1.5 -right-1.5 text-[7px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700">PDF</span>
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm text-foreground leading-tight line-clamp-2">{book.title}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{book.author} {book.year?`• ${book.year}`:''}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">{book.author} {book.year?`• ${book.year}`:''} • {book.source}</p>
                     <div className="flex gap-2 mt-2.5 flex-wrap">
-                      <a href={book.file_url} target="_blank" rel="noreferrer" className="text-[11px] text-muted-foreground flex items-center gap-1">Preview / Download</a>
+                      <a href={book.file_url} target="_blank" rel="noreferrer" className="px-2.5 py-1 rounded-full bg-brand-purple text-white text-[11px] font-medium">Open Book</a>
                       <button onClick={()=>handleShare(book)} className="text-[11px] text-muted-foreground flex items-center gap-1"><Share2 size={10}/>Share</button>
                       {canManageLibrary(profile) && <button onClick={()=>handleImportExternal(book)} className="text-[11px] text-brand-purple font-medium">Save to Library</button>}
                     </div>
@@ -184,10 +218,11 @@ export default function Library() {
                 </div>
               ))}
               {searchingExternal && <p className="text-center text-xs text-muted-foreground py-2">Searching Shona, Ndebele, Zimsec, Cambridge…</p>}
+              {!searchingExternal && externalResults.length===0 && query.length>2 && <p className="text-center text-xs text-muted-foreground py-2">No direct PDFs found, try different keywords</p>}
             </div>
           </div>
         )}
       </div>
     </div>
   )
-        }
+    }
