@@ -2,8 +2,8 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 
 import Welcome from './pages/Welcome.jsx'
-import SignInEmail from './pages/SignInEmail.jsx'
-import SignInPassword from './pages/SignInPassword.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
 import AccountType from './pages/AccountType.jsx'
 import CreateSchool from './pages/CreateSchool.jsx'
 import JoinSchool from './pages/JoinSchool.jsx'
@@ -90,8 +90,8 @@ export default function App() {
       <TranslateBanner />
       <Routes>
         <Route path="/" element={<Welcome />} />
-        <Route path="/sign-in/email" element={<SignInEmail />} />
-        <Route path="/sign-in/password" element={<SignInPassword />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/reset-password" element={<ResetPassword />} />
 
         <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
