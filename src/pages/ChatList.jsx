@@ -111,12 +111,23 @@ export default function ChatList() {
     const communityItems = []
     if (communityIds.length > 0) {
       const { data: communities } = await supabase.from('communities').select('*').in('id', communityIds)
+      const { data: reads } = await supabase.from('community_reads').select('community_id, last_read_at').eq('user_id', user.id).in('community_id', communityIds)
+      const readMap = new Map((reads ?? []).map((r) => [r.community_id, r.last_read_at]))
       for (const c of communities ?? []) {
         const { count } = await supabase.from('community_members').select('*', { count: 'exact', head: true }).eq('community_id', c.id)
         const { data: lastMsg } = await supabase.from('community_messages').select('*').eq('community_id', c.id).order('created_at', { ascending: false }).limit(1).maybeSingle()
+        const lastRead = readMap.get(c.id) || '1970-01-01T00:00:00.000Z'
+        const { count: unreadCount } = await supabase
+          .from('community_messages')
+          .select('*', { count: 'exact', head: true })
+          .eq('community_id', c.id)
+          .eq('status', 'approved')
+          .neq('sender_id', user.id)
+          .gt('created_at', lastRead)
         communityItems.push({
           type: 'community', id: c.id, name: c.name, avatarUrl: c.avatar_url, memberCount: count ?? 0,
           lastMessage: lastMsg?.content || (lastMsg?.media_type ? '📷 Media' : ''), lastTime: lastMsg?.created_at || c.created_at,
+          unread: (unreadCount ?? 0) > 0,
         })
       }
     }
@@ -199,4 +210,4 @@ export default function ChatList() {
       <BottomNav />
     </div>
   )
-        }
+                                          }
