@@ -18,6 +18,7 @@ import SchoolProfile from './pages/SchoolProfile.jsx'
 import BrowseSchools from './pages/BrowseSchools.jsx'
 import EditProfileDetails from './pages/EditProfileDetails.jsx'
 import Library from './pages/Library.jsx'
+import DocumentViewerPage from './pages/DocumentViewerPage.jsx'
 import ChatList from './pages/ChatList.jsx'
 import ChatThread from './pages/ChatThread.jsx'
 import ChatOptions from './pages/ChatOptions.jsx'
@@ -111,6 +112,8 @@ export default function App() {
         <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
         <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
+        <Route path="/viewer/:id" element={<RequireAuth><DocumentViewerPage /></RequireAuth>} />
+<Route path="/document/:id" element={<RequireAuth><DocumentViewerPage /></RequireAuth>} />
 
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
         <Route path="/chats/new" element={<RequireAuth><NewChatPicker /></RequireAuth>} />
