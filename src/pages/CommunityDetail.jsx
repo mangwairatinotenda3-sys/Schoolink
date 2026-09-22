@@ -34,7 +34,10 @@ export default function CommunityDetail() {
       .channel(`community-${communityId}-${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'community_messages', filter: `community_id=eq.${communityId}` }, (payload) => {
         const m = payload.new
-        if (m.status === 'approved' || m.sender_id === user.id) setMessages((prev) => [...prev, m])
+        if (m.status === 'approved' || m.sender_id === user.id) {
+          setMessages((prev) => [...prev, m])
+          markCommunityRead()
+        }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
@@ -60,6 +63,14 @@ export default function CommunityDetail() {
     setMessages(msgs ?? [])
 
     setLoading(false)
+    markCommunityRead()
+  }
+
+  async function markCommunityRead() {
+    await supabase.from('community_reads').upsert(
+      { user_id: user.id, community_id: communityId, last_read_at: new Date().toISOString() },
+      { onConflict: 'user_id,community_id' }
+    )
   }
 
   async function handleSend() {
@@ -191,4 +202,4 @@ export default function CommunityDetail() {
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
     </div>
   )
-        }
+          }
