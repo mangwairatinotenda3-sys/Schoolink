@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
@@ -10,8 +10,34 @@ import { useIsOnline } from '../lib/presence.jsx'
 
 const QUICK_REACTIONS = ['❤️', '😂', '👍', '😮', '😢']
 
-function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar, onForward, allMessages }) {
+const ALL_EMOJIS = [
+  '😀', '😃', '😄', '😁', '😆', '😅', '🤣', '😂', '🙂', '🙃', '😉', '😊', '😇',
+  '🥰', '😍', '🤩', '😘', '😗', '😚', '😙', '😋', '😛', '😜', '🤪', '😝', '🤑',
+  '🤗', '🤭', '🤫', '🤔', '🤐', '🤨', '😐', '😑', '😶', '😏', '😒', '🙄', '😬',
+  '🤥', '😌', '😔', '😪', '🤤', '😴', '😷', '🤒', '🤕', '🤢', '🤮', '🥵', '🥶',
+  '😵', '🤯', '🥳', '😎', '🤓', '🧐', '😕', '😟', '🙁', '😮', '😯', '😲', '😳',
+  '🥺', '😦', '😧', '😨', '😰', '😥', '😢', '😭', '😱', '😖', '😣', '😞', '😓',
+  '😩', '😫', '🥱', '😤', '😡', '😠', '🤬', '👍', '👎', '👏', '🙌', '👌', '🤝',
+  '🙏', '💪', '❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '💯', '🔥',
+  '✨', '🎉', '🎊', '👀', '💀', '🤡', '👻', '🤖', '🐶', '🐱', '🎂', '🍕', '☕',
+]
+
+function highlightText(text, query) {
+  if (!query) return text
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return text
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 text-inherit rounded px-0.5">{text.slice(idx, idx + query.length)}</mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
+}
+
+function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, onRemoveReaction, onReply, onStar, onForward, onDelete, allMessages, highlightQuery, isCurrentMatch }) {
   const [showBar, setShowBar] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const repliedTo = m.reply_to_id ? allMessages.find((x) => x.id === m.reply_to_id) : null
   const myReactions = reactions[m.id] ?? []
   const isStarred = starred.has(m.id)
@@ -22,36 +48,74 @@ function MessageBubble({ m, isMine, reactions, starred, onReact, onReply, onStar
     setShowBar(false)
   }
 
+  function handlePickEmoji(e, emoji) {
+    e.stopPropagation()
+    onReact(m.id, emoji)
+    setShowEmojiPicker(false)
+    setShowBar(false)
+  }
+
+  function handleDelete(e) {
+    e.stopPropagation()
+    if (!window.confirm('Delete this message?')) return
+    onDelete(m.id)
+    setShowBar(false)
+  }
+
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[75%]">
-        <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl px-4 py-2 text-sm ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'}`}>
+        <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl px-4 py-2 text-sm ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
           {repliedTo ? <div className={`text-xs border-l-2 pl-2 mb-1 opacity-80 ${isMine ? 'border-white/50' : 'border-brand-purple/50'}`}>{repliedTo.content}</div> : null}
           {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls className="max-w-full" /> : null}
           {m.media_type === 'image' && m.media_url ? <img src={m.media_url} alt="" className="rounded-lg max-h-64 object-cover mb-1" /> : null}
           {m.media_type === 'file' && m.media_url ? (
             <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
           ) : null}
-          {m.content && m.media_type !== 'file' ? <p>{m.content}</p> : null}
+          {m.content && m.media_type !== 'file' ? <p>{highlightQuery ? highlightText(m.content, highlightQuery) : m.content}</p> : null}
           {isMine ? <span className="flex justify-end mt-1">{m.read ? <CheckCheck size={14} className="text-blue-200" /> : <Check size={14} className="text-white/70" />}</span> : null}
         </div>
 
         {(myReactions.length > 0 || isStarred) ? (
           <div className="flex gap-1 mt-0.5">
             {isStarred ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
-            {myReactions.map((r) => <span key={r} className="text-xs bg-white border border-gray-100 rounded-full px-1.5">{r}</span>)}
+            {myReactions.map((r, i) => {
+              const mine = r.user_id === currentUserId
+              return (
+                <span
+                  key={`${r.emoji}-${r.user_id}-${i}`}
+                  onClick={(e) => { e.stopPropagation(); if (mine) onRemoveReaction(m.id) }}
+                  className={`text-xs bg-white border border-gray-100 rounded-full px-1.5 ${mine ? 'cursor-pointer' : ''}`}
+                  title={mine ? 'Tap to remove' : ''}
+                >
+                  {r.emoji}
+                </span>
+              )
+            })}
           </div>
         ) : null}
 
         {showBar ? (
-          <div className="flex items-center gap-1 mt-1 bg-white border border-gray-100 rounded-full px-2 py-1 shadow w-fit">
-            {QUICK_REACTIONS.map((emoji) => (
-              <button key={emoji} onClick={(e) => { e.stopPropagation(); onReact(m.id, emoji); setShowBar(false) }} className="text-base">{emoji}</button>
-            ))}
-            <button onClick={(e) => { e.stopPropagation(); onReply(m); setShowBar(false) }} className="pl-1 border-l border-gray-100 ml-1"><CornerUpLeft size={14} className="text-gray-400" /></button>
-            <button onClick={(e) => { e.stopPropagation(); onStar(m.id, isStarred); setShowBar(false) }}><Star size={14} className={isStarred ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} /></button>
-            {m.content ? <button onClick={handleCopy}><Copy size={14} className="text-gray-400" /></button> : null}
-            <button onClick={(e) => { e.stopPropagation(); onForward(m); setShowBar(false) }}><Forward size={14} className="text-gray-400" /></button>
+          <div className="mt-1 relative w-fit">
+            <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-full px-2 py-1 shadow w-fit">
+              {QUICK_REACTIONS.map((emoji) => (
+                <button key={emoji} onClick={(e) => { e.stopPropagation(); onReact(m.id, emoji); setShowBar(false) }} className="text-base">{emoji}</button>
+              ))}
+              <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker((s) => !s) }} className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><Plus size={12} className="text-gray-500" /></button>
+              <button onClick={(e) => { e.stopPropagation(); onReply(m); setShowBar(false) }} className="pl-1 border-l border-gray-100 ml-1"><CornerUpLeft size={14} className="text-gray-400" /></button>
+              <button onClick={(e) => { e.stopPropagation(); onStar(m.id, isStarred); setShowBar(false) }}><Star size={14} className={isStarred ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} /></button>
+              {m.content ? <button onClick={handleCopy}><Copy size={14} className="text-gray-400" /></button> : null}
+              <button onClick={(e) => { e.stopPropagation(); onForward(m); setShowBar(false) }}><Forward size={14} className="text-gray-400" /></button>
+              {isMine ? <button onClick={handleDelete}><Trash2 size={14} className="text-red-400" /></button> : null}
+            </div>
+
+            {showEmojiPicker ? (
+              <div onClick={(e) => e.stopPropagation()} className="absolute top-full mt-1 left-0 z-10 w-56 max-h-40 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow p-2 grid grid-cols-7 gap-1">
+                {ALL_EMOJIS.map((emoji) => (
+                  <button key={emoji} onClick={(e) => handlePickEmoji(e, emoji)} className="text-lg leading-none p-0.5">{emoji}</button>
+                ))}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -80,9 +144,40 @@ export default function ChatThread() {
   const [forwarding, setForwarding] = useState(null)
   const [myChatSettings, setMyChatSettings] = useState({ disappearing_enabled: false, disappearing_seconds: 86400 })
   const [viewingAvatar, setViewingAvatar] = useState(null)
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [matchIndex, setMatchIndex] = useState(0)
   const bottomRef = useRef(null)
   const mediaRecorderRef = useRef(null)
   const chunksRef = useRef([])
+  const messageRefs = useRef({})
+
+  const matches = searchQuery.trim()
+    ? messages.filter((m) => m.content?.toLowerCase().includes(searchQuery.toLowerCase().trim()))
+    : []
+
+  useEffect(() => { setMatchIndex(0) }, [searchQuery])
+
+  useEffect(() => {
+    if (matches.length === 0) return
+    const current = matches[matchIndex]
+    if (current) messageRefs.current[current.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [matchIndex, searchQuery, messages])
+
+  function goToPrevMatch() {
+    if (matches.length === 0) return
+    setMatchIndex((i) => (i - 1 + matches.length) % matches.length)
+  }
+
+  function goToNextMatch() {
+    if (matches.length === 0) return
+    setMatchIndex((i) => (i + 1) % matches.length)
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    setSearchQuery('')
+  }
 
   useEffect(() => {
     supabase.from('profiles').select('full_name, avatar_url, role').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
@@ -131,7 +226,7 @@ export default function ChatThread() {
     if (active.length > 0) {
       const { data: allReactions } = await supabase.from('message_reactions').select('*').in('message_id', active.map((m) => m.id))
       const grouped = {}
-      for (const r of allReactions ?? []) grouped[r.message_id] = [...(grouped[r.message_id] ?? []), r.emoji]
+      for (const r of allReactions ?? []) grouped[r.message_id] = [...(grouped[r.message_id] ?? []), { emoji: r.emoji, user_id: r.user_id }]
       setReactions(grouped)
 
       const { data: starredRows } = await supabase.from('starred_messages').select('message_id').eq('user_id', user.id).in('message_id', active.map((m) => m.id))
@@ -148,7 +243,20 @@ export default function ChatThread() {
 
   async function handleReact(messageId, emoji) {
     await supabase.from('message_reactions').upsert({ message_id: messageId, user_id: user.id, emoji })
-    setReactions((prev) => ({ ...prev, [messageId]: [...(prev[messageId] ?? []).filter((e) => e), emoji] }))
+    setReactions((prev) => {
+      const others = (prev[messageId] ?? []).filter((r) => r.user_id !== user.id)
+      return { ...prev, [messageId]: [...others, { emoji, user_id: user.id }] }
+    })
+  }
+
+  async function handleRemoveReaction(messageId) {
+    await supabase.from('message_reactions').delete().eq('message_id', messageId).eq('user_id', user.id)
+    setReactions((prev) => ({ ...prev, [messageId]: (prev[messageId] ?? []).filter((r) => r.user_id !== user.id) }))
+  }
+
+  async function handleDeleteMessage(messageId) {
+    await supabase.from('messages').delete().eq('id', messageId)
+    setMessages((prev) => prev.filter((m) => m.id !== messageId))
   }
 
   async function handleStar(messageId, isStarred) {
@@ -241,16 +349,35 @@ export default function ChatThread() {
   return (
     <div className="app-shell">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-gray-100">
-        <BackHeader />
-        <button onClick={() => partner?.avatar_url && setViewingAvatar(partner.avatar_url)} className="relative -ml-2">
-          {partner?.avatar_url ? <img src={partner.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-lg">🙂</span>}
-          {isOnline ? <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" /> : null}
-        </button>
-        <div className="min-w-0 flex-1">
-          <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
-          <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
-        </div>
-        <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
+        {searchOpen ? (
+          <>
+            <button onClick={closeSearch}><X size={18} className="text-gray-400" /></button>
+            <input
+              autoFocus
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search in this chat…"
+              className="flex-1 border border-gray-200 rounded-full px-4 py-2 text-sm outline-brand-purple"
+            />
+            <span className="text-xs text-gray-400 shrink-0 w-10 text-center">{searchQuery.trim() ? (matches.length > 0 ? `${matchIndex + 1}/${matches.length}` : '0/0') : ''}</span>
+            <button onClick={goToPrevMatch} disabled={matches.length === 0}><ChevronUp size={18} className={matches.length ? 'text-brand-purple' : 'text-gray-300'} /></button>
+            <button onClick={goToNextMatch} disabled={matches.length === 0}><ChevronDown size={18} className={matches.length ? 'text-brand-purple' : 'text-gray-300'} /></button>
+          </>
+        ) : (
+          <>
+            <BackHeader />
+            <button onClick={() => partner?.avatar_url && setViewingAvatar(partner.avatar_url)} className="relative -ml-2">
+              {partner?.avatar_url ? <img src={partner.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-lg">🙂</span>}
+              {isOnline ? <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" /> : null}
+            </button>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
+              <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
+            </div>
+            <button onClick={() => setSearchOpen(true)}><Search size={18} className="text-gray-400" /></button>
+            <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
+          </>
+        )}
       </div>
 
       {isBlocked ? <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">You've blocked this person. Unblock to send messages.</div> : null}
@@ -258,12 +385,14 @@ export default function ChatThread() {
 
       <div className="screen-scroll px-4 py-3 flex flex-col gap-3">
         {messages.map((m) => (
-          <MessageBubble key={m.id} m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} onReact={handleReact} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} allMessages={messages} />
+          <div key={m.id} ref={(el) => (messageRefs.current[m.id] = el)}>
+            <MessageBubble m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} currentUserId={user.id} onReact={handleReact} onRemoveReaction={handleRemoveReaction} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} onDelete={handleDeleteMessage} allMessages={messages} highlightQuery={searchQuery.trim()} isCurrentMatch={matches[matchIndex]?.id === m.id} />
+          </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-      {replyTo ? (
+           {replyTo ? (
         <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
           <p className="text-xs text-gray-500 truncate">Replying to: {replyTo.content}</p>
           <button onClick={() => setReplyTo(null)}><X size={14} className="text-gray-400" /></button>
@@ -293,4 +422,4 @@ export default function ChatThread() {
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-}
+          }
