@@ -42,3 +42,8 @@ export function canManageSports(profile) {
 export function canManageDevices(profile) {
   return isSchoolMember(profile) && ['ICT Administrator', 'Headteacher', 'Deputy Head'].includes(profile?.role)
                                      }
+
+// Who can create a post: active school members (any role) and investors.
+export function canPost(profile) {
+  return isSchoolMember(profile) || profile?.account_type === 'investor'
+}
