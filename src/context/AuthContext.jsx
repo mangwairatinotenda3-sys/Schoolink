@@ -49,7 +49,19 @@ export function AuthProvider({ children }) {
 
   async function signUp(email, password) {
     const result = await supabase.auth.signUp({ email, password })
-    if (!result.error && result.data?.user) logLogin(result.data.user.id, 'email (new account)')
+    if (!result.error && result.data?.user) {
+      // Supabase returns a "successful" response here (no error) even when the
+      // email is already registered — it does this on purpose so a bad actor
+      // can't use signup to find out which emails exist. The one reliable
+      // signal that this is actually an existing account is an empty
+      // identities array on the returned user.
+      const accountExists =
+        Array.isArray(result.data.user.identities) && result.data.user.identities.length === 0
+      if (accountExists) {
+        return { data: result.data, error: null, accountExists: true }
+      }
+      if (result.data.session) logLogin(result.data.user.id, 'email (new account)')
+    }
     return result
   }
 
@@ -105,4 +117,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-            }
+      }
