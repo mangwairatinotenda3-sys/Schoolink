@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { GraduationCap, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
+import { supabase } from '../lib/supabaseClient'
 import GoogleIcon from '../components/GoogleIcon.jsx'
 
 const LAST_EMAIL_KEY = 'schoolink_last_email'
@@ -28,27 +29,74 @@ export default function Welcome() {
     if (saved) setEmail(saved)
   }, [])
 
+  // Existing users already have an account_type on their profile row (set the
+  // first time they went through onboarding). Send them straight home instead
+  // of back through onboarding; only a brand-new profile goes to onboarding.
+  async function goToDestination(userId) {
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('account_type')
+      .eq('id', userId)
+      .maybeSingle()
+    navigate(existingProfile?.account_type ? '/home' : '/onboarding/account-type', { replace: true })
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     if (!email || !password) return
     setBusy(true)
     setError('')
 
-    const action = mode === 'signin' ? signInWithPassword : signUp
-    const { error: actionError } = await action(email, password)
+    if (mode === 'signin') {
+      const { data, error: actionError } = await signInWithPassword(email, password)
+      setBusy(false)
+      if (actionError) {
+        setError("Incorrect password, or no account exists yet for this email. Try \"Create one\" below if you're new here.")
+        return
+      }
+      if (rememberMe) localStorage.setItem(LAST_EMAIL_KEY, email)
+      else localStorage.removeItem(LAST_EMAIL_KEY)
+      await goToDestination(data.user.id)
+      return
+    }
+
+    // mode === 'signup'
+    const { data, error: actionError, accountExists } = await signUp(email, password)
+
+    if (accountExists) {
+      // An account already exists for this email. Try logging them straight
+      // in with the password they just typed, in case it's the same one —
+      // that way "Create Account" on an existing email just logs them in
+      // instead of silently failing or making them re-do onboarding.
+      const { data: signInData, error: signInError } = await signInWithPassword(email, password)
+      setBusy(false)
+      if (!signInError && signInData?.user) {
+        if (rememberMe) localStorage.setItem(LAST_EMAIL_KEY, email)
+        await goToDestination(signInData.user.id)
+        return
+      }
+      setError('An account already exists for this email. Log in instead.')
+      setMode('signin')
+      setPassword('')
+      return
+    }
 
     setBusy(false)
     if (actionError) {
-      setError(
-        mode === 'signin'
-          ? "Incorrect password, or no account exists yet for this email. Try \"Create one\" below if you're new here."
-          : actionError.message
-      )
+      setError(actionError.message)
       return
     }
 
     if (rememberMe) localStorage.setItem(LAST_EMAIL_KEY, email)
     else localStorage.removeItem(LAST_EMAIL_KEY)
+
+    if (!data?.session) {
+      // Email confirmation is required before a session can be created.
+      setError('Account created! Check your email to confirm it, then log in.')
+      setMode('signin')
+      setPassword('')
+      return
+    }
 
     navigate('/onboarding/account-type')
   }
@@ -181,4 +229,4 @@ export default function Welcome() {
       </p>
     </div>
   )
-         }
+    }
