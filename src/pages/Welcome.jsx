@@ -20,18 +20,11 @@ export default function Welcome() {
   const [guestBusy, setGuestBusy] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    if (session) navigate('/home', { replace: true })
-  }, [session, navigate])
-
-  useEffect(() => {
-    const saved = localStorage.getItem(LAST_EMAIL_KEY)
-    if (saved) setEmail(saved)
-  }, [])
-
   // Existing users already have an account_type on their profile row (set the
   // first time they went through onboarding). Send them straight home instead
   // of back through onboarding; only a brand-new profile goes to onboarding.
+  // Used for every sign-in path — email, Google, and guest — so a brand-new
+  // Google sign-in also lands on account setup instead of a half-empty /home.
   async function goToDestination(userId) {
     const { data: existingProfile } = await supabase
       .from('profiles')
@@ -40,6 +33,15 @@ export default function Welcome() {
       .maybeSingle()
     navigate(existingProfile?.account_type ? '/home' : '/onboarding/account-type', { replace: true })
   }
+
+  useEffect(() => {
+    if (session?.user) goToDestination(session.user.id)
+  }, [session])
+
+  useEffect(() => {
+    const saved = localStorage.getItem(LAST_EMAIL_KEY)
+    if (saved) setEmail(saved)
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()
