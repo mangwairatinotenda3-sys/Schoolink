@@ -1,33 +1,53 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, FileText, User, BookOpen, Users } from 'lucide-react'
+import { Search, FileText, User, BookOpen, Users, Landmark, CalendarDays } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 export default function UnifiedSearch() {
   const navigate = useNavigate()
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState({ posts: [], people: [], library: [], communities: [] })
+  const [results, setResults] = useState({
+    posts: [], people: [], library: [], communities: [], schools: [], events: [],
+  })
   const [loading, setLoading] = useState(false)
 
   async function handleSearch(value) {
     setQuery(value)
     if (!value.trim()) {
-      setResults({ posts: [], people: [], library: [], communities: [] })
+      setResults({ posts: [], people: [], library: [], communities: [], schools: [], events: [] })
       return
     }
     setLoading(true)
-    const [{ data: posts }, { data: people }, { data: library }, { data: communities }] = await Promise.all([
+    const [
+      { data: posts },
+      { data: people },
+      { data: library },
+      { data: communities },
+      { data: schools },
+      { data: events },
+    ] = await Promise.all([
       supabase.from('posts').select('*').ilike('content', `%${value}%`).limit(5),
       supabase.from('profiles').select('*').or(`full_name.ilike.%${value}%,username.ilike.%${value}%`).limit(5),
       supabase.from('library_resources').select('*').ilike('title', `%${value}%`).limit(5),
       supabase.from('communities').select('*').ilike('name', `%${value}%`).limit(5),
+      supabase.from('schools').select('*').ilike('name', `%${value}%`).limit(5),
+      supabase.from('events').select('*').or(`title.ilike.%${value}%,location.ilike.%${value}%`).limit(5),
     ])
-    setResults({ posts: posts ?? [], people: people ?? [], library: library ?? [], communities: communities ?? [] })
+    setResults({
+      posts: posts ?? [],
+      people: people ?? [],
+      library: library ?? [],
+      communities: communities ?? [],
+      schools: schools ?? [],
+      events: events ?? [],
+    })
     setLoading(false)
   }
 
-  const hasResults = results.posts.length || results.people.length || results.library.length || results.communities.length
+  const hasResults =
+    results.posts.length || results.people.length || results.library.length ||
+    results.communities.length || results.schools.length || results.events.length
 
   return (
     <div className="app-shell">
@@ -39,7 +59,7 @@ export default function UnifiedSearch() {
             autoFocus
             value={query}
             onChange={(e) => handleSearch(e.target.value)}
-            placeholder="Search people, posts, library, communities…"
+            placeholder="Search people, schools, posts, events, library, communities…"
             className="w-full border border-gray-200 rounded-full pl-9 pr-4 py-2.5 text-sm outline-brand-purple"
           />
         </div>
@@ -64,12 +84,32 @@ export default function UnifiedSearch() {
                 ))}
               </div>
             ) : null}
+            {results.schools.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase mb-2 flex items-center gap-1"><Landmark size={12} /> Schools</p>
+                {results.schools.map((s) => (
+                  <button key={s.id} onClick={() => navigate(`/schools/${s.id}`)} className="w-full text-left py-2 text-sm">
+                    {s.name} {s.location ? <span className="text-gray-400">· {s.location}</span> : null}
+                  </button>
+                ))}
+              </div>
+            ) : null}
             {results.posts.length > 0 ? (
               <div>
                 <p className="text-xs font-semibold text-gray-400 uppercase mb-2 flex items-center gap-1"><FileText size={12} /> Posts</p>
                 {results.posts.map((p) => (
                   <button key={p.id} onClick={() => navigate(`/post/${p.id}`)} className="w-full text-left py-2 text-sm truncate">
                     {p.content}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+            {results.events.length > 0 ? (
+              <div>
+                <p className="text-xs font-semibold text-gray-400 uppercase mb-2 flex items-center gap-1"><CalendarDays size={12} /> Events</p>
+                {results.events.map((e) => (
+                  <button key={e.id} onClick={() => navigate('/calendar')} className="w-full text-left py-2 text-sm">
+                    {e.title} {e.location ? <span className="text-gray-400">· {e.location}</span> : null}
                   </button>
                 ))}
               </div>
@@ -95,4 +135,4 @@ export default function UnifiedSearch() {
       </div>
     </div>
   )
-}
+        }
