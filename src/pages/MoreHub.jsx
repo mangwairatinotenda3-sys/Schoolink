@@ -24,8 +24,6 @@ export default function MoreHub() {
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
     { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
-    { label: 'Browse Schools', icon: MessagesSquare, color: 'bg-blue-600', to: '/schools' },
-    { label: 'Search', icon: Users, color: 'bg-slate-500', to: '/search' },
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
@@ -75,4 +73,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-  }
+    }
