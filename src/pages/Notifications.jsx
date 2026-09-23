@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -36,6 +37,7 @@ function timeAgo(dateString) {
 
 export default function Notifications() {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -61,6 +63,12 @@ export default function Notifications() {
     }
   }
 
+  function handleNotificationClick(n) {
+    if (n.type === 'message' && n.actor_id) navigate(`/chats/${n.actor_id}`)
+    else if ((n.type === 'like' || n.type === 'comment' || n.type === 'mention') && n.post_id) navigate(`/post/${n.post_id}`)
+    else if (n.type === 'follow' && n.actor_id) navigate(`/users/${n.actor_id}`)
+  }
+
   return (
     <div className="app-shell">
       <BackHeader title="Notifications" />
@@ -75,7 +83,7 @@ export default function Notifications() {
               const config = icons[n.type] ?? icons.follow
               const Icon = config.icon
               return (
-                <div key={n.id} className={`flex items-center gap-3 py-3.5 ${n.read ? '' : 'bg-brand-light/50'}`}>
+                <div key={n.id} onClick={() => handleNotificationClick(n)} className={`flex items-center gap-3 py-3.5 cursor-pointer ${n.read ? '' : 'bg-brand-light/50'}`}>
                   <span className="w-9 h-9 rounded-full bg-gray-50 flex items-center justify-center shrink-0">
                     <Icon size={16} className={config.color} />
                   </span>
