@@ -25,15 +25,14 @@ export default function Library() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    loadResources()
-  }, [])
+  useEffect(() => { loadResources() }, [])
 
   async function loadResources() {
     const { data } = await supabase.from('library_resources').select('*').order('created_at', { ascending: false })
     setResources(data?? [])
   }
 
+  // FIXED SEARCH
   useEffect(() => {
     const q = query.trim()
     if (q.length < 2) {
@@ -45,21 +44,30 @@ export default function Library() {
     setSearching(true)
     const t = setTimeout(async () => {
       try {
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://unopasa.com/search?q=${encodeURIComponent(q)}`)}`
-        const html = await fetch(proxy).then(r => r.text())
+        // Use get endpoint which is more reliable than /raw
+        const target = `https://unopasa.com/search?q=${encodeURIComponent(q)}`
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(target)}`
+        const res = await fetch(proxyUrl).then(r => r.json())
+        const html = res.contents || ""
         if (lastQueryRef.current!== q) return
+
         const results = []
         const seen = new Set()
-        const re = /href="\/legacy\/([a-z0-9]+)"[^>]*>([\s\S]*?)<\/a>/gi
+        // More flexible regex - ids have letters, numbers, dash
+        const re = /\/legacy\/([a-zA-Z0-9_-]+)/g
         let m
-        while ((m = re.exec(html))!== null && results.length < 50) {
+        while ((m = re.exec(html))!== null && results.length < 30) {
           const id = m[1]
           if (seen.has(id)) continue
           seen.add(id)
-          const title = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
-          if (title.length < 8) continue
-          const snippet = html.substring(m.index, m.index + 500)
-          const year = snippet.match(/20\d{2}/)?.[0] || ""
+          // Try to get title near the match
+          const context = html.substring(Math.max(0, m.index - 200), m.index + 500)
+          const titleMatch = context.match(/>([^<]{10,120})<\/a>\s*$/m) || context.match(/title="([^"]+)"/)
+          let title = titleMatch? titleMatch[1] : `Document ${id}`
+          title = title.replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
+          if (title.length < 5) continue
+
+          const year = context.match(/20\d{2}/)?.[0] || ""
           results.push({
             id,
             title,
@@ -69,12 +77,13 @@ export default function Library() {
           })
         }
         setExternalResults(results)
-      } catch {
+      } catch (e) {
+        console.log("search error", e)
         setExternalResults([])
       } finally {
         setSearching(false)
       }
-    }, 500)
+    }, 600)
     return () => clearTimeout(t)
   }, [query])
 
@@ -121,10 +130,11 @@ export default function Library() {
     return matchCat && r.title?.toLowerCase().includes(query.toLowerCase())
   })
 
+  const isSearching = query.trim().length >= 2
+
   return (
     <div className="flex-1 flex flex-col bg-background min-h-screen">
       <BackHeader title="Library" />
-
       {viewer && <DocumentViewer url={viewer.url} title={viewer.title} onClose={() => setViewer(null)} />}
 
       <div className="px-4 pt-2 pb-2">
@@ -160,21 +170,27 @@ export default function Library() {
       )}
 
       <div className="px-4 pb-20 space-y-3 mt-2">
-        {query.trim().length < 2 && filtered.map(r => (
-          <div key={r.id} className="bg-card border rounded-xl p-3 flex gap-3">
-            <span className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0"><BookOpen size={18} /></span>
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-sm leading-tight">{r.title}</p>
-              <p className="text-xs text-muted-foreground">{[r.author, r.year].filter(Boolean).join(' • ')}</p>
-              <div className="flex gap-2 mt-2.5">
-                <button onClick={() => setViewer({ url: r.file_url, title: r.title })} className="px-3 py-1.5 rounded-full bg-brand-purple text-white text-xs flex items-center gap-1"><Eye size={12} />View</button>
-                {canManageLibrary(profile) && <button onClick={() => handleDelete(r.id, r.added_by)} className="px-2 py-1.5 rounded-full bg-muted text-xs"><Trash2 size={12} /></button>}
+        {/* FIX: ALWAYS SHOW YOUR DOCS */}
+        {filtered.length > 0 && (
+          <>
+            <p className="text-sm font-semibold pt-2">{isSearching? `Your Library (${filtered.length})` : 'Your Library'}</p>
+            {filtered.map(r => (
+              <div key={r.id} className="bg-card border rounded-xl p-3 flex gap-3">
+                <span className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0"><BookOpen size={18} /></span>
+                <div className="min-w-0 flex-1">
+                  <p className="font-semibold text-sm leading-tight">{r.title}</p>
+                  <p className="text-xs text-muted-foreground">{[r.author, r.year].filter(Boolean).join(' • ')}</p>
+                  <div className="flex gap-2 mt-2.5">
+                    <button onClick={() => setViewer({ url: r.file_url, title: r.title })} className="px-3 py-1.5 rounded-full bg-brand-purple text-white text-xs flex items-center gap-1"><Eye size={12} />View</button>
+                    {canManageLibrary(profile) && <button onClick={() => handleDelete(r.id, r.added_by)} className="px-2 py-1.5 rounded-full bg-muted text-xs"><Trash2 size={12} /></button>}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-        ))}
+            ))}
+          </>
+        )}
 
-        {query.trim().length >= 2 && (
+        {isSearching && (
           <div className="pt-2">
             <p className="text-sm font-semibold">Online Results {searching && <span className="text-xs font-normal text-muted-foreground">Searching...</span>}</p>
             <div className="space-y-3 mt-3">
@@ -188,11 +204,12 @@ export default function Library() {
                   </div>
                 </div>
               ))}
-              {!searching && externalResults.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No results for {query}</p>}
+              {!searching && externalResults.length === 0 && filtered.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No results for {query}</p>}
+              {!searching && externalResults.length === 0 && filtered.length > 0 && <p className="text-center text-xs text-muted-foreground py-4">No online results for {query}, but found {filtered.length} in your library</p>}
             </div>
           </div>
         )}
       </div>
     </div>
   )
-      }
+        }
