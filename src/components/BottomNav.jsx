@@ -2,15 +2,18 @@ import { Home, MessageCircle, PlusCircle, Bell, User } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 import { useTranslation } from '../lib/i18n.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
+import { canPost } from '../lib/permissions.js'
 
 export default function BottomNav() {
   const unread = useUnreadCount()
   const { t } = useTranslation()
+  const { profile } = useAuth()
 
   const items = [
     { to: '/home', label: t('home'), icon: Home },
     { to: '/chats', label: t('chats'), icon: MessageCircle },
-    { to: '/add-post', label: t('post'), icon: PlusCircle, primary: true },
+    ...(canPost(profile) ? [{ to: '/add-post', label: t('post'), icon: PlusCircle, primary: true }] : []),
     { to: '/notifications', label: t('alerts'), icon: Bell, showBadge: true },
     { to: '/profile', label: t('profile'), icon: User },
   ]
@@ -45,4 +48,4 @@ export default function BottomNav() {
       ))}
     </nav>
   )
-                   }
+}
