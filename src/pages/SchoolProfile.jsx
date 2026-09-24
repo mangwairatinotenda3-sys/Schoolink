@@ -1,13 +1,46 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Camera, MapPin, Phone, Mail, MessageSquare, ShieldCheck, Plus, Users, Award, CalendarDays, UserCog, FileText, ExternalLink, Bell, BellRing } from 'lucide-react'
+import {
+  Camera, MapPin, Phone, Mail, MessageSquare, ShieldCheck, Plus, Users, Award, CalendarDays,
+  UserCog, FileText, ExternalLink, Bell, BellRing, Video, Download, Share2, Heart, Star, Trash2, X,
+} from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff } from '../lib/permissions.js'
+import { canManageStaff, isStaffMember } from '../lib/permissions.js'
 import { useOnlineIds } from '../lib/presence.jsx'
 
-const tabs = ['Posts', 'About', 'Staff', 'Photos', 'Events', 'Documents']
+const tabs = ['Posts', 'About', 'Staff', 'Media', 'Events', 'Documents']
+
+function storagePathFromUrl(url, bucket) {
+  if (!url) return null
+  const marker = `/${bucket}/`
+  const idx = url.indexOf(marker)
+  if (idx === -1) return null
+  return decodeURIComponent(url.slice(idx + marker.length).split('?')[0])
+}
+
+function StarRow({ average, myRating, count, interactive, onRate, size = 14 }) {
+  return (
+    <div className="flex items-center gap-1">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button
+          key={n}
+          type="button"
+          disabled={!interactive}
+          onClick={(e) => { e.stopPropagation(); onRate?.(n) }}
+          className={interactive ? 'cursor-pointer' : 'cursor-default'}
+        >
+          <Star
+            size={size}
+            className={n <= Math.round(interactive ? myRating || average : average) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'}
+          />
+        </button>
+      ))}
+      {count > 0 ? <span className="text-[11px] text-gray-400 ml-1">{average.toFixed(1)} ({count})</span> : null}
+    </div>
+  )
+}
 
 export default function SchoolProfile() {
   const navigate = useNavigate()
@@ -29,6 +62,7 @@ export default function SchoolProfile() {
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
+  const [staffCount, setStaffCount] = useState(0)
   const [memberIds, setMemberIds] = useState([])
   const [isFollowing, setIsFollowing] = useState(false)
   const [aboutExpanded, setAboutExpanded] = useState(false)
@@ -40,8 +74,16 @@ export default function SchoolProfile() {
   const [events, setEvents] = useState([])
   const [documents, setDocuments] = useState([])
 
+  const [galleryLikes, setGalleryLikes] = useState({})
+  const [galleryRatings, setGalleryRatings] = useState({})
+  const [docLikes, setDocLikes] = useState({})
+  const [docRatings, setDocRatings] = useState({})
+  const [lightboxItem, setLightboxItem] = useState(null)
+  const [toast, setToast] = useState('')
+
   const isMember = !!school && profile?.school_id === school.id
   const canEdit = isMember && canManageStaff(profile)
+  const canManageMedia = isMember && isStaffMember(profile)
   const isOnline = memberIds.some((id) => onlineIds.has(id))
   const handle = school?.name ? '@' + school.name.toLowerCase().replace(/[^a-z0-9]/g, '') : ''
 
@@ -57,6 +99,36 @@ export default function SchoolProfile() {
     if (school) loadTabData(activeTab)
   }, [activeTab, school])
 
+  // Keep the header's Members / Staff numbers live: whenever a profile row
+  // for this school changes (someone invited/approved/removed), refresh the
+  // counts automatically instead of waiting for a manual page reload.
+  useEffect(() => {
+    if (!school?.id) return
+    const channel = supabase
+      .channel(`school-members-${school.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles', filter: `school_id=eq.${school.id}` }, () => {
+        refreshMembers(school.id)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [school?.id])
+
+  useEffect(() => {
+    if (!toast) return
+    const t = setTimeout(() => setToast(''), 2000)
+    return () => clearTimeout(t)
+  }, [toast])
+
+  async function refreshMembers(schoolId) {
+    const { data: members } = await supabase.from('profiles').select('id').eq('school_id', schoolId).eq('status', 'active')
+    setMemberCount(members?.length ?? 0)
+    setMemberIds((members ?? []).map((m) => m.id))
+
+    const { data: staffRows } = await supabase.from('profiles').select('*').eq('school_id', schoolId).eq('status', 'active').neq('role', 'Student')
+    setStaff(staffRows ?? [])
+    setStaffCount(staffRows?.length ?? 0)
+  }
+
   async function loadSchool() {
     setLoading(true)
     const { data } = await supabase.from('schools').select('*').eq('id', targetSchoolId).maybeSingle()
@@ -64,9 +136,7 @@ export default function SchoolProfile() {
     setForm(data ?? {})
 
     if (data) {
-      const { data: members } = await supabase.from('profiles').select('id').eq('school_id', data.id).eq('status', 'active')
-      setMemberCount(members?.length ?? 0)
-      setMemberIds((members ?? []).map((m) => m.id))
+      await refreshMembers(data.id)
 
       const { data: followRow } = await supabase
         .from('school_follows')
@@ -80,23 +150,70 @@ export default function SchoolProfile() {
     setLoading(false)
   }
 
+  async function loadGalleryEngagement(ids) {
+    if (!ids.length) { setGalleryLikes({}); setGalleryRatings({}); return }
+    const [{ data: likes }, { data: ratings }] = await Promise.all([
+      supabase.from('school_gallery_likes').select('gallery_id, user_id').in('gallery_id', ids),
+      supabase.from('school_gallery_ratings').select('gallery_id, user_id, rating').in('gallery_id', ids),
+    ])
+    const likeMap = {}
+    ;(likes ?? []).forEach((l) => {
+      if (!likeMap[l.gallery_id]) likeMap[l.gallery_id] = { count: 0, likedByMe: false }
+      likeMap[l.gallery_id].count += 1
+      if (l.user_id === user.id) likeMap[l.gallery_id].likedByMe = true
+    })
+    const ratingMap = {}
+    ;(ratings ?? []).forEach((r) => {
+      if (!ratingMap[r.gallery_id]) ratingMap[r.gallery_id] = { sum: 0, count: 0, myRating: 0 }
+      ratingMap[r.gallery_id].sum += r.rating
+      ratingMap[r.gallery_id].count += 1
+      if (r.user_id === user.id) ratingMap[r.gallery_id].myRating = r.rating
+    })
+    setGalleryLikes(likeMap)
+    setGalleryRatings(ratingMap)
+  }
+
+  async function loadDocEngagement(ids) {
+    if (!ids.length) { setDocLikes({}); setDocRatings({}); return }
+    const [{ data: likes }, { data: ratings }] = await Promise.all([
+      supabase.from('school_document_likes').select('document_id, user_id').in('document_id', ids),
+      supabase.from('school_document_ratings').select('document_id, user_id, rating').in('document_id', ids),
+    ])
+    const likeMap = {}
+    ;(likes ?? []).forEach((l) => {
+      if (!likeMap[l.document_id]) likeMap[l.document_id] = { count: 0, likedByMe: false }
+      likeMap[l.document_id].count += 1
+      if (l.user_id === user.id) likeMap[l.document_id].likedByMe = true
+    })
+    const ratingMap = {}
+    ;(ratings ?? []).forEach((r) => {
+      if (!ratingMap[r.document_id]) ratingMap[r.document_id] = { sum: 0, count: 0, myRating: 0 }
+      ratingMap[r.document_id].sum += r.rating
+      ratingMap[r.document_id].count += 1
+      if (r.user_id === user.id) ratingMap[r.document_id].myRating = r.rating
+    })
+    setDocLikes(likeMap)
+    setDocRatings(ratingMap)
+  }
+
   async function loadTabData(tab) {
     if (tab === 'Posts') {
       const ids = memberIds.length ? memberIds : ['00000000-0000-0000-0000-000000000000']
       const { data } = await supabase.from('posts').select('*').in('author_id', ids).order('created_at', { ascending: false }).limit(20)
       setPosts(data ?? [])
     } else if (tab === 'Staff') {
-      const { data } = await supabase.from('profiles').select('*').eq('school_id', school.id).neq('role', 'Student')
-      setStaff(data ?? [])
-    } else if (tab === 'Photos') {
+      await refreshMembers(school.id)
+    } else if (tab === 'Media') {
       const { data } = await supabase.from('school_gallery').select('*').eq('school_id', school.id).order('created_at', { ascending: false })
       setGallery(data ?? [])
+      await loadGalleryEngagement((data ?? []).map((g) => g.id))
     } else if (tab === 'Events') {
       const { data } = await supabase.from('events').select('*').eq('school_id', school.id).order('event_date', { ascending: true })
       setEvents(data ?? [])
     } else if (tab === 'Documents') {
       const { data } = await supabase.from('school_documents').select('*').eq('school_id', school.id).order('created_at', { ascending: false })
       setDocuments(data ?? [])
+      await loadDocEngagement((data ?? []).map((d) => d.id))
     }
   }
 
@@ -151,6 +268,7 @@ export default function SchoolProfile() {
       setForm((f) => ({ ...f, logo_url: logoUrl }))
     }
     setUploadingLogo(false)
+    e.target.value = ''
   }
 
   async function handleGalleryUpload(e) {
@@ -158,14 +276,20 @@ export default function SchoolProfile() {
     if (!file) return
     setUploadingPhoto(true)
     const ext = file.name.split('.').pop()
+    const mediaType = file.type.startsWith('video') ? 'video' : 'image'
     const path = `${school.id}/gallery/${Date.now()}.${ext}`
     const { error } = await supabase.storage.from('school-media').upload(path, file)
     if (!error) {
       const { data } = supabase.storage.from('school-media').getPublicUrl(path)
-      const { data: row } = await supabase.from('school_gallery').insert({ school_id: school.id, image_url: data.publicUrl }).select().maybeSingle()
+      const { data: row } = await supabase
+        .from('school_gallery')
+        .insert({ school_id: school.id, image_url: data.publicUrl, media_type: mediaType, uploaded_by: user.id })
+        .select()
+        .maybeSingle()
       if (row) setGallery((prev) => [row, ...prev])
     }
     setUploadingPhoto(false)
+    e.target.value = ''
   }
 
   async function handleDocUpload(e) {
@@ -184,6 +308,85 @@ export default function SchoolProfile() {
       if (row) setDocuments((prev) => [row, ...prev])
     }
     setUploadingDoc(false)
+    e.target.value = ''
+  }
+
+  async function deleteGalleryItem(item) {
+    if (!window.confirm('Delete this item? This cannot be undone.')) return
+    const path = storagePathFromUrl(item.image_url, 'school-media')
+    if (path) await supabase.storage.from('school-media').remove([path])
+    await supabase.from('school_gallery').delete().eq('id', item.id)
+    setGallery((prev) => prev.filter((g) => g.id !== item.id))
+    setLightboxItem(null)
+  }
+
+  async function deleteDocument(doc) {
+    if (!window.confirm('Delete this document? This cannot be undone.')) return
+    const path = storagePathFromUrl(doc.file_url, 'school-media')
+    if (path) await supabase.storage.from('school-media').remove([path])
+    await supabase.from('school_documents').delete().eq('id', doc.id)
+    setDocuments((prev) => prev.filter((d) => d.id !== doc.id))
+    setLightboxItem(null)
+  }
+
+  async function toggleGalleryLike(galleryId) {
+    const current = galleryLikes[galleryId]
+    if (current?.likedByMe) {
+      await supabase.from('school_gallery_likes').delete().eq('gallery_id', galleryId).eq('user_id', user.id)
+      setGalleryLikes((prev) => ({ ...prev, [galleryId]: { count: Math.max(0, (prev[galleryId]?.count || 1) - 1), likedByMe: false } }))
+    } else {
+      await supabase.from('school_gallery_likes').insert({ gallery_id: galleryId, user_id: user.id })
+      setGalleryLikes((prev) => ({ ...prev, [galleryId]: { count: (prev[galleryId]?.count || 0) + 1, likedByMe: true } }))
+    }
+  }
+
+  async function toggleDocLike(documentId) {
+    const current = docLikes[documentId]
+    if (current?.likedByMe) {
+      await supabase.from('school_document_likes').delete().eq('document_id', documentId).eq('user_id', user.id)
+      setDocLikes((prev) => ({ ...prev, [documentId]: { count: Math.max(0, (prev[documentId]?.count || 1) - 1), likedByMe: false } }))
+    } else {
+      await supabase.from('school_document_likes').insert({ document_id: documentId, user_id: user.id })
+      setDocLikes((prev) => ({ ...prev, [documentId]: { count: (prev[documentId]?.count || 0) + 1, likedByMe: true } }))
+    }
+  }
+
+  async function rateGalleryItem(galleryId, rating) {
+    await supabase.from('school_gallery_ratings').upsert({ gallery_id: galleryId, user_id: user.id, rating }, { onConflict: 'gallery_id,user_id' })
+    setGalleryRatings((prev) => {
+      const existing = prev[galleryId] || { sum: 0, count: 0, myRating: 0 }
+      const hadMine = existing.myRating > 0
+      return { ...prev, [galleryId]: { sum: existing.sum - existing.myRating + rating, count: hadMine ? existing.count : existing.count + 1, myRating: rating } }
+    })
+  }
+
+  async function rateDocument(documentId, rating) {
+    await supabase.from('school_document_ratings').upsert({ document_id: documentId, user_id: user.id, rating }, { onConflict: 'document_id,user_id' })
+    setDocRatings((prev) => {
+      const existing = prev[documentId] || { sum: 0, count: 0, myRating: 0 }
+      const hadMine = existing.myRating > 0
+      return { ...prev, [documentId]: { sum: existing.sum - existing.myRating + rating, count: hadMine ? existing.count : existing.count + 1, myRating: rating } }
+    })
+  }
+
+  function downloadItem(url, filename) {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename || ''
+    a.target = '_blank'
+    a.rel = 'noreferrer'
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
+
+  function shareItem(url, title) {
+    if (navigator.share) {
+      navigator.share({ title: title || 'Schoolink', url }).catch(() => {})
+    } else {
+      navigator.clipboard?.writeText(url)
+      setToast('Link copied!')
+    }
   }
 
   async function toggleFollow() {
@@ -222,10 +425,7 @@ export default function SchoolProfile() {
           {paramSchoolId ? 'School not found.' : "You're not linked to a school yet."}
         </div>
       </div>
-    )
-  }
-
-  const aboutText = school.mission || school.description || ''
+      const aboutText = school.mission || school.description || ''
   return (
     <div className="app-shell">
       <div className="bg-brand-navy text-white px-4 pt-4 pb-6">
@@ -281,7 +481,7 @@ export default function SchoolProfile() {
           </div>
           <div>
             <span className="w-9 h-9 rounded-full bg-orange-500/30 mx-auto flex items-center justify-center mb-1"><UserCog size={16} /></span>
-            <p className="font-bold text-sm">{staff.length || (school.total_teachers ?? '—')}</p>
+            <p className="font-bold text-sm">{staffCount}</p>
             <p className="text-[10px] text-white/50">Staff</p>
           </div>
         </div>
@@ -340,37 +540,29 @@ export default function SchoolProfile() {
 
         <div className="border border-gray-100 rounded-xl p-4 mt-3">
           <div className="flex items-center justify-between mb-2">
-            <p className="font-semibold text-sm">School Gallery</p>
-            <button onClick={() => setActiveTab('Photos')} className="text-xs text-brand-purple font-medium">View all</button>
+            <p className="font-semibold text-sm">School Media</p>
+            <button onClick={() => setActiveTab('Media')} className="text-xs text-brand-purple font-medium">View all</button>
           </div>
-          {gallery.length === 0 && activeTab !== 'Photos' ? (
-            <p className="text-xs text-gray-400">No photos yet.</p>
+          {gallery.length === 0 && activeTab !== 'Media' ? (
+            <p className="text-xs text-gray-400">No photos or videos yet.</p>
           ) : (
             <div className="grid grid-cols-4 gap-1.5">
               {gallery.slice(0, 4).map((g) => (
-                <img key={g.id} src={g.image_url} alt="" className="w-full h-16 object-cover rounded-md" />
+                <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative w-full h-16 rounded-md overflow-hidden">
+                  {g.media_type === 'video' ? (
+                    <>
+                      <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                        <Video size={14} className="text-white" />
+                      </span>
+                    </>
+                  ) : (
+                    <img src={g.image_url} alt="" className="w-full h-full object-cover" />
+                  )}
+                </button>
               ))}
             </div>
           )}
-        </div>
-
-        <div className="grid grid-cols-4 gap-2 mt-3 text-center">
-          <div className="border border-gray-100 rounded-xl py-3">
-            <p className="font-bold text-sm">{school.total_students ?? '—'}</p>
-            <p className="text-[10px] text-gray-400">Total Students</p>
-          </div>
-          <div className="border border-gray-100 rounded-xl py-3">
-            <p className="font-bold text-sm">{school.total_teachers ?? '—'}</p>
-            <p className="text-[10px] text-gray-400">Teachers</p>
-          </div>
-          <div className="border border-gray-100 rounded-xl py-3">
-            <p className="font-bold text-sm">{school.non_teaching_staff ?? '—'}</p>
-            <p className="text-[10px] text-gray-400">Non-Teaching</p>
-          </div>
-          <div className="border border-gray-100 rounded-xl py-3">
-            <p className="font-bold text-sm">{school.total_classes ?? '—'}</p>
-            <p className="text-[10px] text-gray-400">Classes</p>
-          </div>
         </div>
 
         <div className="flex gap-5 overflow-x-auto mt-4 border-b border-gray-100">
@@ -453,20 +645,36 @@ export default function SchoolProfile() {
             )
           ) : null}
 
-          {activeTab === 'Photos' ? (
+          {activeTab === 'Media' ? (
             <>
-              {canEdit ? (
+              {canManageMedia ? (
                 <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingPhoto} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
-                  <Plus size={16} /> {uploadingPhoto ? 'Uploading…' : 'Add Photo'}
+                  <Plus size={16} /> {uploadingPhoto ? 'Uploading…' : 'Add Photo or Video'}
                 </button>
               ) : null}
-              <input ref={galleryInputRef} type="file" accept="image/*" onChange={handleGalleryUpload} className="hidden" />
+              <input ref={galleryInputRef} type="file" accept="image/*,video/*" onChange={handleGalleryUpload} className="hidden" />
               {gallery.length === 0 ? (
-                <p className="text-center text-gray-400 mt-6">No photos yet.</p>
+                <p className="text-center text-gray-400 mt-6">No photos or videos yet.</p>
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {gallery.map((g) => (
-                    <img key={g.id} src={g.image_url} alt="" className="w-full h-32 object-cover rounded-lg" />
+                    <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative w-full h-32 rounded-lg overflow-hidden">
+                      {g.media_type === 'video' ? (
+                        <>
+                          <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/20">
+                            <Video size={20} className="text-white" />
+                          </span>
+                        </>
+                      ) : (
+                        <img src={g.image_url} alt="" className="w-full h-full object-cover" />
+                      )}
+                      {galleryLikes[g.id]?.count > 0 ? (
+                        <span className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
+                          <Heart size={10} className="fill-white" /> {galleryLikes[g.id].count}
+                        </span>
+                      ) : null}
+                    </button>
                   ))}
                 </div>
               )}
@@ -490,7 +698,7 @@ export default function SchoolProfile() {
 
           {activeTab === 'Documents' ? (
             <>
-              {canEdit ? (
+              {canManageMedia ? (
                 <button onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
                   <Plus size={16} /> {uploadingDoc ? 'Uploading…' : 'Add Document'}
                 </button>
@@ -501,10 +709,16 @@ export default function SchoolProfile() {
               ) : (
                 <div className="divide-y divide-gray-100">
                   {documents.map((d) => (
-                    <a key={d.id} href={d.file_url} target="_blank" rel="noreferrer" className="flex items-center gap-3 py-3">
+                    <button key={d.id} onClick={() => setLightboxItem({ ...d, kind: 'document' })} className="w-full flex items-center gap-3 py-3 text-left">
                       <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><FileText size={16} className="text-brand-purple" /></span>
-                      <p className="text-sm truncate">{d.title}</p>
-                    </a>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{d.title}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          {docLikes[d.id]?.count > 0 ? <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Heart size={10} /> {docLikes[d.id].count}</span> : null}
+                          {docRatings[d.id]?.count > 0 ? <span className="text-[11px] text-gray-400">★ {(docRatings[d.id].sum / docRatings[d.id].count).toFixed(1)}</span> : null}
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
@@ -512,6 +726,51 @@ export default function SchoolProfile() {
           ) : null}
         </div>
       </div>
-    </div>
-  )
+
+      {lightboxItem ? (
+        <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3">
+            <p className="text-white text-sm font-medium truncate pr-2">
+              {lightboxItem.kind === 'document' ? lightboxItem.title : 'Media'}
+            </p>
+            <button onClick={() => setLightboxItem(null)} className="text-white shrink-0">
+              <X size={22} />
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center px-4 overflow-hidden">
+            {lightboxItem.kind === 'gallery' ? (
+              lightboxItem.media_type === 'video' ? (
+                <video src={lightboxItem.image_url} className="max-w-full max-h-full rounded-lg" controls autoPlay />
+              ) : (
+                <img src={lightboxItem.image_url} alt="" className="max-w-full max-h-full rounded-lg object-contain" />
+              )
+            ) : (
+              <div className="bg-white rounded-xl p-8 flex flex-col items-center gap-3">
+                <FileText size={48} className="text-brand-purple" />
+                <p className="text-sm text-gray-600 text-center">{lightboxItem.title}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="bg-white rounded-t-2xl px-4 pt-4 pb-6 space-y-3">
+            {toast ? <p className="text-center text-xs text-brand-purple">{toast}</p> : null}
+
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => (lightboxItem.kind === 'gallery' ? toggleGalleryLike(lightboxItem.id) : toggleDocLike(lightboxItem.id))}
+                className="flex items-center gap-1.5 text-sm font-medium"
+              >
+                <Heart
+                  size={18}
+                  className={(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.likedByMe : docLikes[lightboxItem.id]?.likedByMe) ? 'text-red-500 fill-red-500' : 'text-gray-400'}
+                />
+                {(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.count : docLikes[lightboxItem.id]?.count) || 0}
+              </button>
+
+              <StarRow
+                average={
+                  lightboxItem.kind === 'gallery'
+                    ? (galleryRatings[lightboxItem.id]?.count ? galleryRatings[lightboxItem.id].sum / galler
+    )
 }
