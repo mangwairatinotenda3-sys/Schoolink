@@ -64,6 +64,21 @@ export default function CommunityGroupInfo() {
       setCommunity((c) => ({ ...c, avatar_url: avatarUrl }))
     }
     setUploading(false)
+    e.target.value = ''
+  }
+
+  async function handleRemoveAvatar() {
+    if (!window.confirm('Remove the group picture?')) return
+    setUploading(true)
+    const marker = '/community-media/'
+    const idx = community.avatar_url?.indexOf(marker) ?? -1
+    if (idx !== -1) {
+      const path = decodeURIComponent(community.avatar_url.slice(idx + marker.length).split('?')[0])
+      await supabase.storage.from('community-media').remove([path])
+    }
+    await supabase.from('communities').update({ avatar_url: null }).eq('id', communityId)
+    setCommunity((c) => ({ ...c, avatar_url: null }))
+    setUploading(false)
   }
 
   function inviteLink() {
@@ -136,7 +151,8 @@ export default function CommunityGroupInfo() {
     await supabase.from('community_members').delete().eq('community_id', communityId).eq('user_id', user.id)
     navigate('/communities')
   }
-async function handleDeleteCommunity() {
+
+  async function handleDeleteCommunity() {
     if (!window.confirm('Delete this community for everyone? This cannot be undone.')) return
     const { data, error } = await supabase.from('communities').delete().eq('id', communityId).select()
     if (error) {
@@ -148,7 +164,7 @@ async function handleDeleteCommunity() {
       return
     }
     navigate('/communities')
-      }
+  }
 
   async function savePostingMode() {
     setSavingSettings(true)
@@ -179,6 +195,11 @@ async function handleDeleteCommunity() {
             ) : null}
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
           </div>
+          {isAdmin && community.avatar_url ? (
+            <button onClick={handleRemoveAvatar} disabled={uploading} className="text-xs text-red-500 font-medium mt-1.5 disabled:opacity-60">
+              Remove Photo
+            </button>
+          ) : null}
           <p className="font-semibold text-lg mt-3">{community.name}</p>
           <p className="text-sm text-gray-400">{members.length} members {community.is_private ? '· Private' : ''}</p>
           {community.description ? <p className="text-sm text-gray-600 text-center mt-2">{community.description}</p> : null}
@@ -285,4 +306,4 @@ async function handleDeleteCommunity() {
       </div>
     </div>
   )
-    }
+  }
