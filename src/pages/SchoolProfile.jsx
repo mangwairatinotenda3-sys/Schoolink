@@ -50,6 +50,7 @@ export default function SchoolProfile() {
   const logoInputRef = useRef(null)
   const galleryInputRef = useRef(null)
   const docInputRef = useRef(null)
+  const tabsRef = useRef(null)
 
   const targetSchoolId = paramSchoolId || profile?.school_id
 
@@ -229,6 +230,7 @@ export default function SchoolProfile() {
       .update({
         name: form.name,
         location: form.location,
+        school_type: form.school_type,
         motto: form.motto,
         vision: form.vision,
         mission: form.mission,
@@ -426,7 +428,8 @@ export default function SchoolProfile() {
         </div>
       </div>
     )
-        }
+    }
+
 const aboutText = school.mission || school.description || ''
   return (
     <div className="app-shell">
@@ -543,7 +546,12 @@ const aboutText = school.mission || school.description || ''
         <div className="border border-gray-100 rounded-xl p-4 mt-3">
           <div className="flex items-center justify-between mb-2">
             <p className="font-semibold text-sm">School Media</p>
-            <button onClick={() => setActiveTab('Media')} className="text-xs text-brand-purple font-medium">View all</button>
+            <button
+              onClick={() => { setActiveTab('Media'); setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }}
+              className="text-xs text-brand-purple font-medium"
+            >
+              View all
+            </button>
           </div>
           {gallery.length === 0 && activeTab !== 'Media' ? (
             <p className="text-xs text-gray-400">No photos or videos yet.</p>
@@ -567,7 +575,7 @@ const aboutText = school.mission || school.description || ''
           )}
         </div>
 
-        <div className="flex gap-5 overflow-x-auto mt-4 border-b border-gray-100">
+        <div ref={tabsRef} className="flex gap-5 overflow-x-auto mt-4 border-b border-gray-100 scroll-mt-4">
           {tabs.map((t) => (
             <button key={t} onClick={() => setActiveTab(t)} className={`pb-2 text-sm font-medium border-b-2 shrink-0 ${activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'}`}>
               {t}
@@ -593,6 +601,30 @@ const aboutText = school.mission || school.description || ''
 
           {activeTab === 'About' ? (
             <div className="space-y-4">
+              {canEdit ? (
+                <div className="grid grid-cols-1 gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-1">School Name</p>
+                    <input value={form.name || ''} onChange={(e) => updateField('name', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Location</p>
+                    <input value={form.location || ''} onChange={(e) => updateField('location', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                  </div>
+                  <div>
+                    <p className="text-xs font-semibold text-gray-400 uppercase mb-1">School Type</p>
+                    <select value={form.school_type || ''} onChange={(e) => updateField('school_type', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple">
+                      <option value="">Select type</option>
+                      <option value="Primary School">Primary School</option>
+                      <option value="High School">High School</option>
+                      <option value="Combined School">Combined School</option>
+                      <option value="College">College</option>
+                      <option value="University">University</option>
+                    </select>
+                  </div>
+                </div>
+              ) : null}
+
               {['motto', 'vision', 'mission'].map((key) => (
                 <div key={key}>
                   <p className="text-xs font-semibold text-gray-400 uppercase mb-1 capitalize">{key}</p>
@@ -646,13 +678,16 @@ const aboutText = school.mission || school.description || ''
               </div>
             )
           ) : null}
+
           {activeTab === 'Media' ? (
             <>
               {canManageMedia ? (
                 <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingPhoto} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
                   <Plus size={16} /> {uploadingPhoto ? 'Uploading…' : 'Add Photo or Video'}
                 </button>
-              ) : null}
+              ) : (
+                <p className="text-xs text-gray-400 text-center mb-3">Only school staff can add photos and videos.</p>
+              )}
               <input ref={galleryInputRef} type="file" accept="image/*,video/*" onChange={handleGalleryUpload} className="hidden" />
               {gallery.length === 0 ? (
                 <p className="text-center text-gray-400 mt-6">No photos or videos yet.</p>
@@ -683,18 +718,27 @@ const aboutText = school.mission || school.description || ''
           ) : null}
 
           {activeTab === 'Events' ? (
-            events.length === 0 ? (
-              <p className="text-center text-gray-400 mt-6">No events scheduled.</p>
-            ) : (
-              <div className="space-y-2">
-                {events.map((e) => (
-                  <div key={e.id} className="border border-gray-100 rounded-xl p-3">
-                    <p className="font-medium text-sm">{e.title}</p>
-                    <p className="text-xs text-gray-400">{new Date(e.event_date).toLocaleString()}</p>
-                  </div>
-                ))}
-              </div>
-            )
+            <>
+              {canManageMedia ? (
+                <button onClick={() => navigate('/calendar/create')} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3">
+                  <Plus size={16} /> Add Event
+                </button>
+              ) : (
+                <p className="text-xs text-gray-400 text-center mb-3">Only school staff can add events.</p>
+              )}
+              {events.length === 0 ? (
+                <p className="text-center text-gray-400 mt-6">No events scheduled.</p>
+              ) : (
+                <div className="space-y-2">
+                  {events.map((e) => (
+                    <div key={e.id} className="border border-gray-100 rounded-xl p-3">
+                      <p className="font-medium text-sm">{e.title}</p>
+                      <p className="text-xs text-gray-400">{new Date(e.event_date).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
           ) : null}
 
           {activeTab === 'Documents' ? (
@@ -703,7 +747,9 @@ const aboutText = school.mission || school.description || ''
                 <button onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
                   <Plus size={16} /> {uploadingDoc ? 'Uploading…' : 'Add Document'}
                 </button>
-              ) : null}
+              ) : (
+                <p className="text-xs text-gray-400 text-center mb-3">Only school staff can add documents.</p>
+              )}
               <input ref={docInputRef} type="file" onChange={handleDocUpload} className="hidden" />
               {documents.length === 0 ? (
                 <p className="text-center text-gray-400 mt-6">No documents yet.</p>
@@ -784,6 +830,14 @@ const aboutText = school.mission || school.description || ''
             </div>
 
             <div className="flex gap-2">
+              {lightboxItem.kind === 'document' ? (
+                <button
+                  onClick={() => window.open(lightboxItem.file_url, '_blank', 'noreferrer')}
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-brand-purple text-white rounded-xl py-2.5 text-sm font-medium"
+                >
+                  <ExternalLink size={15} /> Open
+                </button>
+              ) : null}
               <button
                 onClick={() => downloadItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
                 className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium"
@@ -810,4 +864,4 @@ const aboutText = school.mission || school.description || ''
       ) : null}
     </div>
   )
-                  }
+                          }
