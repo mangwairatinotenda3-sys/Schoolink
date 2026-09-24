@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { Camera } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -11,13 +12,23 @@ function generateInviteCode() {
 export default function CreateCommunity() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const fileInputRef = useRef(null)
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
   const [isPrivate, setIsPrivate] = useState(false)
   const [postingMode, setPostingMode] = useState('everyone')
+  const [avatarFile, setAvatarFile] = useState(null)
+  const [avatarPreview, setAvatarPreview] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+
+  function handlePickAvatar(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setAvatarFile(file)
+    setAvatarPreview(URL.createObjectURL(file))
+  }
 
   async function handleCreate() {
     if (!name.trim()) return
@@ -43,13 +54,25 @@ export default function CreateCommunity() {
       .from('community_members')
       .insert({ community_id: community.id, user_id: user.id, role: 'admin' })
 
-    setSaving(false)
-
     if (memberError) {
+      setSaving(false)
       setError(`Community was created, but making you admin failed: ${memberError.message}. Please contact support.`)
       return
     }
 
+    // Picture was picked before creation — we only had a local preview until
+    // now, since uploading needs the community's id. Upload it now.
+    if (avatarFile) {
+      const ext = avatarFile.name.split('.').pop()
+      const path = `${community.id}/avatar.${ext}`
+      const { error: uploadError } = await supabase.storage.from('community-media').upload(path, avatarFile, { upsert: true })
+      if (!uploadError) {
+        const { data } = supabase.storage.from('community-media').getPublicUrl(path)
+        await supabase.from('communities').update({ avatar_url: `${data.publicUrl}?t=${Date.now()}` }).eq('id', community.id)
+      }
+    }
+
+    setSaving(false)
     navigate(`/communities/${community.id}`)
   }
 
@@ -57,6 +80,21 @@ export default function CreateCommunity() {
     <div className="app-shell">
       <BackHeader title="Create a Community" />
       <div className="screen-scroll px-6 pt-4">
+        <div className="flex flex-col items-center mb-2">
+          <div className="relative">
+            {avatarPreview ? (
+              <img src={avatarPreview} alt="" className="w-20 h-20 rounded-full object-cover" />
+            ) : (
+              <span className="w-20 h-20 rounded-full bg-brand-light flex items-center justify-center text-2xl">🏘️</span>
+            )}
+            <button onClick={() => fileInputRef.current?.click()} className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white">
+              <Camera size={13} className="text-white" />
+            </button>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handlePickAvatar} className="hidden" />
+          </div>
+          <p className="text-xs text-gray-400 mt-1">Add a picture (optional)</p>
+        </div>
+
         <label className="text-sm font-medium mb-2">Name</label>
         <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Mathematics Teachers" className="w-full border border-gray-200 rounded-xl px-4 py-3 outline-brand-purple" />
 
