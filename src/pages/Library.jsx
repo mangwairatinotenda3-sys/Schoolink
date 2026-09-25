@@ -131,27 +131,34 @@ export default function Library() {
     setSearching(true)
     const t = setTimeout(async () => {
       try {
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://unopasa.com/search?q=${encodeURIComponent(q)}`)}`
+        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.unopasa.com/search?q=${encodeURIComponent(q)}`)}`
         const html = await fetch(proxy).then(r => r.text())
         if (lastQueryRef.current !== q) return
         const results = []
         const seen = new Set()
-        const re = /href="\/legacy\/([a-z0-9]+)"[^>]*>([\s\S]*?)<\/a>/gi
+        // Unopasa's real resource links look like:
+        // /zimbabwe/o-level/mathematics/question-papers/zimsec-paper-2-november-2025-hodtemn
+        // i.e. /<country>/<level>/<subject>/<type>/<slug> — five path segments.
+        const re = /href="(\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+)"[^>]*>([\s\S]*?)<\/a>/gi
         let m
         while ((m = re.exec(html)) !== null && results.length < 50) {
-          const id = m[1]
-          if (seen.has(id)) continue
-          seen.add(id)
+          const path = m[1]
+          if (seen.has(path)) continue
+          seen.add(path)
           const title = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
           if (title.length < 8) continue
-          const snippet = html.substring(m.index, m.index + 500)
-          const year = snippet.match(/20\d{2}/)?.[0] || ""
+          // Their own ?q= search doesn't reliably filter server-side, so filter
+          // by title on our end against what the person actually typed.
+          const qWords = q.toLowerCase().split(/\s+/).filter(Boolean)
+          if (!qWords.every(w => title.toLowerCase().includes(w))) continue
+          const year = title.match(/20\d{2}/)?.[0] || ""
+          const parts = path.split('/').filter(Boolean)
           results.push({
-            id,
+            id: path,
             title,
-            meta: `ZIMSEC • ${year}`,
+            meta: `${parts[1] || ''} • ${year}`.trim(),
             year,
-            file_url: `https://unopasa.com/legacy/${id}`
+            file_url: `https://www.unopasa.com${path}`
           })
         }
         setExternalResults(results)
@@ -304,4 +311,4 @@ export default function Library() {
       </div>
     </div>
   )
-      }
+}
