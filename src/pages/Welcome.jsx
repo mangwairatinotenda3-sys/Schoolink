@@ -1,11 +1,29 @@
 import { useEffect, useState } from 'react'
-import { GraduationCap, Mail, Lock, Eye, EyeOff, User } from 'lucide-react'
+import { GraduationCap, Mail, Lock, Eye, EyeOff, User, Send, ChevronRight, ArrowRight } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { supabase } from '../lib/supabaseClient'
 import GoogleIcon from '../components/GoogleIcon.jsx'
 
 const LAST_EMAIL_KEY = 'schoolink_last_email'
+
+function HeroIllustration() {
+  return (
+    <div className="relative w-24 h-24 sm:w-28 sm:h-28 shrink-0">
+      <span className="absolute inset-0 rounded-full bg-brand-light" />
+      <svg viewBox="0 0 100 100" className="absolute -top-2 -right-1 w-16 h-16 text-brand-purple/40">
+        <path d="M8 72 Q 40 22 88 12" fill="none" stroke="currentColor" strokeWidth="2" strokeDasharray="4 6" strokeLinecap="round" />
+      </svg>
+      <Send size={20} className="absolute top-1 right-3 text-brand-purple rotate-[40deg]" />
+      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 w-14">
+        <div className="h-3 rounded-sm bg-white border border-gray-200 shadow-sm" />
+        <div className="h-3 rounded-sm bg-white border border-gray-200 shadow-sm -mt-0.5 translate-x-1" />
+      </div>
+      <GraduationCap size={38} className="absolute bottom-8 left-1/2 -translate-x-1/2 text-brand-purple drop-shadow-sm" />
+      <span className="absolute -bottom-1 -left-1 w-3 h-3 rounded-full bg-white border border-gray-200" />
+    </div>
+  )
+}
 
 export default function Welcome() {
   const navigate = useNavigate()
@@ -112,36 +130,34 @@ export default function Welcome() {
   }
 
   return (
-    <div className="flex-1 flex flex-col px-6 pt-10 pb-8 relative overflow-hidden">
-      <div className="absolute -top-16 -left-16 w-48 h-48 rounded-full bg-brand-light -z-10" />
-      <div className="absolute top-40 -right-16 w-40 h-40 rounded-full bg-brand-light -z-10" />
+    <div className="flex-1 flex flex-col px-6 pt-10 pb-8 relative overflow-y-auto overflow-x-hidden">
+      <div className="absolute -top-20 -left-20 w-64 h-64 rounded-full bg-brand-light -z-10" />
+      <div className="absolute -bottom-24 -right-20 w-64 h-64 rounded-full bg-brand-light -z-10" />
 
-      <div className="flex items-center justify-center gap-2">
-        <span className="w-9 h-9 rounded-xl bg-brand-purple flex items-center justify-center">
-          <GraduationCap className="text-white" size={20} />
-        </span>
-        <div>
-          <h1 className="text-lg font-bold text-brand-purple leading-tight">Schoolink</h1>
-          <p className="text-[10px] text-gray-400 -mt-1">Connecting Schools Worldwide</p>
+      <div className="flex flex-col items-center text-center">
+        <div className="flex items-center gap-2">
+          <GraduationCap size={32} className="text-brand-purple" />
+          <h1 className="text-3xl font-extrabold text-brand-purple leading-none">Schoolink</h1>
         </div>
+        <p className="text-sm font-medium text-brand-purple/70 mt-1">Connecting Schools Worldwide</p>
       </div>
 
-      <div className="flex items-center justify-between mt-8 gap-4">
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold">{mode === 'signin' ? 'Welcome Back!' : 'Create Your Account'}</h2>
-          <p className="text-gray-500 mt-2 text-sm">
+      <div className="flex items-start justify-between gap-4 mt-8">
+        <div className="flex-1 min-w-0">
+          <h2 className="text-[26px] leading-tight font-extrabold text-brand-navy">{mode === 'signin' ? 'Welcome Back!' : 'Create Your Account'}</h2>
+          <p className="text-gray-500 mt-2 text-sm leading-relaxed">
             {mode === 'signin'
               ? 'Log in to your Schoolink account and stay connected with your school, community and more.'
               : "Join Schoolink and connect with your school's community."}
           </p>
         </div>
-        <div className="text-6xl shrink-0">🎓📚</div>
+        <HeroIllustration />
       </div>
 
       {error ? <p className="text-red-500 text-sm mt-4">{error}</p> : null}
 
       <form onSubmit={handleSubmit} className="mt-6 space-y-3">
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3.5">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 bg-white shadow-sm">
           <Mail size={18} className="text-brand-purple shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-[10px] text-gray-400">School Email Address</p>
@@ -151,12 +167,12 @@ export default function Welcome() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@schoolink.com"
-              className="w-full outline-none text-sm"
+              className="w-full outline-none text-sm bg-transparent"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-3 border border-gray-200 rounded-xl px-4 py-3.5">
+        <div className="flex items-center gap-3 border border-gray-200 rounded-2xl px-4 py-3.5 bg-white shadow-sm">
           <Lock size={18} className="text-brand-purple shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-[10px] text-gray-400">Password</p>
@@ -166,7 +182,7 @@ export default function Welcome() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="Enter your password"
-              className="w-full outline-none text-sm"
+              className="w-full outline-none text-sm bg-transparent"
             />
           </div>
           <button type="button" onClick={() => setShowPassword((s) => !s)} className="shrink-0">
@@ -177,7 +193,7 @@ export default function Welcome() {
         {mode === 'signin' ? (
           <div className="flex items-center justify-between pt-1">
             <label className="flex items-center gap-2 text-sm text-gray-600">
-              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} />
+              <input type="checkbox" checked={rememberMe} onChange={(e) => setRememberMe(e.target.checked)} className="w-4 h-4 rounded accent-brand-purple" />
               Remember me
             </label>
             <button type="button" onClick={() => navigate('/forgot-password', { state: { email } })} className="text-sm text-brand-purple font-medium">
@@ -189,28 +205,38 @@ export default function Welcome() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full bg-brand-purple text-white font-semibold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg shadow-brand-purple/30 disabled:opacity-60"
         >
-          {busy ? 'Please wait…' : mode === 'signin' ? 'Log In →' : 'Create Account →'}
+          {busy ? 'Please wait…' : (
+            <>
+              {mode === 'signin' ? 'Log In' : 'Create Account'} <ArrowRight size={18} />
+            </>
+          )}
         </button>
       </form>
 
       <div className="flex items-center gap-3 my-5">
         <div className="flex-1 h-px bg-gray-200" />
-        <span className="text-xs text-gray-400">OR</span>
+        <span className="text-xs text-gray-400 font-medium">OR</span>
         <div className="flex-1 h-px bg-gray-200" />
       </div>
 
       <div className="space-y-3">
-        <button onClick={signInWithGoogle} className="w-full border border-gray-200 font-medium py-3.5 rounded-xl flex items-center justify-center gap-2">
-          <GoogleIcon size={18} /> Continue with Google
+        <button onClick={signInWithGoogle} className="w-full border border-gray-200 rounded-2xl py-3.5 px-4 flex items-center justify-between bg-white shadow-sm">
+          <span className="flex items-center gap-3 font-medium text-sm">
+            <GoogleIcon size={20} /> Continue with Google
+          </span>
+          <ChevronRight size={18} className="text-gray-300" />
         </button>
         <button
           onClick={handleGuest}
           disabled={guestBusy}
-          className="w-full border border-gray-200 font-medium py-3.5 rounded-xl flex items-center justify-center gap-2 disabled:opacity-60"
+          className="w-full border border-gray-200 rounded-2xl py-3.5 px-4 flex items-center justify-between bg-white shadow-sm disabled:opacity-60"
         >
-          <User size={18} className="text-gray-500" /> {guestBusy ? 'Setting up…' : 'Continue as Guest'}
+          <span className="flex items-center gap-3 font-medium text-sm">
+            <User size={20} className="text-gray-500" /> {guestBusy ? 'Setting up…' : 'Continue as Guest'}
+          </span>
+          <ChevronRight size={18} className="text-gray-300" />
         </button>
       </div>
 
@@ -231,4 +257,4 @@ export default function Welcome() {
       </p>
     </div>
   )
-    }
+        }
