@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Copy, Share2 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -7,6 +8,40 @@ const roles = ['Deputy Head', 'Teacher / Tutor', 'Bursar', 'Librarian', 'ICT Adm
 
 function generateCode() {
   return Math.random().toString(36).slice(2, 10).toUpperCase()
+}
+
+function linkFor(code) {
+  return `${window.location.origin}${window.location.pathname}#/join/${code}`
+}
+
+function ShareLinkRow({ code, label }) {
+  const [copied, setCopied] = useState(false)
+  const link = linkFor(code)
+
+  function handleCopy() {
+    navigator.clipboard?.writeText(link)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleShare() {
+    if (navigator.share) navigator.share({ title: label, text: label, url: link }).catch(() => {})
+    else handleCopy()
+  }
+
+  return (
+    <div className="mt-2">
+      <p className="text-[11px] text-gray-400 truncate">{link}</p>
+      <div className="flex gap-2 mt-2">
+        <button onClick={handleCopy} className="flex-1 flex items-center justify-center gap-1 border border-gray-200 rounded-lg py-2 text-sm">
+          <Copy size={13} /> {copied ? 'Copied!' : 'Copy Link'}
+        </button>
+        <button onClick={handleShare} className="flex-1 flex items-center justify-center gap-1 bg-brand-purple text-white rounded-lg py-2 text-sm">
+          <Share2 size={13} /> Share
+        </button>
+      </div>
+    </div>
+  )
 }
 
 export default function InviteMember() {
@@ -72,21 +107,24 @@ export default function InviteMember() {
       <BackHeader title="Invite a Member" />
       <div className="flex-1 flex flex-col px-6 pt-4">
         <div className="bg-brand-light rounded-xl p-4">
-          <p className="font-semibold text-sm">Student Join Code</p>
+          <p className="font-semibold text-sm">Student Join Link</p>
           <p className="text-xs text-gray-500 mt-1">
-            One code, shareable with all students. They'll need your approval after they enter it.
+            Share this link with students — tapping it joins them to your school right away, no code typing needed.
           </p>
           {studentCode ? (
-            <p className="text-xl font-mono font-bold tracking-widest text-brand-purple mt-2 text-center">
-              {studentCode}
-            </p>
+            <>
+              <p className="text-lg font-mono font-bold tracking-widest text-brand-purple mt-2 text-center">
+                {studentCode}
+              </p>
+              <ShareLinkRow code={studentCode} label="Join our school on Schoolink" />
+            </>
           ) : null}
           <button
             onClick={handleGenerateStudentCode}
             disabled={studentCodeBusy}
             className="mt-3 w-full border border-brand-purple text-brand-purple font-medium py-2.5 rounded-xl text-sm disabled:opacity-60"
           >
-            {studentCodeBusy ? 'Generating…' : studentCode ? 'Regenerate Code' : 'Generate Code'}
+            {studentCodeBusy ? 'Generating…' : studentCode ? 'Regenerate Link' : 'Generate Link'}
           </button>
         </div>
 
@@ -117,9 +155,10 @@ export default function InviteMember() {
 
         {code ? (
           <div className="mt-6 bg-brand-light rounded-xl p-4 text-center">
-            <p className="text-sm text-gray-500">Share this code with them:</p>
-            <p className="text-2xl font-mono font-bold tracking-widest text-brand-purple mt-1">{code}</p>
-            <p className="text-xs text-gray-400 mt-2">Valid for 14 days. They'll enter it during sign up.</p>
+            <p className="text-sm text-gray-500">Share this with them:</p>
+            <p className="text-xl font-mono font-bold tracking-widest text-brand-purple mt-1">{code}</p>
+            <p className="text-xs text-gray-400 mt-2">Valid for 14 days. The link below skips typing the code in.</p>
+            <ShareLinkRow code={code} label="Join our school staff on Schoolink" />
           </div>
         ) : null}
 
