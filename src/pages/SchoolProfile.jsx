@@ -428,7 +428,7 @@ export default function SchoolProfile() {
         </div>
       </div>
     )
-    }
+  }
 
 const aboutText = school.mission || school.description || ''
   return (
@@ -535,7 +535,15 @@ const aboutText = school.mission || school.description || ''
 
         {aboutText ? (
           <div className="border border-gray-100 rounded-xl p-4 mt-3">
-            <p className="font-semibold text-sm mb-1">About School</p>
+            <div className="flex items-center justify-between mb-1">
+              <p className="font-semibold text-sm">About School</p>
+              <button
+                onClick={() => { setActiveTab('About'); setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }}
+                className="text-xs text-brand-purple font-medium"
+              >
+                Read all
+              </button>
+            </div>
             <p className={`text-sm text-gray-600 ${aboutExpanded ? '' : 'line-clamp-2'}`}>{aboutText}</p>
             <button onClick={() => setAboutExpanded((e) => !e)} className="text-xs text-brand-purple font-medium mt-1">
               {aboutExpanded ? 'Show less' : 'Read more'}
@@ -864,4 +872,4 @@ const aboutText = school.mission || school.description || ''
       ) : null}
     </div>
   )
-                          }
+          }
