@@ -64,6 +64,7 @@ export default function SchoolProfile() {
   const [uploadingDoc, setUploadingDoc] = useState(false)
   const [memberCount, setMemberCount] = useState(0)
   const [staffCount, setStaffCount] = useState(0)
+  const [studentCount, setStudentCount] = useState(0)
   const [memberIds, setMemberIds] = useState([])
   const [isFollowing, setIsFollowing] = useState(false)
   const [aboutExpanded, setAboutExpanded] = useState(false)
@@ -121,9 +122,15 @@ export default function SchoolProfile() {
   }, [toast])
 
   async function refreshMembers(schoolId) {
-    const { data: members } = await supabase.from('profiles').select('id').eq('school_id', schoolId).eq('status', 'active')
+    const { data: members } = await supabase.from('profiles').select('id, role').eq('school_id', schoolId).eq('status', 'active')
     setMemberCount(members?.length ?? 0)
     setMemberIds((members ?? []).map((m) => m.id))
+    setStudentCount((members ?? []).filter((m) => m.role === 'Student').length)
+
+    const { data: staffRows } = await supabase.from('profiles').select('*').eq('school_id', schoolId).eq('status', 'active').neq('role', 'Student')
+    setStaff(staffRows ?? [])
+    setStaffCount(staffRows?.length ?? 0)
+    }
 
     const { data: staffRows } = await supabase.from('profiles').select('*').eq('school_id', schoolId).eq('status', 'active').neq('role', 'Student')
     setStaff(staffRows ?? [])
@@ -238,7 +245,7 @@ export default function SchoolProfile() {
         established_year: form.established_year,
         phone: form.phone,
         contact_email: form.contact_email,
-        total_students: form.total_students || null,
+        total_students: studentCount,
         total_teachers: form.total_teachers || null,
         non_teaching_staff: form.non_teaching_staff || null,
         total_classes: form.total_classes || null,
@@ -649,7 +656,10 @@ const aboutText = school.mission || school.description || ''
                   <div className="grid grid-cols-2 gap-3">
                     <input value={form.pass_rate || ''} onChange={(e) => updateField('pass_rate', e.target.value)} placeholder="Pass rate %" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.established_year || ''} onChange={(e) => updateField('established_year', e.target.value)} placeholder="Established year" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.total_students || ''} onChange={(e) => updateField('total_students', e.target.value)} placeholder="Total students" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <div className="border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500 flex items-center justify-between">
+                      <span>Total students</span>
+                      <span className="font-semibold text-gray-700">{studentCount}</span>
+                    </div>
                     <input value={form.total_teachers || ''} onChange={(e) => updateField('total_teachers', e.target.value)} placeholder="Teachers" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.non_teaching_staff || ''} onChange={(e) => updateField('non_teaching_staff', e.target.value)} placeholder="Non-teaching staff" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.total_classes || ''} onChange={(e) => updateField('total_classes', e.target.value)} placeholder="Classes" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
