@@ -20,8 +20,15 @@ export default function BrowseSchools() {
 
   async function loadSchools() {
     setLoading(true)
-    const { data } = await supabase.from('schools').select('*').order('name', { ascending: true })
-    setSchools(data ?? [])
+    const [{ data }, { data: popularity }] = await Promise.all([
+      supabase.from('schools').select('*'),
+      supabase.from('school_popularity').select('school_id, engagement_score'),
+    ])
+    const scoreMap = Object.fromEntries((popularity ?? []).map((p) => [p.school_id, p.engagement_score]))
+    const ranked = (data ?? [])
+      .map((s) => ({ ...s, engagement_score: scoreMap[s.id] || 0 }))
+      .sort((a, b) => b.engagement_score - a.engagement_score || a.name.localeCompare(b.name))
+    setSchools(ranked)
     setLoading(false)
   }
 
@@ -70,7 +77,10 @@ export default function BrowseSchools() {
                   </span>
                 )}
                 <div className="min-w-0">
-                  <p className="font-medium text-sm truncate">{s.name}</p>
+                  <p className="font-medium text-sm truncate flex items-center gap-1">
+                    {s.name}
+                    {s.engagement_score >= 20 ? <span title="Popular school">🔥</span> : null}
+                  </p>
                   <p className="text-xs text-gray-400 truncate">{s.location} · {s.school_type}</p>
                 </div>
               </button>
@@ -81,4 +91,4 @@ export default function BrowseSchools() {
       <BottomNav />
     </div>
   )
-}
+  }
