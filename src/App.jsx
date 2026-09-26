@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 
 import Welcome from './pages/Welcome.jsx'
+import JoinByLink from './pages/JoinByLink.jsx'
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import TermsOfService from './pages/TermsOfService.jsx'
@@ -93,6 +94,7 @@ export default function App() {
       <TranslateBanner />
       <Routes>
         <Route path="/" element={<Welcome />} />
+        <Route path="/join/:code" element={<JoinByLink />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/terms" element={<TermsOfService />} />
