@@ -67,7 +67,6 @@ export default function SchoolProfile() {
   const [studentCount, setStudentCount] = useState(0)
   const [memberIds, setMemberIds] = useState([])
   const [isFollowing, setIsFollowing] = useState(false)
-  const [aboutExpanded, setAboutExpanded] = useState(false)
 
   const [activeTab, setActiveTab] = useState('Posts')
   const [posts, setPosts] = useState([])
@@ -126,11 +125,6 @@ export default function SchoolProfile() {
     setMemberCount(members?.length ?? 0)
     setMemberIds((members ?? []).map((m) => m.id))
     setStudentCount((members ?? []).filter((m) => m.role === 'Student').length)
-
-    const { data: staffRows } = await supabase.from('profiles').select('*').eq('school_id', schoolId).eq('status', 'active').neq('role', 'Student')
-    setStaff(staffRows ?? [])
-    setStaffCount(staffRows?.length ?? 0)
-    }
 
     const { data: staffRows } = await supabase.from('profiles').select('*').eq('school_id', schoolId).eq('status', 'active').neq('role', 'Student')
     setStaff(staffRows ?? [])
@@ -435,7 +429,7 @@ export default function SchoolProfile() {
         </div>
       </div>
     )
-  }
+    }
 
 const aboutText = school.mission || school.description || ''
   return (
@@ -551,10 +545,7 @@ const aboutText = school.mission || school.description || ''
                 Read all
               </button>
             </div>
-            <p className={`text-sm text-gray-600 ${aboutExpanded ? '' : 'line-clamp-2'}`}>{aboutText}</p>
-            <button onClick={() => setAboutExpanded((e) => !e)} className="text-xs text-brand-purple font-medium mt-1">
-              {aboutExpanded ? 'Show less' : 'Read more'}
-            </button>
+            <p className="text-sm text-gray-600 line-clamp-2">{aboutText}</p>
           </div>
         ) : null}
 
@@ -882,4 +873,4 @@ const aboutText = school.mission || school.description || ''
       ) : null}
     </div>
   )
-          }
+                              }
