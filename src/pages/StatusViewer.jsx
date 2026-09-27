@@ -29,7 +29,6 @@ export default function StatusViewer() {
 
   useEffect(() => { loadStatuses() }, [userId])
 
-  // Auto progress
   useEffect(() => {
     if (paused || showViewers) return
     timerRef.current = setInterval(() => {
@@ -51,21 +50,18 @@ export default function StatusViewer() {
 
   useEffect(() => { setProgress(0) }, [index])
 
-  // Log view + check audience
   useEffect(() => {
     if (!statuses[index]) return
     const current = statuses[index]
 
-    // Audience check
-    if (current.audience!== 'public') {
-      if (!profile?.school_id || profile.school_id!== current.school_id) {
-        // if school_only, block
-        if (current.audience === 'school_only' && profile?.school_id!== current.school_id) {
-          navigate('/home'); return
-        }
-        if (current.audience === 'staff_only' &&!['headteacher','deputy_head','teacher','bursar','coach','librarian','ict_admin'].includes(profile?.role)) {
-          navigate('/home'); return
-        }
+    // FIXED AUDIENCE LOGIC
+    if (current.audience === 'school_only' && profile?.school_id!== current.school_id) {
+      navigate('/home'); return
+    }
+    if (current.audience === 'staff_only') {
+      const isStaff = ['headteacher','deputy_head','teacher','bursar','coach','librarian','ict_admin'].includes(profile?.role)
+      if (profile?.school_id!== current.school_id ||!isStaff) {
+        navigate('/home'); return
       }
     }
 
@@ -74,39 +70,32 @@ export default function StatusViewer() {
       viewer_id: user.id
     }, { onConflict: 'status_id,viewer_id' })
 
-    // Load viewers if owner
     if (current.user_id === user.id) {
       supabase.from('status_views')
-       .select('viewer_id, viewed_at, profiles!inner(full_name, role)')
-       .eq('status_id', current.id)
-       .then(({ data }) => setViewers(data || []))
+      .select('viewer_id, viewed_at, profiles!inner(full_name, role)')
+      .eq('status_id', current.id)
+      .then(({ data }) => setViewers(data || []))
     }
-  }, [index, statuses])
+  }, [index, statuses, profile])
 
   async function loadStatuses() {
     setLoading(true)
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-
-    const { data: muted } = await supabase.from('status_mutes').select('muted_id').eq('muter_id', user.id)
-    const mutedIds = muted?.map(m => m.muted_id) || []
-    if (mutedIds.includes(userId)) { navigate('/home'); return }
-
     const { data } = await supabase.from('statuses')
-     .select('*')
-     .eq('user_id', userId)
-     .gt('created_at', cutoff)
-     .order('created_at', { ascending: true })
+    .select('*')
+    .eq('user_id', userId)
+    .gt('created_at', cutoff)
+    .order('created_at', { ascending: true })
     setStatuses(data?? [])
 
     const { data: profileData } = await supabase.from('profiles')
-     .select('full_name, avatar_url, role, school_id')
-     .eq('id', userId).maybeSingle()
+    .select('full_name, avatar_url, role, school_id')
+    .eq('id', userId).maybeSingle()
     setPerson(profileData)
     setLoading(false)
   }
 
   async function handleDelete(statusId) {
-    const reason = window.prompt('Delete reason? (optional for audit)')
     await supabase.from('statuses').delete().eq('id', statusId)
     const next = statuses.filter(s => s.id!== statusId)
     if (!next.length) { navigate('/home'); return }
@@ -125,11 +114,6 @@ export default function StatusViewer() {
     alert('Reported to school admin.')
   }
 
-  async function handleMute() {
-    await supabase.from('status_mutes').insert({ muter_id: user.id, muted_id: userId })
-    navigate('/home')
-  }
-
   const current = statuses[index]
   const canModerate = ['headteacher','deputy_head'].includes(profile?.role) && person?.school_id === profile?.school_id
   const isOwner = current?.user_id === user.id
@@ -144,16 +128,14 @@ export default function StatusViewer() {
       onTouchStart={() => setPaused(true)}
       onTouchEnd={() => setPaused(false)}
     >
-      {/* Progress bars */}
       <div className="flex gap-1 px-3 pt-3">
         {statuses.map((s, i) => (
           <div key={s.id} className="flex-1 h-1 rounded-full bg-white/30 overflow-hidden">
-            <div className="h-full bg-white transition-all" style={{ width: i < index? '100%' : i === index? `${progress}%` : '0%' }} />
+            <div className="h-full bg-white" style={{ width: i < index? '100%' : i === index? `${progress}%` : '0%' }} />
           </div>
         ))}
       </div>
 
-      {/* Header */}
       <div className="flex items-center justify-between px-4 py-3">
         <div className="flex items-center gap-2">
           {person?.avatar_url? <img src={person.avatar_url} className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">🙂</span>}
@@ -161,7 +143,7 @@ export default function StatusViewer() {
             <p className="text-sm font-medium flex items-center gap-2">
               {person?.full_name}
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 uppercase">{person?.role}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${current.audience === 'public'? 'bg-green-500/20 text-green-300' : 'bg-amber-500/20 text-amber-300'}`}>
+              <span className={`text-[10px] px-2 py-0.5 rounded-full ${current.audience === 'public'? 'bg-green-500/20 text-green-300' : current.audience === 'school_only'? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
                 {current.audience === 'public'? 'Public' : current.audience === 'school_only'? 'School Only' : 'Staff Only'}
               </span>
             </p>
@@ -176,7 +158,6 @@ export default function StatusViewer() {
         </div>
       </div>
 
-      {/* Image with tap zones */}
       <div className="flex-1 relative flex items-center justify-center px-6">
         <div className="absolute inset-0 flex z-10">
           <div className="flex-1" onClick={() => setIndex(i => Math.max(0, i - 1))} />
@@ -188,16 +169,12 @@ export default function StatusViewer() {
 
       {current.content && <p className="text-center px-6 pb-6 text-lg z-20">{current.content}</p>}
 
-      {/* Viewers Sheet */}
       {showViewers && (
         <div className="absolute bottom-0 left-0 right-0 bg-zinc-900 rounded-t-2xl p-4 max-h-[40vh] overflow-y-auto z-30">
           <div className="flex justify-between items-center mb-3"><p className="font-medium">Viewed by {viewers.length}</p><button onClick={() => setShowViewers(false)}><X size={18}/></button></div>
           {viewers.map(v => <div key={v.viewer_id} className="flex justify-between py-2 text-sm"><span>{v.profiles.full_name} • {v.profiles.role}</span><span className="text-white/50">{timeAgo(v.viewed_at)}</span></div>)}
         </div>
       )}
-
-      {/* Footer actions for non-owner */}
-      {!isOwner && <div className="p-3 flex justify-between text-xs text-white/50"><button onClick={handleMute}>Mute updates</button><button onClick={() => navigate(`/chat/${userId}`)}>Reply in chat</button></div>}
     </div>
   )
     }
