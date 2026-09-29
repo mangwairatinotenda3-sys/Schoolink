@@ -29,6 +29,7 @@ function HeroIllustration() {
 export default function Welcome() {
   const navigate = useNavigate()
   const { signInWithPassword, signUp, signInWithGoogle, signInAsGuest, saveProfileDetails, session } = useAuth()
+
   const [mode, setMode] = useState('signin')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -43,7 +44,7 @@ export default function Welcome() {
   // of back through onboarding; only a brand-new profile goes to onboarding.
   // Used for every sign-in path — email, Google, and guest — so a brand-new
   // Google sign-in also lands on account setup instead of a half-empty /home.
-async function goToDestination(userId) {
+  async function goToDestination(userId) {
     // If they arrived here via an invite link while signed out, finish that
     // join now that they have a session, instead of sending them through
     // onboarding as if they were a totally fresh account.
@@ -61,8 +62,8 @@ async function goToDestination(userId) {
       .eq('id', userId)
       .maybeSingle()
     navigate(existingProfile?.account_type ? '/home' : '/onboarding/account-type', { replace: true })
-}
-  
+  }
+
   useEffect(() => {
     if (session?.user) goToDestination(session.user.id)
   }, [session])
@@ -268,4 +269,4 @@ async function goToDestination(userId) {
       </p>
     </div>
   )
-        }
+         }
