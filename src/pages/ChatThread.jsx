@@ -442,3 +442,6 @@ useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [
 
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
+    </div>
+  )
+      }
