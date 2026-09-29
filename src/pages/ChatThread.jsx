@@ -7,6 +7,7 @@ import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
+import { wallpapers, playTone, shouldAutoLoadMedia } from '../lib/chatPrefs.js'
 
 const QUICK_REACTIONS = ['❤️', '😂', '👍', '😮', '😢']
 
@@ -35,7 +36,23 @@ function highlightText(text, query) {
   )
 }
 
-function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, onRemoveReaction, onReply, onStar, onForward, onDelete, allMessages, highlightQuery, isCurrentMatch }) {
+function ChatImage({ url, autoDownloadMedia }) {
+  const [revealed, setRevealed] = useState(() => shouldAutoLoadMedia(autoDownloadMedia))
+  if (revealed) {
+    return <img src={url} alt="" className="rounded-lg max-h-64 object-cover mb-1" />
+  }
+  return (
+    <button
+      onClick={(e) => { e.stopPropagation(); setRevealed(true) }}
+      className="w-40 h-28 rounded-lg bg-black/10 flex flex-col items-center justify-center gap-1 mb-1"
+    >
+      <ImageIcon size={20} />
+      <span className="text-xs">Tap to load</span>
+    </button>
+  )
+}
+
+function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, onRemoveReaction, onReply, onStar, onForward, onDelete, allMessages, highlightQuery, isCurrentMatch, autoDownloadMedia }) {
   const [showBar, setShowBar] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const repliedTo = m.reply_to_id ? allMessages.find((x) => x.id === m.reply_to_id) : null
@@ -68,7 +85,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
         <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl px-4 py-2 text-sm ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
           {repliedTo ? <div className={`text-xs border-l-2 pl-2 mb-1 opacity-80 ${isMine ? 'border-white/50' : 'border-brand-purple/50'}`}>{repliedTo.content}</div> : null}
           {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls className="max-w-full" /> : null}
-          {m.media_type === 'image' && m.media_url ? <img src={m.media_url} alt="" className="rounded-lg max-h-64 object-cover mb-1" /> : null}
+          {m.media_type === 'image' && m.media_url ? <ChatImage url={m.media_url} autoDownloadMedia={autoDownloadMedia} /> : null}
           {m.media_type === 'file' && m.media_url ? (
             <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
           ) : null}
@@ -143,6 +160,8 @@ export default function ChatThread() {
   const [uploading, setUploading] = useState(false)
   const [forwarding, setForwarding] = useState(null)
   const [myChatSettings, setMyChatSettings] = useState({ disappearing_enabled: false, disappearing_seconds: 86400 })
+  const mutedRef = useRef(false)
+  useEffect(() => { mutedRef.current = !!myChatSettings.muted }, [myChatSettings])
   const [viewingAvatar, setViewingAvatar] = useState(null)
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
@@ -200,13 +219,16 @@ export default function ChatThread() {
           if (m.receiver_id === user.id && profile?.read_receipts_enabled !== false) {
             supabase.from('messages').update({ read: true }).eq('id', m.id)
           }
+          if (m.sender_id !== user.id && !mutedRef.current) {
+            playTone(profile?.notify_message_tone || 'default')
+          }
         }
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [user, partnerId])
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function loadMessages() {
     const { data } = await supabase
@@ -383,16 +405,16 @@ export default function ChatThread() {
       {isBlocked ? <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">You've blocked this person. Unblock to send messages.</div> : null}
       {myChatSettings.disappearing_enabled ? <div className="bg-brand-light text-brand-purple text-[11px] text-center py-1.5 px-4">Disappearing messages are on</div> : null}
 
-      <div className="screen-scroll px-4 py-3 flex flex-col gap-3">
+      <div className="screen-scroll px-4 py-3 flex flex-col gap-3" style={wallpapers.find((w) => w.key === (profile?.chat_wallpaper || 'default'))?.style}>
         {messages.map((m) => (
           <div key={m.id} ref={(el) => (messageRefs.current[m.id] = el)}>
-            <MessageBubble m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} currentUserId={user.id} onReact={handleReact} onRemoveReaction={handleRemoveReaction} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} onDelete={handleDeleteMessage} allMessages={messages} highlightQuery={searchQuery.trim()} isCurrentMatch={matches[matchIndex]?.id === m.id} />
+            <MessageBubble m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} currentUserId={user.id} onReact={handleReact} onRemoveReaction={handleRemoveReaction} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} onDelete={handleDeleteMessage} allMessages={messages} highlightQuery={searchQuery.trim()} isCurrentMatch={matches[matchIndex]?.id === m.id} autoDownloadMedia={profile?.auto_download_media} />
           </div>
         ))}
         <div ref={bottomRef} />
       </div>
 
-           {replyTo ? (
+      {replyTo ? (
         <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
           <p className="text-xs text-gray-500 truncate">Replying to: {replyTo.content}</p>
           <button onClick={() => setReplyTo(null)}><X size={14} className="text-gray-400" /></button>
@@ -410,7 +432,7 @@ export default function ChatThread() {
         <input
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+          onKeyDown={(e) => e.key === 'Enter' && profile?.chat_enter_to_send !== false && handleSend()}
           placeholder={isBlocked ? 'Unblock to send a message' : recording ? 'Recording…' : 'Message…'}
           disabled={isBlocked || recording}
           className="flex-1 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple disabled:opacity-60"
@@ -420,6 +442,3 @@ export default function ChatThread() {
 
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
-    </div>
-  )
-          }
