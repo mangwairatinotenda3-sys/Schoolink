@@ -131,37 +131,13 @@ export default function Library() {
     setSearching(true)
     const t = setTimeout(async () => {
       try {
-        const proxy = `https://api.allorigins.win/raw?url=${encodeURIComponent(`https://www.unopasa.com/search?q=${encodeURIComponent(q)}`)}`
-        const html = await fetch(proxy).then(r => r.text())
+        // Calls the unopasa-search Edge Function (server-side) instead of
+        // scraping through a public CORS proxy in the browser — more
+        // reliable, and not dependent on a third-party proxy staying up.
+        const res = await fetch(`${supabase.supabaseUrl}/functions/v1/unopasa-search?q=${encodeURIComponent(q)}`)
+        const results = await res.json()
         if (lastQueryRef.current !== q) return
-        const results = []
-        const seen = new Set()
-        // Unopasa's real resource links look like:
-        // /zimbabwe/o-level/mathematics/question-papers/zimsec-paper-2-november-2025-hodtemn
-        // i.e. /<country>/<level>/<subject>/<type>/<slug> — five path segments.
-        const re = /href="(\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+\/[a-z0-9-]+)"[^>]*>([\s\S]*?)<\/a>/gi
-        let m
-        while ((m = re.exec(html)) !== null && results.length < 50) {
-          const path = m[1]
-          if (seen.has(path)) continue
-          seen.add(path)
-          const title = m[2].replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim()
-          if (title.length < 8) continue
-          // Their own ?q= search doesn't reliably filter server-side, so filter
-          // by title on our end against what the person actually typed.
-          const qWords = q.toLowerCase().split(/\s+/).filter(Boolean)
-          if (!qWords.every(w => title.toLowerCase().includes(w))) continue
-          const year = title.match(/20\d{2}/)?.[0] || ""
-          const parts = path.split('/').filter(Boolean)
-          results.push({
-            id: path,
-            title,
-            meta: `${parts[1] || ''} • ${year}`.trim(),
-            year,
-            file_url: `https://www.unopasa.com${path}`
-          })
-        }
-        setExternalResults(results)
+        setExternalResults(Array.isArray(results) ? results : [])
       } catch {
         setExternalResults([])
       } finally {
@@ -170,6 +146,8 @@ export default function Library() {
     }, 500)
     return () => clearTimeout(t)
   }, [query])
+
+  <div key={book.path + i} className="bg-card border rounded-xl p-3 flex gap-3">
 
   function updateForm(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
