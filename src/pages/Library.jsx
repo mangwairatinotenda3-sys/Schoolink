@@ -147,8 +147,6 @@ export default function Library() {
     return () => clearTimeout(t)
   }, [query])
 
-  <div key={book.path + i} className="bg-card border rounded-xl p-3 flex gap-3">
-
   function updateForm(k, v) { setForm(f => ({ ...f, [k]: v })) }
 
   async function handleFileChange(e) {
@@ -270,7 +268,7 @@ export default function Library() {
             <p className="text-sm font-semibold">Online Results {searching && <span className="text-xs font-normal text-muted-foreground">Searching...</span>}</p>
             <div className="space-y-3 mt-3">
               {externalResults.map((book, i) => (
-                <div key={book.id + i} className="bg-card border rounded-xl p-3 flex gap-3">
+               <div key={book.path + i} className="bg-card border rounded-xl p-3 flex gap-3">
                   <span className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 text-[8px] font-bold">ZIMSEC</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</p>
