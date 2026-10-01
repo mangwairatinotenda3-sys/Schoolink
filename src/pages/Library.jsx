@@ -8,15 +8,20 @@ import { canManageLibrary } from '../lib/permissions.js'
 
 const categories = ['All', 'Novel', 'Textbook', 'Past Paper', 'Shona', 'Ndebele', 'English', 'Zimsec', 'Cambridge']
 
+function cleanText(str) {
+  if (!str) return ''
+  return str.replace(/<br\s*\/?>/gi, ' ').replace(/&lt;br\s*\/?&gt;/gi, ' ').replace(/\s+/g, ' ').trim()
+}
+
 function MiniStars({ average, myRating, count, onRate }) {
   return (
     <div className="flex items-center gap-0.5">
       {[1, 2, 3, 4, 5].map((n) => (
         <button key={n} type="button" onClick={(e) => { e.stopPropagation(); onRate(n) }}>
-          <Star size={13} className={n <= Math.round(myRating || average) ? 'text-amber-400 fill-amber-400' : 'text-gray-300'} />
+          <Star size={13} className={n <= Math.round(myRating || average)? 'text-amber-400 fill-amber-400' : 'text-gray-300'} />
         </button>
       ))}
-      {count > 0 ? <span className="text-[10px] text-muted-foreground ml-1">{average.toFixed(1)} ({count})</span> : null}
+      {count > 0? <span className="text-[10px] text-muted-foreground ml-1">{average.toFixed(1)} ({count})</span> : null}
     </div>
   )
 }
@@ -53,8 +58,8 @@ export default function Library() {
 
   async function loadResources() {
     const { data } = await supabase.from('library_resources').select('*').order('created_at', { ascending: false })
-    setResources(data ?? [])
-    await loadEngagement((data ?? []).map((r) => r.id))
+    setResources(data?? [])
+    await loadEngagement((data?? []).map((r) => r.id))
   }
 
   async function loadEngagement(ids) {
@@ -64,13 +69,13 @@ export default function Library() {
       supabase.from('library_resource_ratings').select('resource_id, user_id, rating').in('resource_id', ids),
     ])
     const likeMap = {}
-    ;(likeRows ?? []).forEach((l) => {
+    ;(likeRows?? []).forEach((l) => {
       if (!likeMap[l.resource_id]) likeMap[l.resource_id] = { count: 0, likedByMe: false }
       likeMap[l.resource_id].count += 1
       if (l.user_id === user.id) likeMap[l.resource_id].likedByMe = true
     })
     const ratingMap = {}
-    ;(ratingRows ?? []).forEach((r) => {
+    ;(ratingRows?? []).forEach((r) => {
       if (!ratingMap[r.resource_id]) ratingMap[r.resource_id] = { sum: 0, count: 0, myRating: 0 }
       ratingMap[r.resource_id].sum += r.rating
       ratingMap[r.resource_id].count += 1
@@ -84,10 +89,10 @@ export default function Library() {
     const current = likes[resourceId]
     if (current?.likedByMe) {
       await supabase.from('library_resource_likes').delete().eq('resource_id', resourceId).eq('user_id', user.id)
-      setLikes((prev) => ({ ...prev, [resourceId]: { count: Math.max(0, (prev[resourceId]?.count || 1) - 1), likedByMe: false } }))
+      setLikes((prev) => ({...prev, [resourceId]: { count: Math.max(0, (prev[resourceId]?.count || 1) - 1), likedByMe: false } }))
     } else {
       await supabase.from('library_resource_likes').insert({ resource_id: resourceId, user_id: user.id })
-      setLikes((prev) => ({ ...prev, [resourceId]: { count: (prev[resourceId]?.count || 0) + 1, likedByMe: true } }))
+      setLikes((prev) => ({...prev, [resourceId]: { count: (prev[resourceId]?.count || 0) + 1, likedByMe: true } }))
     }
   }
 
@@ -96,7 +101,7 @@ export default function Library() {
     setRatings((prev) => {
       const existing = prev[resourceId] || { sum: 0, count: 0, myRating: 0 }
       const hadMine = existing.myRating > 0
-      return { ...prev, [resourceId]: { sum: existing.sum - existing.myRating + rating, count: hadMine ? existing.count : existing.count + 1, myRating: rating } }
+      return {...prev, [resourceId]: { sum: existing.sum - existing.myRating + rating, count: hadMine? existing.count : existing.count + 1, myRating: rating } }
     })
   }
 
@@ -136,8 +141,8 @@ export default function Library() {
         // reliable, and not dependent on a third-party proxy staying up.
         const res = await fetch(`${supabase.supabaseUrl}/functions/v1/unopasa-search?q=${encodeURIComponent(q)}`)
         const results = await res.json()
-        if (lastQueryRef.current !== q) return
-        setExternalResults(Array.isArray(results) ? results : [])
+        if (lastQueryRef.current!== q) return
+        setExternalResults(Array.isArray(results)? results : [])
       } catch {
         setExternalResults([])
       } finally {
@@ -147,11 +152,11 @@ export default function Library() {
     return () => clearTimeout(t)
   }, [query])
 
-  function updateForm(k, v) { setForm(f => ({ ...f, [k]: v })) }
+  function updateForm(k, v) { setForm(f => ({...f, [k]: v })) }
 
   async function handleFileChange(e) {
     const file = e.target.files?.[0]
-    if (!file || !user) return
+    if (!file ||!user) return
     setUploading(true)
     setError('')
     const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
@@ -165,10 +170,10 @@ export default function Library() {
   }
 
   async function handleAdd() {
-    if (!form.title.trim() || !form.file_url.trim()) { setError('Title and file required'); return }
+    if (!form.title.trim() ||!form.file_url.trim()) { setError('Title and file required'); return }
     setSaving(true)
     setError('')
-    const { error: insErr } = await supabase.from('library_resources').insert({ ...form, added_by: user.id })
+    const { error: insErr } = await supabase.from('library_resources').insert({...form, added_by: user.id })
     setSaving(false)
     if (insErr) { setError(insErr.message); return }
     setForm({ title: '', author: '', category: 'Novel', language: '', country: '', exam_board: '', year: '', file_url: '' })
@@ -178,7 +183,7 @@ export default function Library() {
   }
 
   async function handleDelete(id, added_by) {
-    if (added_by !== user.id && !canManageLibrary(profile)) return
+    if (added_by!== user.id &&!canManageLibrary(profile)) return
     if (!confirm('Delete this resource?')) return
     await supabase.from('library_resources').delete().eq('id', id)
     loadResources()
@@ -194,7 +199,7 @@ export default function Library() {
     <div className="flex-1 flex flex-col bg-background min-h-screen">
       <BackHeader title="Library" />
 
-      {viewer && <DocumentViewer url={viewer.url} title={viewer.title} onClose={() => setViewer(null)} />}
+      {viewer && <DocumentViewer url={viewer.url} title={cleanText(viewer.title)} onClose={() => setViewer(null)} />}
 
       <div className="px-4 pt-2 pb-2">
         <div className="relative">
@@ -203,26 +208,26 @@ export default function Library() {
         </div>
         <div className="flex gap-2 overflow-x-auto mt-3 pb-1 flex-wrap scrollbar-hide">
           {categories.map(c => (
-            <button key={c} onClick={() => setCategory(c)} className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border transition ${category === c ? 'bg-muted text-foreground border-border' : 'bg-card border-transparent text-muted-foreground'}`}>{c} {category === c && '✓'}</button>
+            <button key={c} onClick={() => setCategory(c)} className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-medium border transition ${category === c? 'bg-muted text-foreground border-border' : 'bg-card border-transparent text-muted-foreground'}`}>{c} {category === c && '✓'}</button>
           ))}
         </div>
       </div>
 
-      {toast ? <p className="text-center text-xs text-brand-purple">{toast}</p> : null}
+      {toast? <p className="text-center text-xs text-brand-purple">{toast}</p> : null}
 
       {canManageLibrary(profile) && (
         <div className="px-4 pb-2 mt-1">
-          {showAddForm ? (
+          {showAddForm? (
             <div className="border border-border rounded-xl p-4 space-y-2 bg-card">
               <div className="flex items-center justify-between"><p className="font-semibold text-sm">Add Resource</p><button onClick={() => setShowAddForm(false)}><X size={16} /></button></div>
               <input value={form.title} onChange={e => updateForm('title', e.target.value)} placeholder="Title *" className="w-full bg-background border rounded-lg px-3 py-2 text-sm" />
               <input value={form.author} onChange={e => updateForm('author', e.target.value)} placeholder="Author" className="w-full bg-background border rounded-lg px-3 py-2 text-sm" />
               <select value={form.category} onChange={e => updateForm('category', e.target.value)} className="w-full bg-background border rounded-lg px-3 py-2 text-sm"><option>Novel</option><option>Textbook</option><option>Past Paper</option></select>
-              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 border border-dashed rounded-lg py-2.5 text-sm"><Upload size={15} />{uploading ? 'Uploading…' : uploadedFile ? uploadedFile : 'Upload file *'}</button>
+              <button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="w-full flex items-center justify-center gap-2 border border-dashed rounded-lg py-2.5 text-sm"><Upload size={15} />{uploading? 'Uploading…' : uploadedFile? uploadedFile : 'Upload file *'}</button>
               <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
               <input value={form.file_url} onChange={e => updateForm('file_url', e.target.value)} placeholder="File link" className="w-full bg-background border rounded-lg px-3 py-2 text-sm" />
               {error && <p className="text-red-500 text-xs">{error}</p>}
-              <button onClick={handleAdd} disabled={saving || uploading} className="w-full bg-brand-purple text-white py-2.5 rounded-lg text-sm">{saving ? 'Adding…' : 'Add Resource'}</button>
+              <button onClick={handleAdd} disabled={saving || uploading} className="w-full bg-brand-purple text-white py-2.5 rounded-lg text-sm">{saving? 'Adding…' : 'Add Resource'}</button>
             </div>
           ) : (
             <button onClick={() => setShowAddForm(true)} className="w-full flex items-center justify-center gap-2 border border-dashed rounded-xl py-3 text-sm"><Plus size={16} /> Add a Resource</button>
@@ -234,13 +239,13 @@ export default function Library() {
         {query.trim().length < 2 && filtered.map(r => {
           const canDelete = r.added_by === user.id || canManageLibrary(profile)
           const rating = ratings[r.id] || { sum: 0, count: 0, myRating: 0 }
-          const average = rating.count ? rating.sum / rating.count : 0
+          const average = rating.count? rating.sum / rating.count : 0
           return (
             <div key={r.id} className="bg-card border rounded-xl p-3">
               <div className="flex gap-3">
                 <span className="w-11 h-11 rounded-xl bg-muted flex items-center justify-center shrink-0"><BookOpen size={18} /></span>
                 <div className="min-w-0 flex-1">
-                  <p className="font-semibold text-sm leading-tight">{r.title}</p>
+                  <p className="font-semibold text-sm leading-tight break-words">{cleanText(r.title)}</p>
                   <p className="text-xs text-muted-foreground">{[r.author, r.year].filter(Boolean).join(' • ')}</p>
                 </div>
               </div>
@@ -254,7 +259,7 @@ export default function Library() {
 
               <div className="flex items-center justify-between mt-2">
                 <button onClick={() => toggleLike(r.id)} className="flex items-center gap-1 text-xs">
-                  <Heart size={14} className={likes[r.id]?.likedByMe ? 'text-red-500 fill-red-500' : 'text-gray-400'} />
+                  <Heart size={14} className={likes[r.id]?.likedByMe? 'text-red-500 fill-red-500' : 'text-gray-400'} />
                   {likes[r.id]?.count || 0}
                 </button>
                 <MiniStars average={average} myRating={rating.myRating} count={rating.count} onRate={(n) => rateResource(r.id, n)} />
@@ -271,8 +276,8 @@ export default function Library() {
                <div key={book.path + i} className="bg-card border rounded-xl p-3 flex gap-3">
                   <span className="w-11 h-11 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0 text-[8px] font-bold">ZIMSEC</span>
                   <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-sm leading-tight line-clamp-2">{book.title}</p>
-                    <p className="text-[11px] text-muted-foreground mt-0.5">{book.meta}</p>
+                    <p className="font-semibold text-sm leading-tight break-words">{cleanText(book.title)}</p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{cleanText(book.meta)}</p>
                     <div className="flex items-center gap-2 mt-2.5">
                       <button onClick={() => setViewer({ url: book.file_url, title: book.title })} className="px-4 py-1.5 rounded-full bg-brand-purple text-white text-xs font-medium">View Book</button>
                       <button onClick={() => shareItem(book.file_url, book.title)} className="px-2 py-1.5 rounded-full bg-muted text-xs"><Share2 size={12} /></button>
