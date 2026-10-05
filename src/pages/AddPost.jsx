@@ -5,6 +5,7 @@ import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
+import { containsProfanity } from '../lib/moderation.js'
 
 const categories = ['General', 'Announcement', 'Event', 'News', 'Sports Update', 'Photo']
 
@@ -97,6 +98,10 @@ export default function AddPost() {
       return
     }
     if (!content.trim() &&!imageFiles.length &&!videoFile &&!docFile) return
+    if (containsProfanity(content)) {
+      setError("This contains language that isn't allowed on Schoolink. Please edit it and try again.")
+      return
+    }
     setBusy(true)
     setError('')
 
@@ -270,4 +275,4 @@ export default function AddPost() {
       </div>
     </div>
   )
-}
+                    }
