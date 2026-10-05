@@ -3,6 +3,7 @@ import { useAuth } from './context/AuthContext.jsx'
 
 import Welcome from './pages/Welcome.jsx'
 import JoinByLink from './pages/JoinByLink.jsx'
+
 import ForgotPassword from './pages/ForgotPassword.jsx'
 import ResetPassword from './pages/ResetPassword.jsx'
 import TermsOfService from './pages/TermsOfService.jsx'
@@ -13,6 +14,7 @@ import JoinSchool from './pages/JoinSchool.jsx'
 import JoinAsStudent from './pages/JoinAsStudent.jsx'
 import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
 import InviteMember from './pages/InviteMember.jsx'
+import ReportsQueue from './pages/ReportsQueue.jsx'
 import StaffDirectory from './pages/StaffDirectory.jsx'
 import PendingApprovals from './pages/PendingApprovals.jsx'
 import SchoolProfile from './pages/SchoolProfile.jsx'
@@ -106,6 +108,7 @@ export default function App() {
         <Route path="/onboarding/join-student" element={<RequireAuth><JoinAsStudent /></RequireAuth>} />
         <Route path="/onboarding/select-alumni-school" element={<RequireAuth><SelectAlumniSchool /></RequireAuth>} />
         <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
+        <Route path="/reports" element={<RequireAuth><ReportsQueue /></RequireAuth>} />
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
