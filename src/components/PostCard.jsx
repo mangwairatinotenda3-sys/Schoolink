@@ -4,6 +4,7 @@ import { Heart, MessageCircle, Bookmark, Send, MoreVertical, Trash2, FileText } 
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import PhotoViewer from './PhotoViewer.jsx'
+import ReportButton from './ReportButton.jsx'
 
 export default function PostCard({ post, onDeleted, expandComments }) {
   const navigate = useNavigate()
@@ -205,6 +206,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         <button onClick={handleToggleComments} className="flex items-center gap-1 text-sm">
           <MessageCircle size={18} /> {comments.length || ''}
         </button>
+        {user &&!isMine? <ReportButton contentType="post" contentId={post.id} /> : null}
         <button onClick={toggleSave} className="ml-auto">
           <Bookmark size={18} className={saved? 'text-brand-purple' : ''} fill={saved? 'currentColor' : 'none'} />
         </button>
@@ -244,4 +246,4 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       : null}
     </div>
   )
-                                                                }
+      }
