@@ -1,17 +1,22 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Flag, Check } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { reportReasons } from '../lib/moderation.js'
 
 // Reusable report button. contentType must be a key from contentTypeLabels
-// in src/lib/moderation.js (post, comment, message, ...).
-export default function ReportButton({ contentType, contentId, size = 18, className = '' }) {
+// in src/lib/moderation.js (post, comment, message, status, ...).
+// onOpenChange(true/false) lets a parent pause things while the sheet is open.
+export default function ReportButton({ contentType, contentId, size = 18, className = '', onOpenChange }) {
   const { user, profile } = useAuth()
   const [open, setOpen] = useState(false)
   const [sending, setSending] = useState(false)
   const [done, setDone] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    if (onOpenChange) onOpenChange(open)
+  }, [open])
 
   if (!user) return null
 
@@ -52,7 +57,7 @@ export default function ReportButton({ contentType, contentId, size = 18, classN
 
       {open ? (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-end justify-center" onClick={() => setOpen(false)}>
-          <div className="bg-white w-full max-w-md rounded-t-2xl p-4" onClick={stop}>
+          <div className="bg-white text-gray-800 w-full max-w-md rounded-t-2xl p-4" onClick={stop}>
             <p className="font-semibold text-sm mb-1 text-gray-800">Report this {contentType.replace(/_/g, ' ')}</p>
             <p className="text-xs text-gray-400 mb-2">Why are you reporting it? School staff will review it.</p>
             {reportReasons.map((r) => (
@@ -74,7 +79,7 @@ export default function ReportButton({ contentType, contentId, size = 18, classN
       ) : null}
 
       {done ? (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-white border border-gray-100 rounded-full px-4 py-2 text-sm shadow-lg flex items-center gap-2">
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-50 bg-white text-gray-800 border border-gray-100 rounded-full px-4 py-2 text-sm shadow-lg flex items-center gap-2">
           <Check size={14} className="text-green-500" /> Report submitted
         </div>
       ) : null}
