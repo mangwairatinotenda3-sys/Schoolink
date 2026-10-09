@@ -1,17 +1,14 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { X, Trash2, Flag, Eye, Pause } from 'lucide-react'
+import { X, Trash2, Eye, Pause } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { canManageStaff } from '../lib/permissions.js'
+import ReportButton from '../components/ReportButton.jsx'
+import { backgroundFor, canViewStatus, audienceLabel, timeAgo, timeLeft } from '../lib/statusUtils.js'
 
-function timeAgo(dateString) {
-  const s = Math.floor((Date.now() - new Date(dateString).getTime()) / 1000)
-  if (s < 60) return `${s}s ago`
-  const m = Math.floor(s / 60)
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  return `${h}h ago`
-}
+const TICK_MS = 50
+const STEP = 0.8 // 100 / 0.8 * 50ms = ~6 seconds per status
 
 export default function StatusViewer() {
   const { userId } = useParams()
@@ -23,158 +20,200 @@ export default function StatusViewer() {
   const [loading, setLoading] = useState(true)
   const [progress, setProgress] = useState(0)
   const [paused, setPaused] = useState(false)
+  const [reportOpen, setReportOpen] = useState(false)
   const [viewers, setViewers] = useState([])
   const [showViewers, setShowViewers] = useState(false)
-  const timerRef = useRef(null)
+
+  const current = statuses[index]
+  const holding = paused || showViewers || reportOpen
 
   useEffect(() => { loadStatuses() }, [userId])
 
+  // Progress bar ticks while nothing is holding it.
   useEffect(() => {
-    if (paused || showViewers) return
-    timerRef.current = setInterval(() => {
-      setProgress(p => {
-        if (p >= 100) {
-          if (index < statuses.length - 1) {
-            setIndex(i => i + 1)
-            return 0
-          } else {
-            navigate('/home')
-            return 100
-          }
-        }
-        return p + 0.8
-      })
-    }, 50)
-    return () => clearInterval(timerRef.current)
-  }, [index, paused, showViewers])
+    if (holding || !statuses.length) return
+    const id = setInterval(() => setProgress((p) => Math.min(100, p + STEP)), TICK_MS)
+    return () => clearInterval(id)
+  }, [holding, statuses.length, index])
+
+  // Move on when the bar fills.
+  useEffect(() => {
+    if (progress < 100) return
+    if (index < statuses.length - 1) setIndex((i) => i + 1)
+    else navigate('/home')
+  }, [progress])
 
   useEffect(() => { setProgress(0) }, [index])
 
+  // Audience guard + record the view.
   useEffect(() => {
-    if (!statuses[index]) return
-    const current = statuses[index]
-
-    // FIXED AUDIENCE LOGIC
-    if (current.audience === 'school_only' && profile?.school_id!== current.school_id) {
-      navigate('/home'); return
+    if (!current || !profile) return
+    if (!canViewStatus(current, profile, user.id)) {
+      navigate('/home')
+      return
     }
-    if (current.audience === 'staff_only') {
-      const isStaff = ['headteacher','deputy_head','teacher','bursar','coach','librarian','ict_admin'].includes(profile?.role)
-      if (profile?.school_id!== current.school_id ||!isStaff) {
-        navigate('/home'); return
-      }
+    if (current.user_id !== user.id) {
+      supabase.from('status_views').upsert(
+        { status_id: current.id, viewer_id: user.id },
+        { onConflict: 'status_id,viewer_id' }
+      )
     }
+  }, [current?.id, profile?.school_id])
 
-    supabase.from('status_views').upsert({
-      status_id: current.id,
-      viewer_id: user.id
-    }, { onConflict: 'status_id,viewer_id' })
-
-    if (current.user_id === user.id) {
-      supabase.from('status_views')
+  // Owner sees who viewed each status.
+  useEffect(() => {
+    setViewers([])
+    if (!current || current.user_id !== user.id) return
+    supabase
+      .from('status_views')
       .select('viewer_id, viewed_at, profiles!inner(full_name, role)')
       .eq('status_id', current.id)
       .then(({ data }) => setViewers(data || []))
-    }
-  }, [index, statuses, profile])
+  }, [current?.id])
 
   async function loadStatuses() {
     setLoading(true)
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    const { data } = await supabase.from('statuses')
-    .select('*')
-    .eq('user_id', userId)
-    .gt('created_at', cutoff)
-    .order('created_at', { ascending: true })
-    setStatuses(data?? [])
+    const { data } = await supabase
+      .from('statuses')
+      .select('*')
+      .eq('user_id', userId)
+      .gt('created_at', cutoff)
+      .order('created_at', { ascending: true })
+    setStatuses(data ?? [])
+    setIndex(0)
 
-    const { data: profileData } = await supabase.from('profiles')
-    .select('full_name, avatar_url, role, school_id')
-    .eq('id', userId).maybeSingle()
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, role, school_id')
+      .eq('id', userId)
+      .maybeSingle()
     setPerson(profileData)
     setLoading(false)
   }
 
   async function handleDelete(statusId) {
+    if (!window.confirm('Delete this status update?')) return
     await supabase.from('statuses').delete().eq('id', statusId)
-    const next = statuses.filter(s => s.id!== statusId)
+    const next = statuses.filter((s) => s.id !== statusId)
     if (!next.length) { navigate('/home'); return }
     setStatuses(next)
-    setIndex(i => Math.min(i, next.length - 1))
+    setIndex((i) => Math.min(i, next.length - 1))
+    setProgress(0)
   }
 
-  async function handleReport() {
-    const reason = window.prompt('Report reason:')
-    if (!reason) return
-    await supabase.from('status_reports').insert({
-      status_id: statuses[index].id,
-      reporter_id: user.id,
-      reason
-    })
-    alert('Reported to school admin.')
-  }
-
-  const current = statuses[index]
-  const canModerate = ['headteacher','deputy_head'].includes(profile?.role) && person?.school_id === profile?.school_id
   const isOwner = current?.user_id === user.id
+  const canModerate = canManageStaff(profile) && person?.school_id === profile?.school_id
+  const background = backgroundFor(current?.bg_color || 'theme')
 
-  if (loading) return <div className="app-shell bg-black flex-1 flex items-center justify-center text-white/60">Loading…</div>
-  if (!current) return <div className="app-shell bg-black flex-1 flex flex-col items-center justify-center text-white/60 gap-3"><p>No active updates.</p><button onClick={() => navigate('/home')} className="text-brand-purple">Go back</button></div>
+  if (loading) {
+    return (
+      <div className="app-shell flex-1 flex items-center justify-center text-white/70" style={{ background: backgroundFor('theme') }}>
+        Loading…
+      </div>
+    )
+  }
+
+  if (!current) {
+    return (
+      <div className="app-shell flex-1 flex flex-col items-center justify-center text-white/80 gap-3" style={{ background: backgroundFor('theme') }}>
+        <p>No active updates.</p>
+        <button onClick={() => navigate('/home')} className="bg-white/20 rounded-full px-4 py-1.5 text-sm text-white">Go back</button>
+      </div>
+    )
+  }
+
+  const hasImage = !!current.image_url
 
   return (
-    <div className="app-shell bg-black text-white select-none"
+    <div
+      className="app-shell text-white select-none"
+      style={{ background }}
       onMouseDown={() => setPaused(true)}
       onMouseUp={() => setPaused(false)}
       onTouchStart={() => setPaused(true)}
       onTouchEnd={() => setPaused(false)}
     >
-      <div className="flex gap-1 px-3 pt-3">
+      <div className="flex gap-1 px-3 pt-3 z-20">
         {statuses.map((s, i) => (
           <div key={s.id} className="flex-1 h-1 rounded-full bg-white/30 overflow-hidden">
-            <div className="h-full bg-white" style={{ width: i < index? '100%' : i === index? `${progress}%` : '0%' }} />
+            <div className="h-full bg-white" style={{ width: i < index ? '100%' : i === index ? `${progress}%` : '0%' }} />
           </div>
         ))}
       </div>
 
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex items-center gap-2">
-          {person?.avatar_url? <img src={person.avatar_url} className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">🙂</span>}
-          <div>
+      <div className="flex items-center justify-between px-4 py-3 z-20 bg-gradient-to-b from-black/30 to-transparent">
+        <div className="flex items-center gap-2 min-w-0">
+          {person?.avatar_url ? (
+            <img src={person.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover shrink-0" />
+          ) : (
+            <span className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">🙂</span>
+          )}
+          <div className="min-w-0">
             <p className="text-sm font-medium flex items-center gap-2">
-              {person?.full_name}
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-white/20 uppercase">{person?.role}</span>
-              <span className={`text-[10px] px-2 py-0.5 rounded-full ${current.audience === 'public'? 'bg-green-500/20 text-green-300' : current.audience === 'school_only'? 'bg-amber-500/20 text-amber-300' : 'bg-red-500/20 text-red-300'}`}>
-                {current.audience === 'public'? 'Public' : current.audience === 'school_only'? 'School Only' : 'Staff Only'}
-              </span>
+              <span className="truncate">{person?.full_name}</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/25 shrink-0">{audienceLabel(current.audience)}</span>
             </p>
-            <p className="text-xs text-white/50">{timeAgo(current.created_at)} • Expires in {Math.max(0, 24 - Math.floor((Date.now() - new Date(current.created_at))/3600000))}h</p>
+            <p className="text-xs text-white/70">{timeAgo(current.created_at)} • {timeLeft(current.created_at)}</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {isOwner && <button onClick={() => setShowViewers(!showViewers)} className="flex items-center gap-1 text-xs"><Eye size={16}/> {viewers.length}</button>}
-          {isOwner || canModerate? <button onClick={() => handleDelete(current.id)}><Trash2 size={18} className="text-white/70" /></button> : null}
-          {!isOwner && <button onClick={handleReport}><Flag size={18} className="text-white/70" /></button>}
+        <div className="flex items-center gap-3 shrink-0">
+          {isOwner ? (
+            <button onClick={() => setShowViewers(!showViewers)} className="flex items-center gap-1 text-xs">
+              <Eye size={16} /> {viewers.length}
+            </button>
+          ) : null}
+          {isOwner || canModerate ? (
+            <button onClick={() => handleDelete(current.id)}><Trash2 size={18} className="text-white/80" /></button>
+          ) : null}
+          {!isOwner ? (
+            <ReportButton
+              contentType="status"
+              contentId={current.id}
+              size={18}
+              className="text-white/80"
+              onOpenChange={setReportOpen}
+            />
+          ) : null}
           <button onClick={() => navigate('/home')}><X size={22} /></button>
         </div>
       </div>
 
-      <div className="flex-1 relative flex items-center justify-center px-6">
+      <div className="flex-1 relative flex items-center justify-center px-6 min-h-0">
         <div className="absolute inset-0 flex z-10">
-          <div className="flex-1" onClick={() => setIndex(i => Math.max(0, i - 1))} />
-          <div className="flex-[2]" onClick={() => setIndex(i => i < statuses.length - 1? i + 1 : i)} />
+          <div className="flex-1" onClick={() => { setIndex((i) => Math.max(0, i - 1)); setProgress(0) }} />
+          <div className="flex-[2]" onClick={() => { if (index < statuses.length - 1) setIndex((i) => i + 1); else navigate('/home') }} />
         </div>
-        {current.image_url && <img src={current.image_url} alt="" className="max-w-full max-h-[60vh] rounded-lg object-contain z-0" />}
-        {paused && <Pause className="absolute z-20 opacity-50" />}
+        {hasImage ? (
+          <img src={current.image_url} alt="" className="max-w-full max-h-full rounded-lg object-contain z-0" />
+        ) : current.content ? (
+          <p className="text-center text-2xl font-semibold leading-snug break-words z-0">{current.content}</p>
+        ) : null}
+        {paused ? <Pause className="absolute z-20 opacity-60" /> : null}
       </div>
 
-      {current.content && <p className="text-center px-6 pb-6 text-lg z-20">{current.content}</p>}
+      {hasImage && current.content ? (
+        <p className="text-center px-6 py-5 text-lg z-20 bg-gradient-to-t from-black/40 to-transparent">{current.content}</p>
+      ) : null}
 
-      {showViewers && (
-        <div className="absolute bottom-0 left-0 right-0 bg-zinc-900 rounded-t-2xl p-4 max-h-[40vh] overflow-y-auto z-30">
-          <div className="flex justify-between items-center mb-3"><p className="font-medium">Viewed by {viewers.length}</p><button onClick={() => setShowViewers(false)}><X size={18}/></button></div>
-          {viewers.map(v => <div key={v.viewer_id} className="flex justify-between py-2 text-sm"><span>{v.profiles.full_name} • {v.profiles.role}</span><span className="text-white/50">{timeAgo(v.viewed_at)}</span></div>)}
+      {showViewers ? (
+        <div className="absolute bottom-0 left-0 right-0 bg-white text-gray-800 rounded-t-2xl p-4 max-h-[40vh] overflow-y-auto z-30 shadow-2xl"
+          onMouseDown={(e) => e.stopPropagation()}
+          onTouchStart={(e) => e.stopPropagation()}
+        >
+          <div className="flex justify-between items-center mb-3">
+            <p className="font-medium">Viewed by {viewers.length}</p>
+            <button onClick={() => setShowViewers(false)}><X size={18} /></button>
+          </div>
+          {viewers.length === 0 ? <p className="text-sm text-gray-400">No views yet.</p> : null}
+          {viewers.map((v) => (
+            <div key={v.viewer_id} className="flex justify-between py-2 text-sm">
+              <span>{v.profiles.full_name} • {v.profiles.role}</span>
+              <span className="text-gray-400">{timeAgo(v.viewed_at)}</span>
+            </div>
+          ))}
         </div>
-      )}
+      ) : null}
     </div>
   )
-    }
+}
