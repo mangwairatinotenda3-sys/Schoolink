@@ -31,32 +31,24 @@ export default function CreateCommunity() {
   }
 
   async function handleCreate() {
-    if (!name.trim()) return
+    if (!name.trim() || saving) return
     setSaving(true)
     setError('')
 
-    const { data: community, error: insertError } = await supabase
-      .from('communities')
-      .insert({
-        name, description, category, created_by: user.id,
-        invite_code: generateInviteCode(), is_private: isPrivate, posting_mode: postingMode,
-      })
-      .select()
-      .maybeSingle()
+    // One database call creates the community AND makes you its admin.
+    const { data: communityId, error: createError } = await supabase.rpc('create_community_with_admin', {
+      p_name: name.trim(),
+      p_description: description,
+      p_category: category,
+      p_is_private: isPrivate,
+      p_posting_mode: postingMode,
+      p_invite_code: generateInviteCode(),
+      p_member_ids: [],
+    })
 
-    if (insertError) {
-      setError(insertError.message)
+    if (createError || !communityId) {
+      setError(createError?.message || 'Could not create the community. Please try again.')
       setSaving(false)
-      return
-    }
-
-    const { error: memberError } = await supabase
-      .from('community_members')
-      .insert({ community_id: community.id, user_id: user.id, role: 'admin' })
-
-    if (memberError) {
-      setSaving(false)
-      setError(`Community was created, but making you admin failed: ${memberError.message}. Please contact support.`)
       return
     }
 
@@ -64,17 +56,18 @@ export default function CreateCommunity() {
     // now, since uploading needs the community's id. Upload it now.
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
-      const path = `${community.id}/avatar.${ext}`
+      const path = `${communityId}/avatar.${ext}`
       const { error: uploadError } = await supabase.storage.from('community-media').upload(path, avatarFile, { upsert: true })
       if (!uploadError) {
         const { data } = supabase.storage.from('community-media').getPublicUrl(path)
-        await supabase.from('communities').update({ avatar_url: `${data.publicUrl}?t=${Date.now()}` }).eq('id', community.id)
+        await supabase.from('communities').update({ avatar_url: `${data.publicUrl}?t=${Date.now()}` }).eq('id', communityId)
       }
     }
 
     setSaving(false)
-    navigate(`/communities/${community.id}`)
-  }
+    navigate(`/communities/${communityId}`)
+}
+
 
   return (
     <div className="app-shell">
