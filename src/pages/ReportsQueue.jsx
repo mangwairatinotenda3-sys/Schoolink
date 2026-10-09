@@ -18,6 +18,7 @@ const contentTables = {
   library_resource: 'library_resources',
   school_gallery: 'school_gallery',
   school_document: 'school_documents',
+  status: 'statuses',
 }
 
 function reasonLabel(key) {
@@ -173,4 +174,4 @@ export default function ReportsQueue() {
       <BottomNav />
     </div>
   )
-}
+  }
