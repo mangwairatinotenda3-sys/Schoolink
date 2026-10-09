@@ -57,40 +57,41 @@ export default function CreateGroupFromChat() {
     setAvatarPreview(URL.createObjectURL(file))
   }
 
-  async function handleCreate() {
-    if (!name.trim()) return
+   async function handleCreate() {
+    if (!name.trim() || saving) return
     setSaving(true)
     setError('')
 
-    let avatarUrl = null
-    const { data: community, error: insertError } = await supabase
-      .from('communities')
-      .insert({ name, description, created_by: user.id, invite_code: generateInviteCode(), is_private: true, posting_mode: 'everyone' })
-      .select()
-      .maybeSingle()
+    // One database call creates the group, makes you its admin and adds the
+    // selected people as members.
+    const { data: communityId, error: createError } = await supabase.rpc('create_community_with_admin', {
+      p_name: name.trim(),
+      p_description: description,
+      p_is_private: true,
+      p_posting_mode: 'everyone',
+      p_invite_code: generateInviteCode(),
+      p_member_ids: selectedMembers.map((m) => m.id),
+    })
 
-    if (insertError) { setError(insertError.message); setSaving(false); return }
+    if (createError || !communityId) {
+      setError(createError?.message || 'Could not create the group. Please try again.')
+      setSaving(false)
+      return
+    }
 
     if (avatarFile) {
       const ext = avatarFile.name.split('.').pop()
-      const path = `${community.id}/avatar.${ext}`
+      const path = `${communityId}/avatar.${ext}`
       const { error: uploadError } = await supabase.storage.from('community-media').upload(path, avatarFile, { upsert: true })
       if (!uploadError) {
         const { data } = supabase.storage.from('community-media').getPublicUrl(path)
-        avatarUrl = data.publicUrl
-        await supabase.from('communities').update({ avatar_url: avatarUrl }).eq('id', community.id)
+        await supabase.from('communities').update({ avatar_url: data.publicUrl }).eq('id', communityId)
       }
     }
 
-    const memberRows = [
-      { community_id: community.id, user_id: user.id, role: 'admin' },
-      ...selectedMembers.map((m) => ({ community_id: community.id, user_id: m.id, role: 'member' })),
-    ]
-    await supabase.from('community_members').insert(memberRows)
-
     setSaving(false)
-    navigate(`/communities/${community.id}`)
-  }
+    navigate(`/communities/${communityId}`)
+  } 
 
   return (
     <div className="app-shell">
