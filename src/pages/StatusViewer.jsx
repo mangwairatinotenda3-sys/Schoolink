@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff } from '../lib/permissions.js'
 import ReportButton from '../components/ReportButton.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { backgroundFor, canViewStatus, audienceLabel, timeAgo, timeLeft } from '../lib/statusUtils.js'
 
 const TICK_MS = 50
@@ -152,6 +153,7 @@ export default function StatusViewer() {
           <div className="min-w-0">
             <p className="text-sm font-medium flex items-center gap-2">
               <span className="truncate">{person?.full_name}</span>
+              <VerifiedBadge userId={userId} size={14} />
               <span className="text-[10px] px-2 py-0.5 rounded-full bg-black/25 shrink-0">{audienceLabel(current.audience)}</span>
             </p>
             <p className="text-xs text-white/70">{timeAgo(current.created_at)} • {timeLeft(current.created_at)}</p>
@@ -216,4 +218,4 @@ export default function StatusViewer() {
       ) : null}
     </div>
   )
-}
+        }
