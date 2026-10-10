@@ -1,7 +1,10 @@
-import { ChevronRight, Shield, Lock, Palette, Eye, Bell, Database, HelpCircle, RefreshCw, Globe } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { ChevronRight, Shield, Lock, Palette, Eye, Bell, Database, HelpCircle, RefreshCw, Globe, ShieldCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import VerifiedBadge, { useIsVerified } from '../components/VerifiedBadge.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500', 'bg-red-500', 'bg-teal-500', 'bg-indigo-500', 'bg-pink-500']
@@ -9,11 +12,19 @@ const colors = ['bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-orange-500',
 export default function Settings() {
   const navigate = useNavigate()
   const { signOut, profile, user } = useAuth()
+  const isVerified = useIsVerified(user?.id)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  useEffect(() => {
+    supabase.rpc('is_platform_admin').then(({ data }) => setIsAdmin(!!data))
+  }, [])
 
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your Name'
 
   const items = [
     { label: 'Account', sub: 'Security, personal information', icon: Shield, to: '/settings/account' },
+    { label: 'Get Verified', sub: isVerified ? 'Your account is verified' : 'Confirm your identity, get a blue tick', icon: ShieldCheck, to: '/settings/verification' },
+    ...(isAdmin ? [{ label: 'Verification Requests', sub: 'Review IDs (admins only)', icon: Shield, to: '/admin/verification' }] : []),
     { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock, to: '/settings/privacy' },
     { label: 'Chat Appearance', sub: 'Theme, wallpaper, chat settings', icon: Palette, to: '/settings/chat-appearance' },
     { label: 'Accessibility', sub: 'Text size, display, contrast', icon: Eye, to: '/settings/accessibility' },
@@ -35,7 +46,10 @@ export default function Settings() {
           <span className="w-14 h-14 rounded-full bg-brand-light flex items-center justify-center text-2xl">🙂</span>
         )}
         <div className="min-w-0">
-          <p className="font-semibold truncate">{name}</p>
+          <p className="font-semibold truncate flex items-center gap-1.5">
+            <span className="truncate">{name}</span>
+            <VerifiedBadge userId={user?.id} size={16} />
+          </p>
           {profile?.role ? (
             <span className="inline-block text-[11px] font-medium text-brand-purple bg-brand-light px-2 py-0.5 rounded-full mt-0.5">
               {profile.role}
@@ -71,4 +85,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-                }
+  }
