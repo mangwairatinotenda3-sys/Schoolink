@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 
 import Welcome from './pages/Welcome.jsx'
@@ -82,6 +82,14 @@ import Notifications from './pages/Notifications.jsx'
 import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import TranslateBanner from './components/TranslateBanner.jsx'
+import TeamInvitePrompt from './components/TeamInvitePrompt.jsx'
+import TeamInvite from './pages/TeamInvite.jsx'
+import ControllerHome from './pages/ControllerHome.jsx'
+import ControllerTeam from './pages/ControllerTeam.jsx'
+import ControllerReports from './pages/ControllerReports.jsx'
+import ControllerComplaints from './pages/ControllerComplaints.jsx'
+import ControllerUsers from './pages/ControllerUsers.jsx'
+import ControllerActivity from './pages/ControllerActivity.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -90,13 +98,37 @@ function RequireAuth({ children }) {
   return children
 }
 
+// Pages anyone can open, even a signed-in team member.
+const PUBLIC_PATHS = ['/', '/terms', '/privacy', '/forgot-password', '/reset-password']
+
+function BannedScreen() {
+  const { signOut } = useAuth()
+  return (
+    <div className="app-shell flex flex-col items-center justify-center text-center px-8 gap-3">
+      <p className="text-lg font-semibold">Your account has been suspended</p>
+      <p className="text-sm text-gray-500">You can't use Schoolink right now. If you think this is a mistake, contact support.</p>
+      <button onClick={signOut} className="mt-2 bg-brand-purple text-white font-medium px-6 py-2.5 rounded-xl">Sign out</button>
+    </div>
+  )
+}
+
 export default function App() {
-  const { profile } = useAuth()
+  const { user, profile, teamRole, teamLoading } = useAuth()
+  const location = useLocation()
   const shellClasses = ['app-shell', 'shadow-xl', profile?.dark_mode ? 'dark-mode' : '', profile?.high_contrast ? 'high-contrast' : ''].filter(Boolean).join(' ')
+
+  const path = location.pathname
+  const inControlCenter = path.startsWith('/controller') || path.startsWith('/admin')
+
+  // Team members never see the normal app: after login they land in the Control Center.
+  if (user && teamLoading) return <div className="app-shell flex items-center justify-center">Loading…</div>
+  if (user && teamRole && !inControlCenter && !PUBLIC_PATHS.includes(path)) return <Navigate to="/controller" replace />
+  if (user && profile?.is_banned && !teamRole) return <BannedScreen />
 
   return (
     <div className={shellClasses}>
       <TranslateBanner />
+      {user && !teamRole && path !== '/' ? <TeamInvitePrompt /> : null}
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/join/:code" element={<JoinByLink />} />
@@ -186,6 +218,16 @@ export default function App() {
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
         <Route path="/dashboard" element={<RequireAuth><Dashboard /></RequireAuth>} />
+
+        <Route path="/team/invite" element={<RequireAuth><TeamInvite /></RequireAuth>} />
+
+        <Route path="/controller" element={<RequireAuth><ControllerHome /></RequireAuth>} />
+        <Route path="/controller/verification" element={<RequireAuth><AdminVerification /></RequireAuth>} />
+        <Route path="/controller/reports" element={<RequireAuth><ControllerReports /></RequireAuth>} />
+        <Route path="/controller/complaints" element={<RequireAuth><ControllerComplaints /></RequireAuth>} />
+        <Route path="/controller/users" element={<RequireAuth><ControllerUsers /></RequireAuth>} />
+        <Route path="/controller/team" element={<RequireAuth><ControllerTeam /></RequireAuth>} />
+        <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
