@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard.jsx'
 import SideDrawer from '../components/SideDrawer.jsx'
 import ComposerBar from '../components/ComposerBar.jsx'
 import StatusRow from '../components/StatusRow.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -81,7 +82,7 @@ export default function Home() {
 
         {isSchoolMember(profile) && school ? (
           <div className="mx-4 rounded-xl border border-gray-100 p-4">
-            <p className="font-semibold">{school.name}</p>
+            <p className="font-semibold flex items-center gap-1.5">{school.name}<VerifiedBadge schoolId={school.id} size={16} /></p>
             <p className="text-sm text-gray-500">{school.location}</p>
             <div className="flex gap-6 mt-3 text-sm">
               <span><b>{memberCount}</b> Members</span>
@@ -111,4 +112,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-                                          }
+  }
