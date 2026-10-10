@@ -5,6 +5,8 @@ import {
   UserCog, FileText, ExternalLink, Bell, BellRing, Video, Download, Share2, Heart, Star, Trash2, X,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
+import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, isStaffMember } from '../lib/permissions.js'
@@ -81,6 +83,7 @@ export default function SchoolProfile() {
   const [docRatings, setDocRatings] = useState({})
   const [lightboxItem, setLightboxItem] = useState(null)
   const [toast, setToast] = useState('')
+  const [viewingLogo, setViewingLogo] = useState(null)
 
   const isMember = !!school && profile?.school_id === school.id
   const canEdit = isMember && canManageStaff(profile)
@@ -243,7 +246,6 @@ export default function SchoolProfile() {
         total_teachers: form.total_teachers || null,
         non_teaching_staff: form.non_teaching_staff || null,
         total_classes: form.total_classes || null,
-        verified: form.verified ?? false,
       })
       .eq('id', school.id)
     setSaving(false)
@@ -312,7 +314,7 @@ export default function SchoolProfile() {
     }
     setUploadingDoc(false)
     e.target.value = ''
-  }
+      }
 
   async function deleteGalleryItem(item) {
     if (!window.confirm('Delete this item? This cannot be undone.')) return
@@ -429,9 +431,10 @@ export default function SchoolProfile() {
         </div>
       </div>
     )
-    }
+  }
 
-const aboutText = school.mission || school.description || ''
+  const aboutText = school.mission || school.description || ''
+
   return (
     <div className="app-shell">
       <div className="bg-brand-navy text-white px-4 pt-4 pb-6">
@@ -439,9 +442,13 @@ const aboutText = school.mission || school.description || ''
 
         <div className="flex flex-col items-center mt-2">
           <div className="relative">
-            <span className="w-24 h-24 rounded-full bg-white p-1 flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => school.logo_url && setViewingLogo(school.logo_url)}
+              className="w-24 h-24 rounded-full bg-white p-1 flex items-center justify-center"
+            >
               {school.logo_url ? <img src={school.logo_url} alt="" className="w-full h-full rounded-full object-cover" /> : <span className="text-4xl">🏫</span>}
-            </span>
+            </button>
             {isOnline ? (
               <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-brand-navy flex items-center justify-center">
                 <span className="w-2 h-2 rounded-full bg-white" />
@@ -457,7 +464,7 @@ const aboutText = school.mission || school.description || ''
 
           <p className="font-bold text-lg mt-3 flex items-center gap-1.5 flex-wrap justify-center">
             {school.name}
-            {school.verified ? <ShieldCheck size={17} className="text-brand-purple bg-white rounded-full" /> : null}
+            <VerifiedBadge schoolId={school.id} size={18} />
           </p>
           <p className="text-xs text-white/50">{handle}</p>
 
@@ -467,6 +474,15 @@ const aboutText = school.mission || school.description || ''
             <MapPin size={13} /> {school.location || 'Location not set'}
             {isOnline ? <span className="text-green-400 ml-1">· Online</span> : null}
           </p>
+
+          {profile?.role === 'Headteacher' && profile?.school_id === school.id && !school.verified ? (
+            <button
+              onClick={() => navigate('/school-profile/verification')}
+              className="mt-3 flex items-center gap-1.5 bg-white/15 text-white text-xs font-medium px-3 py-1.5 rounded-full"
+            >
+              <ShieldCheck size={13} /> {school.verification_status === 'pending' ? 'Verification under review' : 'Get school verified'}
+            </button>
+          ) : null}
         </div>
 
         <div className="grid grid-cols-4 gap-2 mt-5 text-center">
@@ -605,7 +621,7 @@ const aboutText = school.mission || school.description || ''
             )
           ) : null}
 
-          {activeTab === 'About' ? (
+                    {activeTab === 'About' ? (
             <div className="space-y-4">
               {canEdit ? (
                 <div className="grid grid-cols-1 gap-3">
@@ -657,10 +673,6 @@ const aboutText = school.mission || school.description || ''
                     <input value={form.phone || ''} onChange={(e) => updateField('phone', e.target.value)} placeholder="Phone" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                     <input value={form.contact_email || ''} onChange={(e) => updateField('contact_email', e.target.value)} placeholder="Contact email" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
                   </div>
-                  <label className="flex items-center gap-2 text-sm text-gray-600">
-                    <input type="checkbox" checked={!!form.verified} onChange={(e) => updateField('verified', e.target.checked)} />
-                    Mark this school as verified
-                  </label>
                   {message ? <p className="text-sm text-brand-purple">{message}</p> : null}
                   <button onClick={handleSave} disabled={saving} className="w-full bg-brand-purple text-white font-medium py-3 rounded-xl disabled:opacity-60">
                     {saving ? 'Saving…' : 'Save Changes'}
@@ -871,6 +883,8 @@ const aboutText = school.mission || school.description || ''
           </div>
         </div>
       ) : null}
+
+      {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
     </div>
   )
-                              }
+              }
