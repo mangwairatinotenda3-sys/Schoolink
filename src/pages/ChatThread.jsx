@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
 import { wallpapers, playTone, shouldAutoLoadMedia } from '../lib/chatPrefs.js'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 
 const QUICK_REACTIONS = ['❤️', '😂', '👍', '😮', '😢']
 
@@ -228,7 +229,7 @@ export default function ChatThread() {
     return () => { supabase.removeChannel(channel) }
   }, [user, partnerId])
 
-useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   async function loadMessages() {
     const { data } = await supabase
@@ -393,7 +394,7 @@ useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [
               {isOnline ? <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" /> : null}
             </button>
             <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate">{partner?.full_name || 'Schoolink member'}</p>
+              <p className="font-medium text-sm truncate flex items-center gap-1"><span className="truncate">{partner?.full_name || 'Schoolink member'}</span><VerifiedBadge userId={partnerId} size={14} /></p>
               <p className="text-xs text-gray-400 truncate">{isOnline ? 'Online' : partner?.role || ''}</p>
             </div>
             <button onClick={() => setSearchOpen(true)}><Search size={18} className="text-gray-400" /></button>
@@ -402,6 +403,7 @@ useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [
         )}
       </div>
 
+      
       {isBlocked ? <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">You've blocked this person. Unblock to send messages.</div> : null}
       {myChatSettings.disappearing_enabled ? <div className="bg-brand-light text-brand-purple text-[11px] text-center py-1.5 px-4">Disappearing messages are on</div> : null}
 
@@ -444,4 +446,4 @@ useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-      }
+          }
