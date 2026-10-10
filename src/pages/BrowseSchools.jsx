@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Landmark, Plus } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -79,6 +80,7 @@ export default function BrowseSchools() {
                 <div className="min-w-0">
                   <p className="font-medium text-sm truncate flex items-center gap-1">
                     {s.name}
+                    <VerifiedBadge schoolId={s.id} size={14} />
                     {s.engagement_score >= 20 ? <span title="Popular school">🔥</span> : null}
                   </p>
                   <p className="text-xs text-gray-400 truncate">{s.location} · {s.school_type}</p>
