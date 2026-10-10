@@ -55,6 +55,9 @@ import StarredMessages from './pages/StarredMessages.jsx'
 import FavouriteChats from './pages/FavouriteChats.jsx'
 import LoginHistory from './pages/LoginHistory.jsx'
 import TwoFactorSettings from './pages/TwoFactorSettings.jsx'
+import GetVerified from './pages/GetVerified.jsx'
+import AdminVerification from './pages/AdminVerification.jsx'
+import GetSchoolVerified from './pages/GetSchoolVerified.jsx'
 import PostDetail from './pages/PostDetail.jsx'
 import MyPosts from './pages/MyPosts.jsx'
 import Connections from './pages/Connections.jsx'
@@ -112,13 +115,14 @@ export default function App() {
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
+        <Route path="/school-profile/verification" element={<RequireAuth><GetSchoolVerified /></RequireAuth>} />
         <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
         <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
         <Route path="/edit-profile-details" element={<RequireAuth><EditProfileDetails /></RequireAuth>} />
         <Route path="/library" element={<RequireAuth><Library /></RequireAuth>} />
         <Route path="/viewer/:id" element={<RequireAuth><DocumentViewerPage /></RequireAuth>} />
-<Route path="/document/:id" element={<RequireAuth><DocumentViewerPage /></RequireAuth>} />
+        <Route path="/document/:id" element={<RequireAuth><DocumentViewerPage /></RequireAuth>} />
 
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
         <Route path="/chats/new" element={<RequireAuth><NewChatPicker /></RequireAuth>} />
@@ -156,6 +160,8 @@ export default function App() {
         <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
         <Route path="/settings/login-history" element={<RequireAuth><LoginHistory /></RequireAuth>} />
         <Route path="/settings/two-factor" element={<RequireAuth><TwoFactorSettings /></RequireAuth>} />
+        <Route path="/settings/verification" element={<RequireAuth><GetVerified /></RequireAuth>} />
+        <Route path="/admin/verification" element={<RequireAuth><AdminVerification /></RequireAuth>} />
 
         <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
         <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
