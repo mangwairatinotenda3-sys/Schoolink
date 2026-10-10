@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, ShieldCheck } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -13,6 +13,7 @@ const icons = {
   approval: { icon: CheckCircle, color: 'text-green-500' },
   message: { icon: MessageSquare, color: 'text-brand-purple' },
   mention: { icon: MessageCircle, color: 'text-amber-500' },
+  team_invite: { icon: ShieldCheck, color: 'text-brand-purple' },
 }
 
 const messages = {
@@ -22,6 +23,7 @@ const messages = {
   approval: () => `Your request to join the school was approved`,
   message: (name) => `${name || 'Someone'} sent you a message`,
   mention: (name) => `${name || 'Someone'} mentioned you`,
+  team_invite: () => 'You have been invited to join the Schoolink team',
 }
 
 function timeAgo(dateString) {
@@ -67,6 +69,7 @@ export default function Notifications() {
     if (n.type === 'message' && n.actor_id) navigate(`/chats/${n.actor_id}`)
     else if ((n.type === 'like' || n.type === 'comment' || n.type === 'mention') && n.post_id) navigate(`/post/${n.post_id}`)
     else if (n.type === 'follow' && n.actor_id) navigate(`/users/${n.actor_id}`)
+    else if (n.type === 'team_invite') navigate('/team/invite')
   }
 
   return (
@@ -100,4 +103,4 @@ export default function Notifications() {
       <BottomNav />
     </div>
   )
-  }
+         }
