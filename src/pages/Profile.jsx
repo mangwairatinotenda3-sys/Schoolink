@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MapPin, Pencil, Share2, FileText, Link2, GraduationCap, Users, Landmark } from 'lucide-react'
 import AvatarUpload from '../components/AvatarUpload.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import PostCard from '../components/PostCard.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -80,7 +81,7 @@ export default function Profile() {
             ) : null}
           </div>
 
-          <p className="font-bold text-lg mt-3">{name}</p>
+          <p className="font-bold text-lg mt-3 flex items-center gap-1.5">{name}<VerifiedBadge userId={user?.id} size={18} /></p>
           {profile?.username ? <p className="text-xs text-white/50">@{profile.username}</p> : null}
           <span className="text-[11px] bg-brand-purple/30 px-2 py-0.5 rounded-full mt-1">{role}</span>
           {isMember && school ? (
@@ -195,4 +196,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-  }
+}
