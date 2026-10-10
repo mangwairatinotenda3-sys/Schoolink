@@ -2,6 +2,7 @@ import { useRef, useState, useEffect } from 'react'
 import { X, Download, Flag, Plus, Minus, Share2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { reportReasons } from '../lib/moderation.js'
 
 function getDistance(touches) {
   const [a, b] = touches
@@ -9,9 +10,10 @@ function getDistance(touches) {
 }
 
 export default function PhotoViewer({ images = [], initialIndex = 0, postId, onClose }) {
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [showReport, setShowReport] = useState(false)
   const [reportSent, setReportSent] = useState(false)
+  const [reportError, setReportError] = useState('')
 
   const [currentIndex, setCurrentIndex] = useState(initialIndex)
   const currentImage = images[currentIndex]
@@ -175,9 +177,20 @@ export default function PhotoViewer({ images = [], initialIndex = 0, postId, onC
     link.click()
   }
 
-  async function handleReport(reason) {
-    if (!user) return
-    await supabase.from('reports').insert({ post_id: postId, reported_by: user.id, reason })
+  async function handleReport(reasonKey) {
+    if (!user || !postId) return
+    setReportError('')
+    const { error } = await supabase.from('content_reports').insert({
+      content_type: 'post',
+      content_id: String(postId),
+      reason: reasonKey,
+      reported_by: user.id,
+      school_id: profile?.school_id ?? null,
+    })
+    if (error) {
+      setReportError('Could not send the report. Please try again.')
+      return
+    }
     setShowReport(false)
     setReportSent(true)
     setTimeout(() => setReportSent(false), 2000)
@@ -246,9 +259,10 @@ export default function PhotoViewer({ images = [], initialIndex = 0, postId, onC
         <div className="absolute inset-0 bg-black/70 flex items-end" onClick={() => setShowReport(false)}>
           <div className="bg-white rounded-t-2xl w-full p-4" onClick={(e) => e.stopPropagation()}>
             <p className="font-semibold text-sm mb-3">Report this photo</p>
-            {['Inappropriate content', 'Spam', 'Harassment or bullying', 'Other'].map((reason) => (
-              <button key={reason} onClick={() => handleReport(reason)} className="w-full text-left py-3 border-b border-gray-100 text-sm text-gray-700">{reason}</button>
+            {reportReasons.map((r) => (
+              <button key={r.key} onClick={() => handleReport(r.key)} className="w-full text-left py-3 border-b border-gray-100 text-sm text-gray-700">{r.label}</button>
             ))}
+            {reportError ? <p className="text-red-500 text-xs mt-2">{reportError}</p> : null}
             <button onClick={() => setShowReport(false)} className="w-full text-center py-3 mt-2 text-sm text-gray-400">Cancel</button>
           </div>
         </div>
@@ -257,4 +271,4 @@ export default function PhotoViewer({ images = [], initialIndex = 0, postId, onC
       {reportSent? <div className="absolute bottom-8 left-1/2 -translate-x-1/2 bg-white rounded-full px-4 py-2 text-sm shadow-lg">Report submitted</div> : null}
     </div>
   )
-  }
+        }
