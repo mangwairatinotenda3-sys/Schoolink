@@ -7,6 +7,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [teamRole, setTeamRole] = useState(null)
+  const [teamLoading, setTeamLoading] = useState(true)
+  const userId = session?.user?.id ?? null
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,6 +39,29 @@ export function AuthProvider({ children }) {
       .maybeSingle()
       .then(({ data }) => setProfile(data))
   }, [session])
+
+  // Is this account part of the Schoolink team? (owner / verifier / moderator / support)
+  // The answer comes from the database, tied to the account's email, so it can't be faked here.
+  useEffect(() => {
+    if (!userId) {
+      setTeamRole(null)
+      setTeamLoading(false)
+      return
+    }
+    let cancelled = false
+    setTeamLoading(true)
+    supabase.rpc('team_role').then(({ data, error }) => {
+      if (cancelled) return
+      setTeamRole(error ? null : data || null)
+      setTeamLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [userId])
+
+  async function refreshTeamRole() {
+    const { data, error } = await supabase.rpc('team_role')
+    setTeamRole(error ? null : data || null)
+  }
 
   async function logLogin(userId, method) {
     await supabase.from('login_history').insert({ user_id: userId, method })
@@ -113,6 +139,9 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     loading,
+    teamRole,
+    teamLoading,
+    refreshTeamRole,
     signInWithPassword,
     signUp,
     signInWithGoogle,
@@ -128,4 +157,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-          }
+  }
