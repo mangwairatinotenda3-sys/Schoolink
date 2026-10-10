@@ -4,6 +4,7 @@ import { MessageSquare, MapPin } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import PostCard from '../components/PostCard.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
+import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -91,7 +92,7 @@ export default function PublicProfile() {
             )}
             {isOnline ? <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-green-500 border-2 border-white" /> : null}
           </button>
-          <p className="font-bold text-lg mt-2">{person.full_name || 'Schoolink member'}</p>
+          <p className="font-bold text-lg mt-2 flex items-center gap-1.5">{person.full_name || 'Schoolink member'}<VerifiedBadge userId={userId} size={18} /></p>
           {person.username ? <p className="text-sm text-gray-400">@{person.username}</p> : null}
           <span className="text-[11px] bg-brand-light text-brand-purple px-2 py-0.5 rounded-full mt-1">{person.role || person.account_type}</span>
           {person.location ? (
@@ -137,4 +138,4 @@ export default function PublicProfile() {
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-         }
+}
