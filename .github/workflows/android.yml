@@ -19,35 +19,47 @@ jobs:
           java-version: 17
 
       - run: npm install
+      
       - run: npm run build
         env:
           VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
-      - name: Create the Android project
-        run: npx cap add android
+      - name: Create Android project if missing
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
 
       - name: Let the app catch the Google sign-in link
         run: |
           python3 - <<'PY'
+          import os
           p = 'android/app/src/main/AndroidManifest.xml'
           s = open(p).read()
-          link = '''
+          if 'com.schoolink.app' not in s:
+              link = '''
               <intent-filter>
                   <action android:name="android.intent.action.VIEW" />
                   <category android:name="android.intent.category.DEFAULT" />
                   <category android:name="android.intent.category.BROWSABLE" />
                   <data android:scheme="com.schoolink.app" android:host="auth" />
               </intent-filter>
-          '''
-          s = s.replace('</activity>', link + '</activity>', 1)
-          open(p, 'w').write(s)
+              '''
+              s = s.replace('</activity>', link + '\n        </activity>', 1)
+              open(p, 'w').write(s)
+              print("Added intent-filter")
+          else:
+              print("intent-filter already exists")
           PY
 
       - run: npx cap sync android
 
       - name: Build the APK
-        run: cd android && ./gradlew assembleDebug
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
