@@ -105,21 +105,19 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
-    // Strip any existing hash before handing this off as the redirect target.
-    // If we appended a route like '#/home' here, Supabase would glue its own
-    // '#access_token=...' onto the end of that same hash fragment when Google
-    // sends the user back — and since this app uses HashRouter (required for
-    // GitHub Pages, which can't rewrite arbitrary paths), that collision
-    // between "the route" and "the auth tokens" living in the same URL hash
-    // is what was sending you back to the Welcome screen: the token parsing
-    // got confused and no session ever got set. Redirecting to the bare
-    // origin instead avoids the collision — Supabase cleanly reads the
-    // tokens, and Welcome's own effect then sends you on to /home or
-    // onboarding once the session appears.
-    const redirectTo = window.location.href.split('#')[0]
+    // Send Google back to the bare page address (no "#/route", no "?query").
+    // The router uses the part after "#", and Supabase puts the sign-in tokens
+    // there too, so a route in the address would collide with them.
+    // main.jsx lets Supabase read the tokens before the app starts, and
+    // Welcome's own effect then sends the person on to /home or onboarding.
+    const redirectTo = `${window.location.origin}${window.location.pathname}`
     return supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        // Always let the person pick which Google account to use.
+        queryParams: { prompt: 'select_account' },
+      },
     })
   }
 
@@ -162,4 +160,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-        }
+      }
