@@ -126,3 +126,120 @@ export default function ControllerAnnounce() {
   const now = Date.now()
   const previewMedia = picked.map((p) => ({ type: p.kind, url: p.previewUrl, name: p.file.name }))
   const canPost = !busy && (text.trim() || picked.length > 0)
+
+    return (
+    <ControllerShell title="Post an Update" allow={['owner']}>
+      <p className="text-xs mb-3" style={{ color: ctl.muted }}>
+        Your update shows at the very top of Home for everyone, from "Schoolink", and disappears after 48 hours.
+      </p>
+
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        maxLength={1000}
+        rows={5}
+        placeholder="Write your update…"
+        className="w-full rounded-xl p-3 text-sm outline-none"
+        style={{ background: ctl.card, border: `1px solid ${ctl.border}`, color: ctl.text }}
+      />
+      <p className="text-right text-[11px] mt-1" style={{ color: ctl.muted }}>{text.length}/1000</p>
+
+      <div className="flex gap-2 mt-2">
+        {[
+          { label: 'Photos', icon: ImageIcon, ref: photoRef },
+          { label: 'Video', icon: Video, ref: videoRef },
+          { label: 'File', icon: FileText, ref: fileRef },
+        ].map(({ label, icon: Icon, ref }) => (
+          <button
+            key={label}
+            type="button"
+            onClick={() => ref.current?.click()}
+            disabled={busy}
+            className="flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-xs font-medium"
+            style={{ background: ctl.card, border: `1px solid ${ctl.border}`, color: ctl.text }}
+          >
+            <Icon size={16} /> {label}
+          </button>
+        ))}
+      </div>
+      <input ref={photoRef} type="file" accept="image/*" multiple hidden onChange={(e) => addFiles(e, 'image')} />
+      <input ref={videoRef} type="file" accept="video/*" multiple hidden onChange={(e) => addFiles(e, 'video')} />
+      <input ref={fileRef} type="file" multiple hidden onChange={(e) => addFiles(e, 'file')} />
+      <p className="text-[11px] mt-1" style={{ color: ctl.muted }}>
+        Up to {MAX_ITEMS} items, {MAX_MB} MB each. Videos keep their sound.
+      </p>
+
+      {picked.length > 0 ? (
+        <div className="mt-3 space-y-1.5">
+          {picked.map((p) => {
+            const Icon = p.kind === 'image' ? ImageIcon : p.kind === 'video' ? Video : FileText
+            return (
+              <div
+                key={p.id}
+                className="flex items-center gap-2 rounded-lg px-3 py-2"
+                style={{ background: ctl.card, border: `1px solid ${ctl.border}` }}
+              >
+                <Icon size={16} style={{ color: ctl.accent }} className="shrink-0" />
+                <span className="text-xs truncate flex-1">{p.file.name}</span>
+                <span className="text-[11px] shrink-0" style={{ color: ctl.muted }}>{sizeLabel(p.file.size)}</span>
+                <button onClick={() => removePicked(p.id)} disabled={busy} aria-label="Remove" style={{ color: ctl.bad }}>
+                  <X size={16} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      ) : null}
+
+      {text.trim() || picked.length > 0 ? (
+        <div className="mt-4">
+          <p className="text-xs mb-1" style={{ color: ctl.muted }}>Preview</p>
+          <AnnouncementCard body={text.trim()} media={previewMedia} />
+        </div>
+      ) : null}
+
+      {error ? <p className="text-sm mt-3" style={{ color: ctl.bad }}>{error}</p> : null}
+      {done ? <p className="text-sm mt-3" style={{ color: ctl.good }}>{done}</p> : null}
+
+      <button
+        onClick={post}
+        disabled={!canPost}
+        className="w-full mt-4 rounded-xl py-3 font-semibold text-sm"
+        style={{ background: 'linear-gradient(135deg, #6366F1, #7C3AED)', color: '#fff', opacity: canPost ? 1 : 0.5 }}
+      >
+        {busy ? progress || 'Posting…' : 'Post for 48 hours'}
+      </button>
+
+      <h2 className="text-sm font-semibold mt-7 mb-2">Recent updates</h2>
+      {items.length === 0 ? (
+        <p className="text-xs" style={{ color: ctl.muted }}>Nothing posted yet.</p>
+      ) : (
+        <div className="space-y-2">
+          {items.map((a) => {
+            const live = new Date(a.expires_at).getTime() > now
+            const count = Array.isArray(a.media) ? a.media.length : 0
+            return (
+              <div key={a.id} className="rounded-xl p-3" style={{ background: ctl.card, border: `1px solid ${ctl.border}` }}>
+                <div className="flex items-center gap-2 mb-1">
+                  <span
+                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                    style={{ background: live ? ctl.good : ctl.border, color: live ? '#04210F' : ctl.muted }}
+                  >
+                    {live ? 'LIVE' : 'ENDED'}
+                  </span>
+                  <span className="text-[11px] flex-1" style={{ color: ctl.muted }}>
+                    {timeAgo(a.created_at)}{count ? ` · ${count} attachment${count > 1 ? 's' : ''}` : ''}
+                  </span>
+                  <button onClick={() => remove(a)} aria-label="Remove update" style={{ color: ctl.bad }}>
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+                {a.body ? <p className="text-sm whitespace-pre-wrap break-words">{a.body}</p> : null}
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </ControllerShell>
+  )
+  }
