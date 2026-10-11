@@ -83,6 +83,10 @@ import AddPost from './pages/AddPost.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import TranslateBanner from './components/TranslateBanner.jsx'
 import TeamInvitePrompt from './components/TeamInvitePrompt.jsx'
+import GuestPrompt from './components/GuestPrompt.jsx'
+import GuestWall from './components/GuestWall.jsx'
+import GuestProfileView from './components/GuestProfileView.jsx'
+import { guestCanOpen } from './lib/guestShield.js'
 import TeamInvite from './pages/TeamInvite.jsx'
 import ControllerHome from './pages/ControllerHome.jsx'
 import ControllerTeam from './pages/ControllerTeam.jsx'
@@ -103,6 +107,12 @@ function RequireAuth({ children }) {
 // Pages anyone can open, even a signed-in team member.
 const PUBLIC_PATHS = ['/', '/terms', '/privacy', '/forgot-password', '/reset-password']
 
+// Guests see a sign-in invitation instead of a profile.
+function ProfileRoute() {
+  const { isGuest } = useAuth()
+  return isGuest ? <GuestProfileView /> : <Profile />
+}
+
 function BannedScreen() {
   const { signOut } = useAuth()
   return (
@@ -115,7 +125,7 @@ function BannedScreen() {
 }
 
 export default function App() {
-  const { user, profile, teamRole, teamLoading } = useAuth()
+  const { user, profile, teamRole, teamLoading, isGuest } = useAuth()
   const location = useLocation()
   const shellClasses = ['app-shell', 'shadow-xl', profile?.dark_mode ? 'dark-mode' : '', profile?.high_contrast ? 'high-contrast' : ''].filter(Boolean).join(' ')
 
@@ -127,10 +137,21 @@ export default function App() {
   if (user && teamRole && !inControlCenter && !PUBLIC_PATHS.includes(path)) return <Navigate to="/controller" replace />
   if (user && profile?.is_banned && !teamRole) return <BannedScreen />
 
+  // Guests can only open a few pages; everything else asks them to sign in.
+  if (isGuest && !guestCanOpen(path)) {
+    return (
+      <div className={shellClasses}>
+        <GuestWall />
+        <GuestPrompt />
+      </div>
+    )
+  }
+
   return (
     <div className={shellClasses}>
       <TranslateBanner />
-      {user && !teamRole && path !== '/' ? <TeamInvitePrompt /> : null}
+      <GuestPrompt />
+      {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/join/:code" element={<JoinByLink />} />
@@ -197,7 +218,7 @@ export default function App() {
         <Route path="/settings/verification" element={<RequireAuth><GetVerified /></RequireAuth>} />
         <Route path="/admin/verification" element={<RequireAuth><AdminVerification /></RequireAuth>} />
 
-        <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
+                <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
         <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
         <Route path="/connections/:type" element={<RequireAuth><Connections /></RequireAuth>} />
         <Route path="/polls" element={<RequireAuth><Polls /></RequireAuth>} />
@@ -214,7 +235,7 @@ export default function App() {
         <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
-        <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+        <Route path="/profile" element={<RequireAuth><ProfileRoute /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
         <Route path="/saved" element={<RequireAuth><Saved /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
@@ -231,10 +252,10 @@ export default function App() {
         <Route path="/controller/team" element={<RequireAuth><ControllerTeam /></RequireAuth>} />
         <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
         <Route path="/controller/announce" element={<RequireAuth><ControllerAnnounce /></RequireAuth>} />
-                <Route path="/controller/profile" element={<RequireAuth><ControllerProfile /></RequireAuth>} />
+        <Route path="/controller/profile" element={<RequireAuth><ControllerProfile /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
   )
-  }
+}
