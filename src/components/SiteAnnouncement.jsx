@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { GraduationCap } from 'lucide-react'
+import { GraduationCap, FileText, X } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import MetaBadge from './MetaBadge.jsx'
 
@@ -11,9 +11,89 @@ function timeLeft(expiresAt) {
   return `Ends in ${Math.max(1, Math.floor(ms / 60000))}m`
 }
 
+// Photos, videos (with sound) and files attached to an update.
+// media = [{ type: 'image' | 'video' | 'file', url, name }]
+function MediaBlock({ media }) {
+  const [viewer, setViewer] = useState(null)
+  const list = Array.isArray(media) ? media : []
+  if (list.length === 0) return null
+  const images = list.filter((m) => m.type === 'image')
+  const videos = list.filter((m) => m.type === 'video')
+  const files = list.filter((m) => m.type === 'file')
+
+  return (
+    <div className="mt-3 space-y-2">
+      {images.length === 1 ? (
+        <img
+          src={images[0].url}
+          alt=""
+          className="w-full rounded-xl object-cover cursor-pointer"
+          style={{ maxHeight: 320 }}
+          onClick={() => setViewer(images[0].url)}
+        />
+      ) : images.length > 1 ? (
+        <div className="grid grid-cols-2 gap-1">
+          {images.map((m, i) => (
+            <img
+              key={i}
+              src={m.url}
+              alt=""
+              className="w-full object-cover rounded-lg cursor-pointer"
+              style={{ height: 130 }}
+              onClick={() => setViewer(m.url)}
+            />
+          ))}
+        </div>
+      ) : null}
+
+      {videos.map((m, i) => (
+        <video
+          key={i}
+          src={m.url}
+          controls
+          playsInline
+          preload="metadata"
+          className="w-full rounded-xl"
+          style={{ maxHeight: 320, background: '#000' }}
+        />
+      ))}
+
+      {files.map((m, i) => (
+        <a
+          key={i}
+          href={m.url || undefined}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center gap-2 rounded-xl p-3"
+          style={{ background: 'rgba(255,255,255,0.18)', color: '#fff' }}
+        >
+          <FileText size={18} color="#fff" className="shrink-0" />
+          <span className="text-sm truncate">{m.name || 'File'}</span>
+        </a>
+      ))}
+
+      {viewer ? (
+        <div
+          onClick={() => setViewer(null)}
+          style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <button
+            onClick={() => setViewer(null)}
+            aria-label="Close"
+            style={{ position: 'absolute', top: 16, right: 16, color: '#fff' }}
+          >
+            <X size={28} />
+          </button>
+          <img src={viewer} alt="" style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+        </div>
+      ) : null}
+    </div>
+  )
+}
+
 // One update from the Schoolink team. The name is NOT clickable on purpose:
 // nobody can open a profile from it. Inline colours keep it the same in every theme.
-export function AnnouncementCard({ body, expiresAt, className = '' }) {
+export function AnnouncementCard({ body, media, expiresAt, className = '' }) {
   return (
     <div
       className={`rounded-2xl p-4 ${className}`}
@@ -35,7 +115,8 @@ export function AnnouncementCard({ body, expiresAt, className = '' }) {
           </p>
         </div>
       </div>
-      <p className="mt-3 text-sm whitespace-pre-wrap break-words" style={{ color: '#fff' }}>{body}</p>
+      {body ? <p className="mt-3 text-sm whitespace-pre-wrap break-words" style={{ color: '#fff' }}>{body}</p> : null}
+      <MediaBlock media={media} />
     </div>
   )
 }
@@ -47,7 +128,7 @@ export default function SiteAnnouncements() {
   useEffect(() => {
     supabase
       .from('site_announcements')
-      .select('id, body, expires_at')
+      .select('id, body, media, expires_at')
       .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false })
       .limit(3)
@@ -59,8 +140,8 @@ export default function SiteAnnouncements() {
   return (
     <div className="px-4 pt-4 space-y-3">
       {items.map((a) => (
-        <AnnouncementCard key={a.id} body={a.body} expiresAt={a.expires_at} />
+        <AnnouncementCard key={a.id} body={a.body} media={a.media} expiresAt={a.expires_at} />
       ))}
     </div>
   )
-}
+    }
