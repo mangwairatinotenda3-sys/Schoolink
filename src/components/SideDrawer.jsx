@@ -1,7 +1,7 @@
 import { X, User, Settings, UserPlus, Users, LogOut, Clock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff } from '../lib/permissions.js'
+import { canManageStaff, isSchoolMember } from '../lib/permissions.js'
 
 export default function SideDrawer({ open, onClose }) {
   const navigate = useNavigate()
@@ -15,7 +15,7 @@ export default function SideDrawer({ open, onClose }) {
   const links = [
     { label: 'Profile', icon: User, to: '/profile' },
     { label: 'Settings', icon: Settings, to: '/settings' },
-    { label: 'Staff Directory', icon: Users, to: '/staff-directory' },
+    ...(isSchoolMember(profile) ? [{ label: 'Staff Directory', icon: Users, to: '/staff-directory' }] : []),
     ...(canManageStaff(profile)
       ? [
           { label: 'Invite a Member', icon: UserPlus, to: '/invite-member' },
@@ -69,4 +69,4 @@ export default function SideDrawer({ open, onClose }) {
       </div>
     </>
   )
-  }
+            }
