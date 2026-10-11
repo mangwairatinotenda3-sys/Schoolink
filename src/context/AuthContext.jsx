@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { setGuestMode } from '../lib/guestShield.js'
+import { isNativeApp, signInWithGoogleNative } from '../lib/nativeAuth.js'
 
 const AuthContext = createContext(null)
 
@@ -69,7 +70,7 @@ export function AuthProvider({ children }) {
 
   async function logLogin(userId, method) {
     await supabase.from('login_history').insert({ user_id: userId, method })
-    }
+  }
 
   async function signInWithPassword(email, password) {
     const result = await supabase.auth.signInWithPassword({ email, password })
@@ -105,6 +106,8 @@ export function AuthProvider({ children }) {
   }
 
   async function signInWithGoogle() {
+    // In the Android / iPhone app Google opens in the phone's browser instead.
+    if (isNativeApp()) return signInWithGoogleNative()
     // Send Google back to the bare page address (no "#/route", no "?query").
     // The router uses the part after "#", and Supabase puts the sign-in tokens
     // there too, so a route in the address would collide with them.
@@ -160,4 +163,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-      }
+                             }
