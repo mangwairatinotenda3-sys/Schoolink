@@ -7,6 +7,7 @@ import PostCard from '../components/PostCard.jsx'
 import SideDrawer from '../components/SideDrawer.jsx'
 import ComposerBar from '../components/ComposerBar.jsx'
 import StatusRow from '../components/StatusRow.jsx'
+import SiteAnnouncements from '../components/SiteAnnouncements.jsx'
 import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
@@ -71,6 +72,8 @@ export default function Home() {
       </div>
 
       <div className="screen-scroll">
+       <div className="screen-scroll">
+        <SiteAnnouncements />
         <div className="flex gap-4 px-4 py-4 overflow-x-auto">
           {shortcuts.map(({ label, icon: Icon, color }) => (
             <button key={label} onClick={() => handleShortcut(label)} className="flex flex-col items-center gap-1 shrink-0">
