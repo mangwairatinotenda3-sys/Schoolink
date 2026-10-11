@@ -17,7 +17,7 @@ export function askToSignIn(reason = 'action') {
 // Pages a guest may open. Everything else shows the sign-in wall.
 const GUEST_PAGES = [
   '/home', '/search', '/schools', '/users', '/post', '/profile', '/more', '/alumni',
-  '/settings/help', '/terms', '/privacy', '/forgot-password', '/reset-password', '/onboarding',
+  '/settings/help', '/about', '/terms', '/privacy', '/forgot-password', '/reset-password', '/onboarding',
 ]
 
 export function guestCanOpen(path) {
@@ -85,4 +85,4 @@ function installShield() {
 export function setGuestMode(on) {
   guest = !!on
   if (guest) installShield()
-  }
+}
