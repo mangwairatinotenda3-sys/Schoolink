@@ -91,6 +91,7 @@ import ControllerComplaints from './pages/ControllerComplaints.jsx'
 import ControllerUsers from './pages/ControllerUsers.jsx'
 import ControllerActivity from './pages/ControllerActivity.jsx'
 import ControllerAnnounce from './pages/ControllerAnnounce.jsx'
+import ControllerProfile from './pages/ControllerProfile.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -230,6 +231,7 @@ export default function App() {
         <Route path="/controller/team" element={<RequireAuth><ControllerTeam /></RequireAuth>} />
         <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
         <Route path="/controller/announce" element={<RequireAuth><ControllerAnnounce /></RequireAuth>} />
+                <Route path="/controller/profile" element={<RequireAuth><ControllerProfile /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
