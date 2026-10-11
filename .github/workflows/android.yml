@@ -31,6 +31,34 @@ jobs:
             npx cap add android
           fi
 
+      - name: Use the Schoolink logo as the app icon
+        run: |
+          npm install --no-save sharp @capacitor/assets
+          mkdir -p assets
+          cat > make-android-icons.mjs <<'EOF'
+          import sharp from 'sharp'
+          const BG = '#6C4CE0'
+          const GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          function art(scale, background, rx) {
+            const t = `translate(${256 - 256 * scale} ${256 - 256 * scale}) scale(${scale})`
+            const bg = background ? `<rect width="512" height="512" rx="${rx}" fill="${BG}"/>` : ''
+            return Buffer.from(
+              `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${bg}<g transform="${t}"><path fill="#fff" d="${GLYPH}"/></g></svg>`
+            )
+          }
+          const jobs = [
+            ['assets/icon-only.png', art(0.8, true, 96)],
+            ['assets/icon-foreground.png', art(0.55, false, 0)],
+            ['assets/icon-background.png', Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${BG}"/></svg>`)],
+          ]
+          for (const [file, input] of jobs) {
+            await sharp(input).resize(1024, 1024).png().toFile(file)
+            console.log('made', file)
+          }
+          EOF
+          node make-android-icons.mjs
+          npx capacitor-assets generate --android
+
       - name: Let the app catch the Google sign-in link
         run: |
           python3 - <<'PY'
