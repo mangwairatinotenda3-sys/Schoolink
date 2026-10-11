@@ -1,0 +1,8 @@
+{
+  "appId": "com.schoolink.app",
+  "appName": "Schoolink",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  }
+}
