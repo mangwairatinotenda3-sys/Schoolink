@@ -64,7 +64,7 @@ export default function Home() {
         <h1 className="font-bold text-lg">Schoolink</h1>
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/search')}><Search size={20} /></button>
-                     <button onClick={() => navigate('/notifications')} className="relative">
+                    <button onClick={() => navigate('/notifications')} className="relative">
             <Bell size={20} />
             {unread > 0 ? <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center">{unread > 9 ? '9+' : unread}</span> : null}
           </button>
@@ -73,7 +73,7 @@ export default function Home() {
 
       <div className="screen-scroll">
         <div className="flex gap-4 px-4 py-4 overflow-x-auto">
-          {shortcuts.map(({ label, icon: Icon, color }) => (
+          {shortcuts.filter((s) => s.label !== 'Your School' || isSchoolMember(profile)).map(({ label, icon: Icon, color }) => (
             <button key={label} onClick={() => handleShortcut(label)} className="flex flex-col items-center gap-1 shrink-0">
               <span className={`w-14 h-14 rounded-full ${color} flex items-center justify-center`}><Icon size={22} className="text-white" /></span>
               <span className="text-[11px] text-gray-500 max-w-[56px] text-center">{label}</span>
@@ -114,4 +114,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-                                                                                  }
+      }
