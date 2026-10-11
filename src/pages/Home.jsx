@@ -64,7 +64,7 @@ export default function Home() {
         <h1 className="font-bold text-lg">Schoolink</h1>
         <div className="flex items-center gap-4">
           <button onClick={() => navigate('/search')}><Search size={20} /></button>
-                    <button onClick={() => navigate('/notifications')} className="relative">
+                     <button onClick={() => navigate('/notifications')} className="relative">
             <Bell size={20} />
             {unread > 0 ? <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center">{unread > 9 ? '9+' : unread}</span> : null}
           </button>
@@ -72,7 +72,6 @@ export default function Home() {
       </div>
 
       <div className="screen-scroll">
-        <SiteAnnouncements />
         <div className="flex gap-4 px-4 py-4 overflow-x-auto">
           {shortcuts.map(({ label, icon: Icon, color }) => (
             <button key={label} onClick={() => handleShortcut(label)} className="flex flex-col items-center gap-1 shrink-0">
@@ -96,6 +95,7 @@ export default function Home() {
         <ComposerBar />
 
         <div className="px-4 mt-4 space-y-4">
+          <SiteAnnouncements />
           {loading ? (
             <p className="text-center text-gray-400 mt-8">Loading posts…</p>
           ) : posts.length === 0 ? (
@@ -114,4 +114,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-              }
+                                                                                  }
