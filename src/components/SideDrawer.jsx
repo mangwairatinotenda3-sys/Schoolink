@@ -108,3 +108,42 @@ export default function SideDrawer({ open, onClose }) {
             <ChevronRight size={20} color="#C7D2FE" />
           </button>
         </div>
+
+                {/* menu */}
+        <div style={{ padding: '16px 14px 24px' }}>
+          {links.map(({ label, icon: Icon, to }) => {
+            const active = pathname === to
+            return (
+              <button
+                key={label}
+                onClick={() => go(to)}
+                className="w-full flex items-center gap-3 text-left"
+                style={{
+                  padding: '13px 14px', marginBottom: 6, borderRadius: 18, fontSize: 15, fontWeight: 500,
+                  background: active ? 'linear-gradient(90deg, #5B4BFF, #7C3AED)' : 'transparent',
+                  boxShadow: active ? '0 6px 20px rgba(91,75,255,0.45)' : 'none',
+                }}
+              >
+                <Icon size={22} color={active ? '#fff' : '#A78BFA'} />
+                <span className="flex-1">{label}</span>
+                <ChevronRight size={18} color={active ? '#fff' : '#C7D2FE'} />
+              </button>
+            )
+          })}
+
+          <div style={{ height: 1, background: 'rgba(129,140,248,0.35)', margin: '12px 6px' }} />
+
+          <button
+            onClick={handleSignOut}
+            className="w-full flex items-center gap-3 text-left"
+            style={{ padding: '13px 14px', borderRadius: 18, fontSize: 15, fontWeight: 600, color: isGuest ? '#A78BFA' : '#F43F5E' }}
+          >
+            {isGuest ? <UserPlus size={22} /> : <LogOut size={22} />}
+            <span className="flex-1">{isGuest ? 'Sign In' : 'Sign Out'}</span>
+            <ChevronRight size={18} color="#C7D2FE" />
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
