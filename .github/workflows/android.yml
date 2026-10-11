@@ -31,7 +31,7 @@ jobs:
             npx cap add android
           fi
 
-      - name: Use the Schoolink logo as the app icon
+      - name: Use the Schoolink logo as the app icon and splash screen
         run: |
           npm install --no-save sharp @capacitor/assets
           mkdir -p assets
@@ -47,12 +47,14 @@ jobs:
             )
           }
           const jobs = [
-            ['assets/icon-only.png', art(0.8, true, 96)],
-            ['assets/icon-foreground.png', art(0.55, false, 0)],
-            ['assets/icon-background.png', Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${BG}"/></svg>`)],
+            ['assets/icon-only.png', art(0.8, true, 96), 1024],
+            ['assets/icon-foreground.png', art(0.55, false, 0), 1024],
+            ['assets/icon-background.png', Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${BG}"/></svg>`), 1024],
+            ['assets/splash.png', art(0.3, true, 0), 2732],
+            ['assets/splash-dark.png', art(0.3, true, 0), 2732],
           ]
-          for (const [file, input] of jobs) {
-            await sharp(input).resize(1024, 1024).png().toFile(file)
+          for (const [file, input, size] of jobs) {
+            await sharp(input).resize(size, size).png().toFile(file)
             console.log('made', file)
           }
           EOF
