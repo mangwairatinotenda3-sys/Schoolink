@@ -6,6 +6,7 @@ import { AuthProvider } from './context/AuthContext.jsx'
 import ThemeProvider from './lib/ThemeProvider.jsx'
 import OAuthErrorBanner, { OAUTH_ERROR_KEY } from './components/OAuthErrorBanner.jsx'
 import { supabase } from './lib/supabaseClient'
+import { listenForNativeSignIn } from './lib/nativeAuth.js'
 import './index.css'
 
 // Stop the browser from trying to restore scroll position on refresh —
@@ -55,6 +56,9 @@ function start() {
     </React.StrictMode>
   )
 }
+
+// Inside the Android / iPhone app, catch the link Google sends the person back through.
+listenForNativeSignIn()
 
 const returnedError = errorFromAddress()
 if (returnedError) {
