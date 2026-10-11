@@ -7,7 +7,7 @@ import {
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember } from '../lib/permissions.js'
+import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember, isSchoolMember } from '../lib/permissions.js'
 
 export default function MoreHub() {
   const navigate = useNavigate()
@@ -23,7 +23,7 @@ export default function MoreHub() {
     { label: 'Library', icon: BookOpen, color: 'bg-teal-500', to: '/library' },
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
-    { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
+    ...(isSchoolMember(profile) ? [{ label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' }] : []),
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
@@ -73,4 +73,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-    }
+      }
