@@ -111,7 +111,7 @@ export function AnnouncementCard({ body, media, expiresAt, className = '' }) {
             Schoolink <MetaBadge size={17} />
           </p>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
-            Update{expiresAt ? ` · ${timeLeft(expiresAt)}` : ''}
+           Announcement{expiresAt ? ` · ${timeLeft(expiresAt)}` : ''}
           </p>
         </div>
       </div>
@@ -138,7 +138,7 @@ export default function SiteAnnouncements() {
   if (items.length === 0) return null
 
   return (
-    <div className="px-4 pt-4 space-y-3">
+        <div className="space-y-3">
       {items.map((a) => (
         <AnnouncementCard key={a.id} body={a.body} media={a.media} expiresAt={a.expires_at} />
       ))}
