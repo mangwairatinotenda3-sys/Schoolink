@@ -16,9 +16,9 @@ function sizeLabel(bytes) {
 }
 
 // Owner only: post an update (text, photos, videos with sound, files) that every
-// user sees at the top of Home for 48 hours.
+// user sees in the Home feed, first, for 48 hours.
 export default function ControllerAnnounce() {
-  const { user } = useAuth()
+  const { profile } = useAuth()
   const photoRef = useRef(null)
   const videoRef = useRef(null)
   const fileRef = useRef(null)
@@ -73,7 +73,8 @@ export default function ControllerAnnounce() {
 
   async function uploadOne(item) {
     const ext = (item.file.name.split('.').pop() || 'bin').toLowerCase()
-    const path = `${user.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    // No account id in the path, so the link never points back to you.
+    const path = `updates/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
     const { error: upErr } = await supabase.storage
       .from(BUCKET)
       .upload(path, item.file, { contentType: item.file.type || undefined })
@@ -127,10 +128,10 @@ export default function ControllerAnnounce() {
   const previewMedia = picked.map((p) => ({ type: p.kind, url: p.previewUrl, name: p.file.name }))
   const canPost = !busy && (text.trim() || picked.length > 0)
 
-    return (
+  return (
     <ControllerShell title="Post an Update" allow={['owner']}>
       <p className="text-xs mb-3" style={{ color: ctl.muted }}>
-        Your update shows at the very top of Home for everyone, from "Schoolink", and disappears after 48 hours.
+        Your update shows in the Home feed for everyone, first, from "Schoolink", and disappears after 48 hours.
       </p>
 
       <textarea
@@ -194,7 +195,7 @@ export default function ControllerAnnounce() {
       {text.trim() || picked.length > 0 ? (
         <div className="mt-4">
           <p className="text-xs mb-1" style={{ color: ctl.muted }}>Preview</p>
-          <AnnouncementCard body={text.trim()} media={previewMedia} />
+          <AnnouncementCard body={text.trim()} media={previewMedia} avatarUrl={profile?.avatar_url} />
         </div>
       ) : null}
 
@@ -242,4 +243,4 @@ export default function ControllerAnnounce() {
       )}
     </ControllerShell>
   )
-  }
+    }
