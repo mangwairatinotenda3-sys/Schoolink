@@ -17,7 +17,7 @@ const tiles = [
 
 export default function ControllerHome() {
   const navigate = useNavigate()
-  const { user, teamRole, signOut } = useAuth()
+  const { user, profile, teamRole, signOut } = useAuth()
   const [stats, setStats] = useState(null)
 
   useEffect(() => {
@@ -97,26 +97,35 @@ export default function ControllerHome() {
             </div>
           </div>
 
-                    {/* signed-in card */}
-          <div
-            className="flex items-center gap-3 mt-5"
+                    {/* signed-in card: tap to open your profile */}
+          <button
+            onClick={() => navigate('/controller/profile')}
+            className="flex items-center gap-3 mt-5 w-full text-left"
             style={{
               borderRadius: 18, padding: 14,
               background: 'linear-gradient(135deg, rgba(79,70,229,0.55), rgba(30,27,107,0.75))',
               border: '1px solid rgba(129,140,248,0.55)',
             }}
           >
-            <span
-              style={{
-                width: 56, height: 56, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', color: '#fff', flexShrink: 0,
-              }}
-            >
-              <User size={28} />
-            </span>
-            <div className="flex-1 min-w-0">
-              <p style={{ fontSize: 10.5, letterSpacing: 0.6, color: '#C7D2FE' }}>SIGNED IN AS</p>
-              <p className="truncate" style={{ fontSize: 17, fontWeight: 700, color: '#fff' }}>{user?.email}</p>
+            {profile?.avatar_url ? (
+              <img
+                src={profile.avatar_url}
+                alt=""
+                style={{ width: 56, height: 56, borderRadius: 999, objectFit: 'cover', flexShrink: 0 }}
+              />
+            ) : (
+              <span
+                style={{
+                  width: 56, height: 56, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', color: '#fff', flexShrink: 0,
+                }}
+              >
+                <User size={28} />
+              </span>
+            )}
+            <span className="flex-1 min-w-0">
+              <span style={{ display: 'block', fontSize: 10.5, letterSpacing: 0.6, color: '#C7D2FE' }}>SIGNED IN AS</span>
+              <span className="truncate" style={{ display: 'block', fontSize: 17, fontWeight: 700, color: '#fff' }}>{user?.email}</span>
               <span
                 className="inline-flex items-center gap-1"
                 style={{ marginTop: 6, padding: '3px 10px', borderRadius: 999, fontSize: 11.5, background: '#5B4BFF', color: '#fff' }}
@@ -124,9 +133,9 @@ export default function ControllerHome() {
                 {teamRole === 'owner' ? <Crown size={12} /> : <ShieldCheck size={12} />}
                 {ROLE_LABELS[teamRole] || teamRole}
               </span>
-            </div>
+            </span>
             <ChevronRight size={20} style={{ color: '#C7D2FE' }} />
-          </div>
+          </button>
 
           {/* tiles */}
           <div className="grid grid-cols-2 gap-3 mt-4">
@@ -206,4 +215,4 @@ export default function ControllerHome() {
       </div>
     </ControllerShell>
   )
-      }
+          }
