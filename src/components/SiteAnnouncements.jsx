@@ -89,29 +89,38 @@ function MediaBlock({ media }) {
       ) : null}
     </div>
   )
-}
+              }
 
 // One update from the Schoolink team. The name is NOT clickable on purpose:
 // nobody can open a profile from it. Inline colours keep it the same in every theme.
-export function AnnouncementCard({ body, media, expiresAt, className = '' }) {
+export function AnnouncementCard({ body, media, expiresAt, avatarUrl, className = '' }) {
   return (
     <div
       className={`rounded-2xl p-4 ${className}`}
       style={{ background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: '#fff' }}
     >
       <div className="flex items-center gap-3 select-none" style={{ pointerEvents: 'none' }}>
-        <span
-          className="flex items-center justify-center shrink-0"
-          style={{ width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,0.2)' }}
-        >
-          <GraduationCap size={22} color="#fff" />
-        </span>
+        {avatarUrl ? (
+          <img
+            src={avatarUrl}
+            alt=""
+            className="shrink-0"
+            style={{ width: 40, height: 40, borderRadius: 999, objectFit: 'cover', background: 'rgba(255,255,255,0.2)' }}
+          />
+        ) : (
+          <span
+            className="flex items-center justify-center shrink-0"
+            style={{ width: 40, height: 40, borderRadius: 999, background: 'rgba(255,255,255,0.2)' }}
+          >
+            <GraduationCap size={22} color="#fff" />
+          </span>
+        )}
         <div className="min-w-0">
           <p className="flex items-center gap-1.5 font-semibold" style={{ color: '#fff' }}>
             Schoolink <MetaBadge size={17} />
           </p>
           <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.8)' }}>
-           Announcement{expiresAt ? ` · ${timeLeft(expiresAt)}` : ''}
+            Announcement{expiresAt ? ` · ${timeLeft(expiresAt)}` : ''}
           </p>
         </div>
       </div>
@@ -121,11 +130,13 @@ export function AnnouncementCard({ body, media, expiresAt, className = '' }) {
   )
 }
 
-// Shown at the very top of Home, for everybody, while an update is still live (48 hours).
+// Shown in the feed, first, for everybody, while an update is still live (48 hours).
 export default function SiteAnnouncements() {
   const [items, setItems] = useState([])
+  const [avatarUrl, setAvatarUrl] = useState('')
 
   useEffect(() => {
+    supabase.rpc('site_announcement_avatar').then(({ data }) => setAvatarUrl(data || ''))
     supabase
       .from('site_announcements')
       .select('id, body, media, expires_at')
@@ -138,10 +149,10 @@ export default function SiteAnnouncements() {
   if (items.length === 0) return null
 
   return (
-        <div className="space-y-3">
+    <div className="space-y-3">
       {items.map((a) => (
-        <AnnouncementCard key={a.id} body={a.body} media={a.media} expiresAt={a.expires_at} />
+        <AnnouncementCard key={a.id} body={a.body} media={a.media} expiresAt={a.expires_at} avatarUrl={avatarUrl} />
       ))}
     </div>
   )
-    }
+              }
