@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { setGuestMode } from '../lib/guestShield.js'
 
 const AuthContext = createContext(null)
 
@@ -10,6 +11,9 @@ export function AuthProvider({ children }) {
   const [teamRole, setTeamRole] = useState(null)
   const [teamLoading, setTeamLoading] = useState(true)
   const userId = session?.user?.id ?? null
+  // Guests are anonymous accounts ("Continue as Guest"). They can browse but not change anything.
+  const isGuest = !!session?.user?.is_anonymous
+  setGuestMode(isGuest)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,7 +69,7 @@ export function AuthProvider({ children }) {
 
   async function logLogin(userId, method) {
     await supabase.from('login_history').insert({ user_id: userId, method })
-  }
+    }
 
   async function signInWithPassword(email, password) {
     const result = await supabase.auth.signInWithPassword({ email, password })
@@ -139,6 +143,7 @@ export function AuthProvider({ children }) {
     user: session?.user ?? null,
     profile,
     loading,
+    isGuest,
     teamRole,
     teamLoading,
     refreshTeamRole,
@@ -157,4 +162,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-  }
+        }
