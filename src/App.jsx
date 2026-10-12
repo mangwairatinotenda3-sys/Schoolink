@@ -1,102 +1,131 @@
+import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 
 import Welcome from './pages/Welcome.jsx'
-import JoinByLink from './pages/JoinByLink.jsx'
 
-import ForgotPassword from './pages/ForgotPassword.jsx'
-import ResetPassword from './pages/ResetPassword.jsx'
-import TermsOfService from './pages/TermsOfService.jsx'
-import PrivacyPolicy from './pages/PrivacyPolicy.jsx'
-import AccountType from './pages/AccountType.jsx'
-import CreateSchool from './pages/CreateSchool.jsx'
-import JoinSchool from './pages/JoinSchool.jsx'
-import JoinAsStudent from './pages/JoinAsStudent.jsx'
-import SelectAlumniSchool from './pages/SelectAlumniSchool.jsx'
-import InviteMember from './pages/InviteMember.jsx'
-import ReportsQueue from './pages/ReportsQueue.jsx'
-import StaffDirectory from './pages/StaffDirectory.jsx'
-import PendingApprovals from './pages/PendingApprovals.jsx'
-import SchoolProfile from './pages/SchoolProfile.jsx'
-import BrowseSchools from './pages/BrowseSchools.jsx'
-import EditProfileDetails from './pages/EditProfileDetails.jsx'
-import Library from './pages/Library.jsx'
-import DocumentViewerPage from './pages/DocumentViewerPage.jsx'
-import ChatList from './pages/ChatList.jsx'
-import ChatThread from './pages/ChatThread.jsx'
-import ChatOptions from './pages/ChatOptions.jsx'
-import NewChatPicker from './pages/NewChatPicker.jsx'
-import CreateGroupFromChat from './pages/CreateGroupFromChat.jsx'
-import Communities from './pages/Communities.jsx'
-import CreateCommunity from './pages/CreateCommunity.jsx'
-import CommunityJoinRequests from './pages/CommunityJoinRequests.jsx'
-import CommunityGroupInfo from './pages/CommunityGroupInfo.jsx'
-import CommunityMedia from './pages/CommunityMedia.jsx'
-import JoinCommunityByInvite from './pages/JoinCommunityByInvite.jsx'
-import CommunityDetail from './pages/CommunityDetail.jsx'
-import BursarDashboard from './pages/BursarDashboard.jsx'
-import CoachDashboard from './pages/CoachDashboard.jsx'
-import ICTDashboard from './pages/ICTDashboard.jsx'
-import Calendar from './pages/Calendar.jsx'
-import CreateEvent from './pages/CreateEvent.jsx'
-import Assignments from './pages/Assignments.jsx'
-import Timetable from './pages/Timetable.jsx'
-import AccountSettings from './pages/AccountSettings.jsx'
-import PrivacySettings from './pages/PrivacySettings.jsx'
-import NotificationSettings from './pages/NotificationSettings.jsx'
-import AccessibilitySettings from './pages/AccessibilitySettings.jsx'
-import ChatAppearanceSettings from './pages/ChatAppearanceSettings.jsx'
-import LanguageSettings from './pages/LanguageSettings.jsx'
-import StorageSettings from './pages/StorageSettings.jsx'
-import HelpSettings from './pages/HelpSettings.jsx'
-import UpdatesSettings from './pages/UpdatesSettings.jsx'
-import BlockedUsers from './pages/BlockedUsers.jsx'
-import StarredMessages from './pages/StarredMessages.jsx'
-import FavouriteChats from './pages/FavouriteChats.jsx'
-import LoginHistory from './pages/LoginHistory.jsx'
-import TwoFactorSettings from './pages/TwoFactorSettings.jsx'
-import GetVerified from './pages/GetVerified.jsx'
-import AdminVerification from './pages/AdminVerification.jsx'
-import GetSchoolVerified from './pages/GetSchoolVerified.jsx'
-import PostDetail from './pages/PostDetail.jsx'
-import MyPosts from './pages/MyPosts.jsx'
-import Connections from './pages/Connections.jsx'
-import Polls from './pages/Polls.jsx'
-import AlumniDirectory from './pages/AlumniDirectory.jsx'
-import AboutSchoolink from './pages/AboutSchoolink.jsx'
-import Achievements from './pages/Achievements.jsx'
-import CounsellingDashboard from './pages/CounsellingDashboard.jsx'
-import ReceptionistDashboard from './pages/ReceptionistDashboard.jsx'
-import MoreHub from './pages/MoreHub.jsx'
-import CreateStatus from './pages/CreateStatus.jsx'
-import StatusViewer from './pages/StatusViewer.jsx'
-import UnifiedSearch from './pages/UnifiedSearch.jsx'
-import SendProposal from './pages/SendProposal.jsx'
-import ViewProposals from './pages/ViewProposals.jsx'
-import ExamResults from './pages/ExamResults.jsx'
-import PublicProfile from './pages/PublicProfile.jsx'
-import Home from './pages/Home.jsx'
-import Profile from './pages/Profile.jsx'
-import Settings from './pages/Settings.jsx'
-import Saved from './pages/Saved.jsx'
-import Notifications from './pages/Notifications.jsx'
-import AddPost from './pages/AddPost.jsx'
-import Dashboard from './pages/Dashboard.jsx'
+const Home = lazyPage(() => import('./pages/Home.jsx'))
 import TranslateBanner from './components/TranslateBanner.jsx'
 import TeamInvitePrompt from './components/TeamInvitePrompt.jsx'
 import GuestPrompt from './components/GuestPrompt.jsx'
 import GuestWall from './components/GuestWall.jsx'
 import GuestProfileView from './components/GuestProfileView.jsx'
 import { guestCanOpen } from './lib/guestShield.js'
-import TeamInvite from './pages/TeamInvite.jsx'
-import ControllerHome from './pages/ControllerHome.jsx'
-import ControllerTeam from './pages/ControllerTeam.jsx'
-import ControllerReports from './pages/ControllerReports.jsx'
-import ControllerComplaints from './pages/ControllerComplaints.jsx'
-import ControllerUsers from './pages/ControllerUsers.jsx'
-import ControllerActivity from './pages/ControllerActivity.jsx'
-import ControllerAnnounce from './pages/ControllerAnnounce.jsx'
-import ControllerProfile from './pages/ControllerProfile.jsx'
+
+// Pages load only when someone opens them, so the app starts much faster.
+// If a new version was published while the app was open, the old page file is gone:
+// reload once to pick up the new version.
+function lazyPage(loader) {
+  return lazy(() =>
+    loader()
+      .then((mod) => {
+        try { sessionStorage.removeItem('schoolink_chunk_reload') } catch { /* ignore */ }
+        return mod
+      })
+      .catch((err) => {
+        let already = true
+        try { already = !!sessionStorage.getItem('schoolink_chunk_reload') } catch { /* ignore */ }
+        if (!already) {
+          try { sessionStorage.setItem('schoolink_chunk_reload', '1') } catch { /* ignore */ }
+          window.location.reload()
+          return new Promise(() => {})
+        }
+        throw err
+      })
+  )
+}
+
+function PageLoading() {
+  return <div className="app-shell flex items-center justify-center text-gray-400">Loading…</div>
+}
+
+const JoinByLink = lazyPage(() => import('./pages/JoinByLink.jsx'))
+const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'))
+const ResetPassword = lazyPage(() => import('./pages/ResetPassword.jsx'))
+const TermsOfService = lazyPage(() => import('./pages/TermsOfService.jsx'))
+const PrivacyPolicy = lazyPage(() => import('./pages/PrivacyPolicy.jsx'))
+const AccountType = lazyPage(() => import('./pages/AccountType.jsx'))
+const CreateSchool = lazyPage(() => import('./pages/CreateSchool.jsx'))
+const JoinSchool = lazyPage(() => import('./pages/JoinSchool.jsx'))
+const JoinAsStudent = lazyPage(() => import('./pages/JoinAsStudent.jsx'))
+const SelectAlumniSchool = lazyPage(() => import('./pages/SelectAlumniSchool.jsx'))
+const InviteMember = lazyPage(() => import('./pages/InviteMember.jsx'))
+const ReportsQueue = lazyPage(() => import('./pages/ReportsQueue.jsx'))
+const StaffDirectory = lazyPage(() => import('./pages/StaffDirectory.jsx'))
+const PendingApprovals = lazyPage(() => import('./pages/PendingApprovals.jsx'))
+const SchoolProfile = lazyPage(() => import('./pages/SchoolProfile.jsx'))
+const BrowseSchools = lazyPage(() => import('./pages/BrowseSchools.jsx'))
+const EditProfileDetails = lazyPage(() => import('./pages/EditProfileDetails.jsx'))
+const Library = lazyPage(() => import('./pages/Library.jsx'))
+const DocumentViewerPage = lazyPage(() => import('./pages/DocumentViewerPage.jsx'))
+const ChatList = lazyPage(() => import('./pages/ChatList.jsx'))
+const ChatThread = lazyPage(() => import('./pages/ChatThread.jsx'))
+const ChatOptions = lazyPage(() => import('./pages/ChatOptions.jsx'))
+const NewChatPicker = lazyPage(() => import('./pages/NewChatPicker.jsx'))
+const CreateGroupFromChat = lazyPage(() => import('./pages/CreateGroupFromChat.jsx'))
+const Communities = lazyPage(() => import('./pages/Communities.jsx'))
+const CreateCommunity = lazyPage(() => import('./pages/CreateCommunity.jsx'))
+const CommunityJoinRequests = lazyPage(() => import('./pages/CommunityJoinRequests.jsx'))
+const CommunityGroupInfo = lazyPage(() => import('./pages/CommunityGroupInfo.jsx'))
+const CommunityMedia = lazyPage(() => import('./pages/CommunityMedia.jsx'))
+const JoinCommunityByInvite = lazyPage(() => import('./pages/JoinCommunityByInvite.jsx'))
+const CommunityDetail = lazyPage(() => import('./pages/CommunityDetail.jsx'))
+const BursarDashboard = lazyPage(() => import('./pages/BursarDashboard.jsx'))
+const CoachDashboard = lazyPage(() => import('./pages/CoachDashboard.jsx'))
+const ICTDashboard = lazyPage(() => import('./pages/ICTDashboard.jsx'))
+const Calendar = lazyPage(() => import('./pages/Calendar.jsx'))
+const CreateEvent = lazyPage(() => import('./pages/CreateEvent.jsx'))
+const Assignments = lazyPage(() => import('./pages/Assignments.jsx'))
+const Timetable = lazyPage(() => import('./pages/Timetable.jsx'))
+const AccountSettings = lazyPage(() => import('./pages/AccountSettings.jsx'))
+const PrivacySettings = lazyPage(() => import('./pages/PrivacySettings.jsx'))
+const NotificationSettings = lazyPage(() => import('./pages/NotificationSettings.jsx'))
+const AccessibilitySettings = lazyPage(() => import('./pages/AccessibilitySettings.jsx'))
+const ChatAppearanceSettings = lazyPage(() => import('./pages/ChatAppearanceSettings.jsx'))
+const LanguageSettings = lazyPage(() => import('./pages/LanguageSettings.jsx'))
+const StorageSettings = lazyPage(() => import('./pages/StorageSettings.jsx'))
+const HelpSettings = lazyPage(() => import('./pages/HelpSettings.jsx'))
+const UpdatesSettings = lazyPage(() => import('./pages/UpdatesSettings.jsx'))
+const BlockedUsers = lazyPage(() => import('./pages/BlockedUsers.jsx'))
+const StarredMessages = lazyPage(() => import('./pages/StarredMessages.jsx'))
+const FavouriteChats = lazyPage(() => import('./pages/FavouriteChats.jsx'))
+const LoginHistory = lazyPage(() => import('./pages/LoginHistory.jsx'))
+const TwoFactorSettings = lazyPage(() => import('./pages/TwoFactorSettings.jsx'))
+const GetVerified = lazyPage(() => import('./pages/GetVerified.jsx'))
+const AdminVerification = lazyPage(() => import('./pages/AdminVerification.jsx'))
+const GetSchoolVerified = lazyPage(() => import('./pages/GetSchoolVerified.jsx'))
+const PostDetail = lazyPage(() => import('./pages/PostDetail.jsx'))
+const MyPosts = lazyPage(() => import('./pages/MyPosts.jsx'))
+const Connections = lazyPage(() => import('./pages/Connections.jsx'))
+const Polls = lazyPage(() => import('./pages/Polls.jsx'))
+const AlumniDirectory = lazyPage(() => import('./pages/AlumniDirectory.jsx'))
+const AboutSchoolink = lazyPage(() => import('./pages/AboutSchoolink.jsx'))
+const Achievements = lazyPage(() => import('./pages/Achievements.jsx'))
+const CounsellingDashboard = lazyPage(() => import('./pages/CounsellingDashboard.jsx'))
+const ReceptionistDashboard = lazyPage(() => import('./pages/ReceptionistDashboard.jsx'))
+const MoreHub = lazyPage(() => import('./pages/MoreHub.jsx'))
+const CreateStatus = lazyPage(() => import('./pages/CreateStatus.jsx'))
+const StatusViewer = lazyPage(() => import('./pages/StatusViewer.jsx'))
+const UnifiedSearch = lazyPage(() => import('./pages/UnifiedSearch.jsx'))
+const SendProposal = lazyPage(() => import('./pages/SendProposal.jsx'))
+const ViewProposals = lazyPage(() => import('./pages/ViewProposals.jsx'))
+const ExamResults = lazyPage(() => import('./pages/ExamResults.jsx'))
+const PublicProfile = lazyPage(() => import('./pages/PublicProfile.jsx'))
+const Profile = lazyPage(() => import('./pages/Profile.jsx'))
+const Settings = lazyPage(() => import('./pages/Settings.jsx'))
+const Saved = lazyPage(() => import('./pages/Saved.jsx'))
+const Notifications = lazyPage(() => import('./pages/Notifications.jsx'))
+const AddPost = lazyPage(() => import('./pages/AddPost.jsx'))
+const Dashboard = lazyPage(() => import('./pages/Dashboard.jsx'))
+const TeamInvite = lazyPage(() => import('./pages/TeamInvite.jsx'))
+const ControllerHome = lazyPage(() => import('./pages/ControllerHome.jsx'))
+const ControllerTeam = lazyPage(() => import('./pages/ControllerTeam.jsx'))
+const ControllerReports = lazyPage(() => import('./pages/ControllerReports.jsx'))
+const ControllerComplaints = lazyPage(() => import('./pages/ControllerComplaints.jsx'))
+const ControllerUsers = lazyPage(() => import('./pages/ControllerUsers.jsx'))
+const ControllerActivity = lazyPage(() => import('./pages/ControllerActivity.jsx'))
+const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx'))
+const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -153,6 +182,7 @@ export default function App() {
       <TranslateBanner />
       <GuestPrompt />
       {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
+      <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/" element={<Welcome />} />
         <Route path="/join/:code" element={<JoinByLink />} />
@@ -258,6 +288,7 @@ export default function App() {
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </Suspense>
     </div>
   )
-        }
+      }
