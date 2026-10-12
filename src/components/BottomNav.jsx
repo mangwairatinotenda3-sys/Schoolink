@@ -4,6 +4,7 @@ import { useUnreadCount } from '../lib/useUnreadCount.js'
 import { useTranslation } from '../lib/i18n.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canPost } from '../lib/permissions.js'
+import OnboardingTour from './OnboardingTour.jsx'
 
 // Dark bottom bar with a raised round "+" button in the middle.
 // Colours are inline so the bar looks the same in every theme.
@@ -63,32 +64,8 @@ export default function BottomNav() {
   }
 
   return (
+    <>
     <nav style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30 }}>
-      {showPost ? (
-        <>
-          {/* the curved cradle behind the + button */}
-          <div
-            style={{
-              position: 'absolute', left: '50%', top: -34, transform: 'translateX(-50%)',
-              width: 96, height: 96, borderRadius: 999, background: BAR,
-              borderTop: '1px solid rgba(139,92,246,0.55)',
-            }}
-          />
-          <NavLink
-            to="/add-post"
-            aria-label={t('post')}
-            style={{
-              position: 'absolute', left: '50%', top: -26, transform: 'translateX(-50%)',
-              width: 64, height: 64, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: 'linear-gradient(135deg, #4F46E5, #7C3AED)', color: '#fff',
-              border: '3px solid rgba(255,255,255,0.85)', boxShadow: '0 0 22px rgba(124,58,237,0.75)',
-            }}
-          >
-            <Plus size={32} />
-          </NavLink>
-        </>
-      ) : null}
-
       <div
         style={{
           position: 'relative', height: 70, display: 'flex', alignItems: 'center', padding: '0 8px',
@@ -98,9 +75,26 @@ export default function BottomNav() {
         }}
       >
         {left.map((item) => <Tab key={item.to} {...item} />)}
-        {showPost ? <div style={{ width: 84, flexShrink: 0 }} /> : null}
+        {showPost ? (
+          <div style={{ width: 84, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+            <NavLink
+              to="/add-post"
+              aria-label={t('post')}
+              style={{
+                width: 62, height: 62, marginTop: -34, borderRadius: 999, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'linear-gradient(135deg, #6D4DFF, #8B5CF6)', color: '#fff',
+                border: `5px solid ${BAR}`, boxShadow: '0 0 20px rgba(124,92,255,0.8)',
+              }}
+            >
+              <Plus size={32} strokeWidth={2.75} color="#fff" />
+            </NavLink>
+          </div>
+        ) : null}
         {right.map((item) => <Tab key={item.to} {...item} />)}
       </div>
     </nav>
+    <OnboardingTour />
+    </>
   )
-}
+  }
