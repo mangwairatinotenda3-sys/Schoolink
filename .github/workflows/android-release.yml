@@ -1,0 +1,136 @@
+name: Build signed Android release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - run: npm install
+
+      - run: npm run build
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      - name: Create Android project if missing
+        run: |
+          if [ ! -d "android" ]; then
+            npx cap add android
+          fi
+
+      - name: Use the Schoolink logo as the app icon and opening screen
+        run: |
+          npm install --no-save sharp @capacitor/assets
+          mkdir -p assets
+          cat > make-android-icons.mjs <<'EOF'
+          import sharp from 'sharp'
+          const BG = '#6C4CE0'
+          const GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          function art(scale, background, rx) {
+            const t = `translate(${256 - 256 * scale} ${256 - 256 * scale}) scale(${scale})`
+            const bg = background ? `<rect width="512" height="512" rx="${rx}" fill="${BG}"/>` : ''
+            return Buffer.from(
+              `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">${bg}<g transform="${t}"><path fill="#fff" d="${GLYPH}"/></g></svg>`
+            )
+          }
+          const glyph = `<path fill="#fff" d="${GLYPH}"/>`
+          const splash = Buffer.from(
+            `<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">` +
+              `<rect width="2732" height="2732" fill="#FFFFFF"/>` +
+              `<g transform="translate(1046 950) scale(1.25)"><rect width="512" height="512" rx="96" fill="${BG}"/>${glyph}</g>` +
+              `<text x="1366" y="1790" text-anchor="middle" font-family="Helvetica, Arial, DejaVu Sans, sans-serif" font-size="170" font-weight="700" fill="#241B4E">Schoolink</text>` +
+              `</svg>`
+          )
+          const jobs = [
+            ['assets/icon-only.png', art(0.8, true, 96), 1024],
+            ['assets/icon-foreground.png', art(0.55, false, 0), 1024],
+            ['assets/icon-background.png', Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" fill="${BG}"/></svg>`), 1024],
+            ['assets/splash.png', splash, 2732],
+            ['assets/splash-dark.png', splash, 2732],
+          ]
+          for (const [file, input, size] of jobs) {
+            const density = size === 2732 ? 72 : Math.ceil((72 * size) / 512)
+            await sharp(input, { density }).resize(size, size).png().toFile(file)
+            console.log('made', file)
+          }
+          EOF
+          node make-android-icons.mjs
+          npx capacitor-assets generate --android
+
+      - name: Let the app catch the Google sign-in link
+        run: |
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          if 'com.schoolink.app' not in s:
+              link = '''
+              <intent-filter>
+                  <action android:name="android.intent.action.VIEW" />
+                  <category android:name="android.intent.category.DEFAULT" />
+                  <category android:name="android.intent.category.BROWSABLE" />
+                  <data android:scheme="com.schoolink.app" android:host="auth" />
+              </intent-filter>
+              '''
+              s = s.replace('</activity>', link + '\n        </activity>', 1)
+              open(p, 'w').write(s)
+          PY
+
+      - name: Set up signing and the version number
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          RUN_NUMBER: ${{ github.run_number }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/schoolink.jks"
+          python3 - <<'PY'
+          import os, re
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          s = re.sub(r'versionCode \d+', 'versionCode ' + os.environ['RUN_NUMBER'], s, count=1)
+          i = s.index('buildTypes')
+          j = s.index('release {', i)
+          s = s[:j] + 'release {\n            signingConfig signingConfigs.release' + s[j + len('release {'):]
+          signing = '''signingConfigs {
+                  release {
+                      storeFile file(System.getenv('KEYSTORE_PATH'))
+                      storePassword System.getenv('KEYSTORE_PASSWORD')
+                      keyAlias System.getenv('KEY_ALIAS')
+                      keyPassword System.getenv('KEY_PASSWORD')
+                  }
+              }
+              '''
+          s = re.sub(r'^(\s*)buildTypes \{', lambda m: m.group(1) + signing + m.group(1) + 'buildTypes {', s, count=1, flags=re.M)
+          open(p, 'w').write(s)
+          PY
+
+      - run: npx cap sync android
+
+      - name: Build the signed release
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/schoolink.jks
+          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease assembleRelease
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: schoolink-android-release
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/release/app-release.apk
