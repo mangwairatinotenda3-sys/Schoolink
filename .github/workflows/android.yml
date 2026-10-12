@@ -93,7 +93,7 @@ jobs:
               print("intent-filter already exists")
           PY
 
-                - name: Turn on push notifications
+      - name: Turn on push notifications
         env:
           GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
         run: |
