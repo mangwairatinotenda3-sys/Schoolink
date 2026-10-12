@@ -1,4 +1,4 @@
-import { Bell, Search, Landmark, FlaskConical, Trophy, Users, GraduationCap, Grid3x3 } from 'lucide-react'
+import { Bell, Search, Menu, Landmark, FlaskConical, Trophy, Users, GraduationCap, Grid3x3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient.js'
@@ -62,7 +62,7 @@ export default function Home() {
 
   return (
     <div className="app-shell">
-      {/* header: soft lavender, logo opens the menu */}
+      {/* header: soft lavender, menu button opens the side menu */}
       <div
         style={{
           position: 'relative', overflow: 'hidden', padding: '16px 16px 14px',
@@ -85,7 +85,7 @@ export default function Home() {
               background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', boxShadow: '0 6px 16px rgba(91,75,255,0.35)',
             }}
           >
-            <GraduationCap size={26} color="#fff" />
+            <Menu size={26} color="#fff" />
           </button>
           <div className="flex-1 min-w-0">
             <h1 style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1, color: ink }}>
@@ -113,7 +113,7 @@ export default function Home() {
         </div>
       </div>
 
-      <div className="screen-scroll" style={dark ? undefined : { background: '#F6F4FF' }}>
+            <div className="screen-scroll" style={dark ? undefined : { background: '#F6F4FF' }}>
         <div className="flex gap-3 px-4 py-4 overflow-x-auto">
           {shortcuts.filter((s) => s.label !== 'Your School' || isSchoolMember(profile)).map(({ label, icon: Icon, color }) => (
             <button
@@ -132,7 +132,7 @@ export default function Home() {
           ))}
         </div>
 
-                {isSchoolMember(profile) && school ? (
+        {isSchoolMember(profile) && school ? (
           <div className="mx-4 rounded-xl border border-gray-100 p-4">
             <p className="font-semibold flex items-center gap-1.5">{school.name}<VerifiedBadge schoolId={school.id} size={16} /></p>
             <p className="text-sm text-gray-500">{school.location}</p>
@@ -165,4 +165,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-}
+          }
