@@ -37,8 +37,20 @@ jobs:
           mkdir -p assets
           cat > make-android-icons.mjs <<'EOF'
           import sharp from 'sharp'
-          const BG = '#6C4CE0'
-          const GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          import fs from 'node:fs'
+          // Colours and shape come from your own public/icon.svg, so changing that file changes the app icon.
+          let BG = '#6C4CE0'
+          let GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          try {
+            const svg = fs.readFileSync('public/icon.svg', 'utf8')
+            const bg = svg.match(/<rect[^>]*fill="([^"]+)"/)
+            const d = svg.match(/<path[^>]*\sd="([^"]+)"/)
+            if (bg) BG = bg[1]
+            if (d) GLYPH = d[1]
+            console.log('Using public/icon.svg', BG)
+          } catch (e) {
+            console.log('public/icon.svg not found, using the built-in logo')
+          }
           function art(scale, background, rx) {
             const t = `translate(${256 - 256 * scale} ${256 - 256 * scale}) scale(${scale})`
             const bg = background ? `<rect width="512" height="512" rx="${rx}" fill="${BG}"/>` : ''
@@ -111,6 +123,56 @@ jobs:
               s = s.replace('<application', '<uses-permission android:name="' + perm + '" />\n    <application', 1)
               open(p, 'w').write(s)
               print("Added notification permission")
+          PY
+
+      - name: Match the website look and sharpen the opening screen
+        run: |
+          python3 - <<'PY'
+          import os, re
+          res = 'android/app/src/main/res'
+          styles_path = res + '/values/styles.xml'
+          styles = open(styles_path).read() if os.path.exists(styles_path) else ''
+
+          # Same colours as the website: status bar matches the website's theme colour.
+          if styles and 'statusBarColor' not in styles:
+              pattern = r'(<style name="AppTheme.NoActionBar"[^>]*>)'
+              if re.search(pattern, styles):
+                  add = '\\1\n        <item name="android:statusBarColor">#241B4E</item>\n        <item name="android:forceDarkAllowed">false</item>'
+                  styles = re.sub(pattern, add, styles, count=1)
+                  open(styles_path, 'w').write(styles)
+                  print("Status bar colour set")
+
+          # Crisp opening screen on Android 12 and newer: a vector logo that stays sharp at any size.
+          bg, glyph = '#6C4CE0', 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          if os.path.exists('public/icon.svg'):
+              svg = open('public/icon.svg').read()
+              m1 = re.search(r'<rect[^>]*fill="([^"]+)"', svg)
+              m2 = re.search(r'<path[^>]*\sd="([^"]+)"', svg)
+              if m1: bg = m1.group(1)
+              if m2: glyph = m2.group(1)
+          if 'AppTheme.NoActionBarLaunch' in styles and 'AppTheme.NoActionBar"' in styles:
+              os.makedirs(res + '/drawable', exist_ok=True)
+              os.makedirs(res + '/values-v31', exist_ok=True)
+              open(res + '/drawable/splash_logo.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+                  '    android:width="288dp" android:height="288dp"\n'
+                  '    android:viewportWidth="512" android:viewportHeight="512">\n'
+                  '  <group android:scaleX="0.85" android:scaleY="0.85" android:pivotX="256" android:pivotY="256">\n'
+                  '    <path android:fillColor="' + bg + '" android:pathData="' + glyph + '"/>\n'
+                  '  </group>\n'
+                  '</vector>\n')
+              open(res + '/values-v31/splash_v31.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<resources>\n'
+                  '    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">\n'
+                  '        <item name="android:windowSplashScreenBackground">#FFFFFF</item>\n'
+                  '        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>\n'
+                  '    </style>\n'
+                  '</resources>\n')
+              print("Sharp opening screen added")
+          else:
+              print("Launch theme not found, skipped the sharp opening screen")
           PY
 
       - run: npx cap sync android
