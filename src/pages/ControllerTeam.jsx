@@ -227,7 +227,7 @@ export default function ControllerTeam() {
       </div>
     </ControllerShell>
   )
-}
+                                  }
 
 // Supabase Edge Function: send-team-invite
 // Emails a team invite. Only the owner can use it, and only for an invite that already exists.
