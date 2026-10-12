@@ -1,4 +1,4 @@
-import { Bell, Menu, Search, Landmark, FlaskConical, Trophy, Users, GraduationCap, Grid3x3 } from 'lucide-react'
+import { Bell, Search, Landmark, FlaskConical, Trophy, Users, GraduationCap, Grid3x3 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient.js'
@@ -57,31 +57,82 @@ export default function Home() {
     if (item?.to) navigate(item.to)
   }
 
+  const dark = !!profile?.dark_mode
+  const ink = dark ? '#FFFFFF' : '#1B1450'
+
   return (
     <div className="app-shell">
-      <div className="bg-brand-navy text-white px-4 pt-4 pb-3 flex items-center justify-between">
-        <button onClick={() => setDrawerOpen(true)}><Menu size={22} /></button>
-        <h1 className="font-bold text-lg">Schoolink</h1>
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/search')}><Search size={20} /></button>
-                    <button onClick={() => navigate('/notifications')} className="relative">
-            <Bell size={20} />
-            {unread > 0 ? <span className="absolute -top-1 -right-1 bg-red-500 rounded-full w-3.5 h-3.5 text-[9px] flex items-center justify-center">{unread > 9 ? '9+' : unread}</span> : null}
+      {/* header: soft lavender, logo opens the menu */}
+      <div
+        style={{
+          position: 'relative', overflow: 'hidden', padding: '16px 16px 14px',
+          background: dark ? '#241B4E' : 'linear-gradient(135deg, #F3EFFF 0%, #E6DEFF 55%, #F6F3FF 100%)',
+        }}
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute', top: -70, right: -50, width: 220, height: 220, borderRadius: 999, pointerEvents: 'none',
+            background: 'radial-gradient(circle, rgba(124,92,255,0.28), rgba(124,92,255,0) 70%)',
+          }}
+        />
+        <div className="flex items-center gap-3" style={{ position: 'relative' }}>
+          <button
+            onClick={() => setDrawerOpen(true)}
+            aria-label="Open menu"
+            style={{
+              width: 46, height: 46, borderRadius: 14, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', boxShadow: '0 6px 16px rgba(91,75,255,0.35)',
+            }}
+          >
+            <GraduationCap size={26} color="#fff" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 style={{ fontSize: 24, fontWeight: 800, lineHeight: 1.1, color: ink }}>
+              School<span style={{ color: '#6D4DFF' }}>ink</span>
+            </h1>
+            <p style={{ fontSize: 12, color: dark ? '#C7D2FE' : '#7A7A99' }}>Connect &nbsp;•&nbsp; Learn &nbsp;•&nbsp; Grow</p>
+          </div>
+          <button onClick={() => navigate('/search')} aria-label="Search" style={{ color: ink, padding: 6 }}>
+            <Search size={22} />
+          </button>
+          <button onClick={() => navigate('/notifications')} aria-label="Notifications" className="relative" style={{ color: ink, padding: 6 }}>
+            <Bell size={22} />
+            {unread > 0 ? (
+              <span
+                style={{
+                  position: 'absolute', top: 0, right: 0, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
+                  background: '#F43F5E', color: '#fff', fontSize: 10, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {unread > 9 ? '9+' : unread}
+              </span>
+            ) : null}
           </button>
         </div>
       </div>
 
-      <div className="screen-scroll">
-        <div className="flex gap-4 px-4 py-4 overflow-x-auto">
+      <div className="screen-scroll" style={dark ? undefined : { background: '#F6F4FF' }}>
+        <div className="flex gap-3 px-4 py-4 overflow-x-auto">
           {shortcuts.filter((s) => s.label !== 'Your School' || isSchoolMember(profile)).map(({ label, icon: Icon, color }) => (
-            <button key={label} onClick={() => handleShortcut(label)} className="flex flex-col items-center gap-1 shrink-0">
-              <span className={`w-14 h-14 rounded-full ${color} flex items-center justify-center`}><Icon size={22} className="text-white" /></span>
-              <span className="text-[11px] text-gray-500 max-w-[56px] text-center">{label}</span>
+            <button
+              key={label}
+              onClick={() => handleShortcut(label)}
+              className="flex flex-col items-center gap-2 shrink-0"
+              style={{
+                width: 78, padding: '12px 6px', borderRadius: 20,
+                background: dark ? 'rgba(255,255,255,0.06)' : '#FFFFFF',
+                boxShadow: dark ? 'none' : '0 4px 14px rgba(90,70,200,0.10)',
+              }}
+            >
+              <span className={`w-12 h-12 rounded-full ${color} flex items-center justify-center`}><Icon size={22} className="text-white" /></span>
+              <span style={{ fontSize: 11.5, fontWeight: 500, lineHeight: 1.2, textAlign: 'center', color: ink }}>{label}</span>
             </button>
           ))}
         </div>
 
-        {isSchoolMember(profile) && school ? (
+                {isSchoolMember(profile) && school ? (
           <div className="mx-4 rounded-xl border border-gray-100 p-4">
             <p className="font-semibold flex items-center gap-1.5">{school.name}<VerifiedBadge schoolId={school.id} size={16} /></p>
             <p className="text-sm text-gray-500">{school.location}</p>
@@ -114,4 +165,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-      }
+}
