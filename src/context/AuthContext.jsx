@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { setGuestMode } from '../lib/guestShield.js'
 import { isNativeApp, signInWithGoogleNative } from '../lib/nativeAuth.js'
+import { registerPush, unregisterPush } from '../lib/push.js'
 
 const AuthContext = createContext(null)
 
@@ -62,6 +63,11 @@ export function AuthProvider({ children }) {
     })
     return () => { cancelled = true }
   }, [userId])
+
+  // In the Android app, ask to send notifications once a real (non-guest) person is signed in.
+  useEffect(() => {
+    if (userId && !isGuest) registerPush(userId)
+  }, [userId, isGuest])
 
   async function refreshTeamRole() {
     const { data, error } = await supabase.rpc('team_role')
@@ -125,6 +131,7 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
+    await unregisterPush()
     return supabase.auth.signOut()
   }
 
@@ -163,4 +170,4 @@ export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used within AuthProvider')
   return ctx
-                             }
+    }
