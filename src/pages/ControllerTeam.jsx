@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Mail, MessageCircle, Copy, Trash2, X } from 'lucide-react'
+import { Mail, MessageCircle, Copy, Trash2, X, Send } from 'lucide-react'
 import ControllerShell, { ctl } from '../components/ControllerShell.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { INVITE_ROLES, ROLE_LABELS, inviteLink, inviteMessage, timeAgo } from '../lib/team.js'
@@ -15,6 +15,8 @@ export default function ControllerTeam() {
   const [error, setError] = useState('')
   const [lastInvite, setLastInvite] = useState(null)
   const [copied, setCopied] = useState(false)
+  const [emailState, setEmailState] = useState(null) // { ok: boolean, text: string }
+  const [resendingId, setResendingId] = useState(null)
 
   useEffect(() => { load() }, [])
 
@@ -27,17 +29,58 @@ export default function ControllerTeam() {
     setInvites(i ?? [])
   }
 
+  // Asks the server to email the invite. The server checks that you are the owner
+  // and that the invite exists, so nobody else can use it to send mail.
+  async function emailInvite(address) {
+    const { data, error: err } = await supabase.functions.invoke('send-team-invite', { body: { email: address } })
+    if (err) {
+      let reason = err.message
+      try {
+        const body = await err.context.json()
+        if (body?.error) reason = body.error
+      } catch {
+        // keep the generic message
+      }
+      return { ok: false, reason }
+    }
+    if (data?.error) return { ok: false, reason: data.error }
+    return { ok: true }
+  }
+
+  async function resendInvite(invite) {
+    setError('')
+    setEmailState(null)
+    setResendingId(invite.id)
+    const result = await emailInvite(invite.email)
+    setResendingId(null)
+    setEmailState(
+      result.ok
+        ? { ok: true, text: `Email sent again to ${invite.email}.` }
+        : { ok: false, text: `The email did not go out: ${result.reason}` }
+    )
+  }
+
   async function sendInvite() {
     setError('')
+    setEmailState(null)
     setLastInvite(null)
     if (!email.trim()) { setError('Enter the email address of the person.'); return }
     setBusy(true)
     const { error: err } = await supabase.rpc('invite_team_member', { p_email: email.trim(), p_role: role })
     setBusy(false)
     if (err) { setError(err.message); return }
-    setLastInvite({ email: email.trim().toLowerCase(), role })
+    const address = email.trim().toLowerCase()
+    setLastInvite({ email: address, role })
     setEmail('')
     load()
+    setBusy(true)
+    const result = await emailInvite(address)
+    setBusy(false)
+    setEmailState(
+      result.ok
+        ? { ok: true, text: `Email sent to ${address}.` }
+        : { ok: false, text: `The invite is saved, but the email did not go out: ${result.reason}` }
+    )
   }
 
   async function cancelInvite(id) {
@@ -107,8 +150,11 @@ export default function ControllerTeam() {
 
         {lastInvite ? (
           <div className="mt-4 rounded-xl p-3" style={{ background: '#0F1526', border: `1px solid ${ctl.border}` }}>
-            <p className="text-xs mb-2" style={{ color: ctl.good }}>
-              Invite created. If they already have an account they'll see it the next time they open Schoolink. You can also send them the link:
+            <p className="text-xs mb-2" style={{ color: emailState && !emailState.ok ? ctl.bad : ctl.good }}>
+              {emailState ? emailState.text : 'Invite created. Sending the email…'}
+            </p>
+            <p className="text-[11px] mb-2" style={{ color: ctl.muted }}>
+              If they already have an account they'll also see the invite next time they open Schoolink. You can send the link yourself too:
             </p>
             <div className="flex gap-2">
               <a href={`https://wa.me/?text=${encodeURIComponent(msg)}`} target="_blank" rel="noreferrer" className="flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-medium" style={{ background: '#16A34A', color: '#fff' }}>
@@ -129,6 +175,9 @@ export default function ControllerTeam() {
       {invites.length > 0 ? (
         <div className="mt-5">
           <p className="text-xs uppercase mb-2" style={{ color: ctl.muted }}>Waiting for an answer</p>
+          {emailState && !lastInvite ? (
+            <p className="text-xs mb-2" style={{ color: emailState.ok ? ctl.good : ctl.bad }}>{emailState.text}</p>
+          ) : null}
           <div className="space-y-2">
             {invites.map((i) => (
               <div key={i.id} className="flex items-center gap-3 rounded-xl p-3" style={{ background: ctl.card, border: `1px solid ${ctl.border}` }}>
@@ -136,6 +185,9 @@ export default function ControllerTeam() {
                   <p className="text-sm truncate">{i.email}</p>
                   <p className="text-[11px]" style={{ color: ctl.muted }}>{ROLE_LABELS[i.role]} · {timeAgo(i.created_at)}</p>
                 </div>
+                <button onClick={() => resendInvite(i)} disabled={resendingId === i.id} title="Email the invite again" className="disabled:opacity-50">
+                  <Send size={16} style={{ color: ctl.accent }} />
+                </button>
                 <button onClick={() => cancelInvite(i.id)} title="Cancel invite"><X size={16} style={{ color: ctl.muted }} /></button>
               </div>
             ))}
@@ -175,4 +227,92 @@ export default function ControllerTeam() {
       </div>
     </ControllerShell>
   )
-               }
+}
+
+// Supabase Edge Function: send-team-invite
+// Emails a team invite. Only the owner can use it, and only for an invite that already exists.
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.4'
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
+
+const ROLE_LABELS: Record<string, string> = {
+  verifier: 'Verifier',
+  moderator: 'Moderator',
+  support: 'Support',
+}
+
+function reply(body: unknown, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...cors, 'Content-Type': 'application/json' },
+  })
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors })
+
+  try {
+    const supabase = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } },
+    })
+
+    // Only the owner may send invites.
+    const { data: myRole } = await supabase.rpc('team_role')
+    if (myRole !== 'owner') return reply({ error: 'Only the owner can send invites.' }, 403)
+
+    const { email } = await req.json()
+    const target = String(email || '').trim().toLowerCase()
+    if (!target) return reply({ error: 'No email address was given.' }, 400)
+
+    // The invite must already exist (created by the owner).
+    const { data: invites, error: listError } = await supabase.rpc('list_team_invites')
+    if (listError) return reply({ error: listError.message }, 400)
+    const invite = (invites ?? []).find((i: { email: string }) => String(i.email).toLowerCase() === target)
+    if (!invite) return reply({ error: 'There is no waiting invite for that email.' }, 400)
+
+    const apiKey = Deno.env.get('BREVO_API_KEY')
+    const fromEmail = Deno.env.get('MAIL_FROM_EMAIL')
+    if (!apiKey || !fromEmail) return reply({ error: 'Email is not set up yet (missing BREVO_API_KEY or MAIL_FROM_EMAIL).' }, 500)
+
+    const fromName = Deno.env.get('MAIL_FROM_NAME') || 'Schoolink'
+    const siteUrl = (Deno.env.get('SITE_URL') || 'https://mangwairatinotenda3-sys.github.io/Schoolink/').replace(/\/?$/, '/')
+    const link = `${siteUrl}#/team/invite`
+    const role = ROLE_LABELS[invite.role] || 'team member'
+
+    const text =
+      `You've been invited to join the Schoolink team as ${role}.\n\n` +
+      `1. Open ${link}\n2. Sign in with ${target}\n3. Tap Accept.\n\n` +
+      `If you weren't expecting this, you can ignore this email.`
+
+    const html =
+      `<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;padding:24px;color:#1B1450">` +
+      `<h2 style="margin:0 0 12px">You're invited to the Schoolink team</h2>` +
+      `<p>You've been invited to join the Schoolink team as <b>${role}</b>.</p>` +
+      `<p>Sign in with <b>${target}</b>, then tap <b>Accept</b>.</p>` +
+      `<p style="margin:24px 0"><a href="${link}" style="background:#6C4CE0;color:#fff;padding:12px 22px;border-radius:10px;text-decoration:none;font-weight:bold">Open Schoolink</a></p>` +
+      `<p style="font-size:12px;color:#7A7A99">If you weren't expecting this, you can ignore this email.</p></div>`
+
+    const sent = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: { 'api-key': apiKey, 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({
+        sender: { name: fromName, email: fromEmail },
+        to: [{ email: target }],
+        subject: 'You are invited to join the Schoolink team',
+        htmlContent: html,
+        textContent: text,
+      }),
+    })
+
+    if (!sent.ok) {
+      const detail = await sent.text()
+      return reply({ error: `The email service said no (${sent.status}). ${detail.slice(0, 160)}` }, 502)
+    }
+    return reply({ ok: true })
+  } catch (err) {
+    return reply({ error: String((err as Error).message || err) }, 500)
+  }
+})
