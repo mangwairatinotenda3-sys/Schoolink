@@ -1,0 +1,33 @@
+name: Create Android signing key (run once)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  key:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Make the signing key
+        run: |
+          PASS=$(openssl rand -hex 12)
+          keytool -genkeypair -v \
+            -keystore schoolink.jks \
+            -alias schoolink \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -storepass "$PASS" -keypass "$PASS" \
+            -dname "CN=Schoolink, O=Schoolink, C=ZW"
+          base64 -w 0 schoolink.jks > keystore-base64.txt
+          printf 'ANDROID_KEYSTORE_PASSWORD=%s\nANDROID_KEY_ALIAS=schoolink\nANDROID_KEY_PASSWORD=%s\n' "$PASS" "$PASS" > secrets-to-add.txt
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: schoolink-signing-key
+          path: |
+            keystore-base64.txt
+            secrets-to-add.txt
+          retention-days: 3
