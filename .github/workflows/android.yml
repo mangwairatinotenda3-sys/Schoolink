@@ -93,6 +93,26 @@ jobs:
               print("intent-filter already exists")
           PY
 
+                - name: Turn on push notifications
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "google-services.json added"
+          else
+            echo "No GOOGLE_SERVICES_JSON secret, building without push notifications"
+          fi
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perm = 'android.permission.POST_NOTIFICATIONS'
+          if perm not in s:
+              s = s.replace('<application', '<uses-permission android:name="' + perm + '" />\n    <application', 1)
+              open(p, 'w').write(s)
+              print("Added notification permission")
+          PY
+
       - run: npx cap sync android
 
       - name: Build the APK
