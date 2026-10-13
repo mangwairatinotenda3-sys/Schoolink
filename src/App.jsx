@@ -8,6 +8,7 @@ const Home = lazyPage(() => import('./pages/Home.jsx'))
 import TranslateBanner from './components/TranslateBanner.jsx'
 import TeamInvitePrompt from './components/TeamInvitePrompt.jsx'
 import GuestPrompt from './components/GuestPrompt.jsx'
+import PermissionsPrompt from './components/PermissionsPrompt.jsx'
 import GuestWall from './components/GuestWall.jsx'
 import GuestProfileView from './components/GuestProfileView.jsx'
 import { guestCanOpen } from './lib/guestShield.js'
@@ -126,7 +127,6 @@ const ControllerUsers = lazyPage(() => import('./pages/ControllerUsers.jsx'))
 const ControllerActivity = lazyPage(() => import('./pages/ControllerActivity.jsx'))
 const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx'))
 const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
-import PermissionsPrompt from './components/PermissionsPrompt.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
