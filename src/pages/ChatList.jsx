@@ -18,6 +18,14 @@ function timeAgo(dateString) {
   return `${Math.floor(hours / 24)}d`
 }
 
+function previewOf(m) {
+  if (m.deleted_at) return 'Message deleted'
+  if (m.media_type === 'image') return '📷 Photo'
+  if (m.media_type === 'audio') return '🎤 Voice message'
+  if (m.media_type === 'file') return `📎 ${m.content || 'File'}`
+  return m.content || '📷 Media'
+}
+
 function Row({ item, navigate, onAvatarTap }) {
   const isOnline = useIsOnline(item.type === 'direct' ? item.id : null)
 
@@ -46,12 +54,16 @@ function Row({ item, navigate, onAvatarTap }) {
           {item.name}
           {item.role ? <span className="ml-1 text-[10px] font-medium bg-brand-light text-brand-purple px-1.5 py-0.5 rounded-full shrink-0">{item.role}</span> : null}
         </p>
-        <p className={`text-xs truncate ${item.unread && !item.muted ? 'text-brand-navy font-medium' : 'text-gray-400'}`}>{item.lastMessage || (item.type === 'community' ? `${item.memberCount ?? 0} members` : '')}</p>
+        <p className={`text-xs truncate ${item.unread && !item.muted ? 'text-brand-navy font-medium' : 'text-gray-400'}`}>{item.lastMessage ? `${item.lastMine ? 'You: ' : ''}${item.lastMessage}` : (item.type === 'community' ? `${item.memberCount ?? 0} members` : '')}</p>
       </button>
 
       <div className="flex flex-col items-end gap-1 shrink-0">
         <span className="text-[10px] text-gray-400">{item.lastTime ? timeAgo(item.lastTime) : ''}</span>
-        {item.unread && !item.muted ? <span className="w-2 h-2 rounded-full bg-brand-purple" /> : null}
+        {item.unread ? (
+          item.unreadCount > 0 ? (
+            <span className={`min-w-[18px] h-[18px] px-1 rounded-full text-white text-[10px] font-semibold flex items-center justify-center ${item.muted ? 'bg-gray-300' : 'bg-brand-purple'}`}>{item.unreadCount > 99 ? '99+' : item.unreadCount}</span>
+          ) : !item.muted ? <span className="w-2 h-2 rounded-full bg-brand-purple" /> : null
+        ) : null}
       </div>
     </div>
   )
@@ -68,12 +80,18 @@ export default function ChatList() {
   const [viewingAvatar, setViewingAvatar] = useState(null)
 
   useEffect(() => {
-    if (!user) return
-    loadAll()
+    if (!user) return undefined
+    loadAll(true)
+    // Refresh quietly when a message arrives, is read, edited or deleted.
+    const channel = supabase
+      .channel(`chatlist-${user.id}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => loadAll(false))
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [user])
 
-  async function loadAll() {
-    setLoading(true)
+  async function loadAll(showSpinner = true) {
+    if (showSpinner) setLoading(true)
 
     const { data: messages } = await supabase
       .from('messages')
@@ -85,7 +103,12 @@ export default function ChatList() {
     for (const m of messages ?? []) {
       const partnerId = m.sender_id === user.id ? m.receiver_id : m.sender_id
       if (!byPartner.has(partnerId)) {
-        byPartner.set(partnerId, { type: 'direct', id: partnerId, lastMessage: m.content || '📷 Media', lastTime: m.created_at, unread: m.receiver_id === user.id && !m.read })
+        byPartner.set(partnerId, { type: 'direct', id: partnerId, lastMessage: previewOf(m), lastMine: m.sender_id === user.id, lastTime: m.created_at, unread: false, unreadCount: 0 })
+      }
+      if (m.receiver_id === user.id && !m.read && !m.deleted_at) {
+        const conv = byPartner.get(partnerId)
+        conv.unreadCount += 1
+        conv.unread = true
       }
     }
 
@@ -126,8 +149,10 @@ export default function ChatList() {
           .gt('created_at', lastRead)
         communityItems.push({
           type: 'community', id: c.id, name: c.name, avatarUrl: c.avatar_url, memberCount: count ?? 0,
-          lastMessage: lastMsg?.content || (lastMsg?.media_type ? '📷 Media' : ''), lastTime: lastMsg?.created_at || c.created_at,
+          lastMessage: lastMsg ? previewOf(lastMsg) : '', lastTime: lastMsg?.created_at || c.created_at,
           unread: (unreadCount ?? 0) > 0,
+          unreadCount: unreadCount ?? 0,
+          lastMine: lastMsg?.sender_id === user.id,
         })
       }
     }
@@ -210,4 +235,4 @@ export default function ChatList() {
       <BottomNav />
     </div>
   )
-                                          }
+        }
