@@ -693,7 +693,7 @@ export default function ChatThread() {
       recorder.start()
       setRecording(true)
     } catch {
-      alert("Couldn't access microphone. Check your browser permissions.")
+       alert("The microphone is turned off for Schoolink. Open your phone's Settings → Apps → Schoolink → Permissions → Microphone and allow it, then try again.")
     }
   }
 
