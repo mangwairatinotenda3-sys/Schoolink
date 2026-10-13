@@ -126,6 +126,7 @@ const ControllerUsers = lazyPage(() => import('./pages/ControllerUsers.jsx'))
 const ControllerActivity = lazyPage(() => import('./pages/ControllerActivity.jsx'))
 const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx'))
 const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
+import PermissionsPrompt from './components/PermissionsPrompt.jsx'
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -180,6 +181,7 @@ export default function App() {
   return (
     <div className={shellClasses}>
       <TranslateBanner />
+        <PermissionsPrompt />
       <GuestPrompt />
       {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
       <Suspense fallback={<PageLoading />}>
@@ -249,7 +251,7 @@ export default function App() {
         <Route path="/settings/verification" element={<RequireAuth><GetVerified /></RequireAuth>} />
         <Route path="/admin/verification" element={<RequireAuth><AdminVerification /></RequireAuth>} />
 
-                <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
+        <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
         <Route path="/my-posts" element={<RequireAuth><MyPosts /></RequireAuth>} />
         <Route path="/connections/:type" element={<RequireAuth><Connections /></RequireAuth>} />
         <Route path="/polls" element={<RequireAuth><Polls /></RequireAuth>} />
