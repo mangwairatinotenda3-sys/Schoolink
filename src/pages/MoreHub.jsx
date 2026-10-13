@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, BarChart3, ClipboardList, Table, BookOpen, Users, GraduationCap,
   Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck, UserPlus,
-    Clock, Bookmark, MessagesSquare, Award, CalendarCheck,
+  Clock, Bookmark, MessagesSquare, Award, CalendarCheck,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -20,7 +20,10 @@ export default function MoreHub() {
     { label: 'Polls', icon: BarChart3, color: 'bg-emerald-500', to: '/polls' },
     { label: 'Assignments', icon: ClipboardList, color: 'bg-orange-500', to: '/assignments' },
     { label: 'Timetable', icon: Table, color: 'bg-purple-500', to: '/timetable' },
-        ...(isSchoolMember(profile) ? [{ label: 'Attendance', icon: CalendarCheck, color: 'bg-green-500', to: '/attendance' }] : []),
+    ...(profile?.account_type === 'parent' || profile?.role === 'Student'
+      ? [{ label: profile?.account_type === 'parent' ? 'My Children' : 'Family', icon: Users, color: 'bg-pink-500', to: '/family' }]
+      : []),
+    ...(isSchoolMember(profile) ? [{ label: 'Attendance', icon: CalendarCheck, color: 'bg-green-500', to: '/attendance' }] : []),
     { label: 'Library', icon: BookOpen, color: 'bg-teal-500', to: '/library' },
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
@@ -74,4 +77,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-      }
+    }
