@@ -7,6 +7,7 @@ import ThemeProvider from './lib/ThemeProvider.jsx'
 import OAuthErrorBanner, { OAUTH_ERROR_KEY } from './components/OAuthErrorBanner.jsx'
 import { supabase } from './lib/supabaseClient'
 import { listenForNativeSignIn } from './lib/nativeAuth.js'
+import { isNativeApp } from './lib/appPermissions.js'
 import './index.css'
 
 // Stop the browser from trying to restore scroll position on refresh —
@@ -56,6 +57,9 @@ function start() {
     </React.StrictMode>
   )
 }
+
+// Inside the phone app, switch on the app-style behaviour (no text selection, no bounce, no zoom).
+if (isNativeApp()) document.documentElement.classList.add('native-app')
 
 // Inside the Android / iPhone app, catch the link Google sends the person back through.
 listenForNativeSignIn()
