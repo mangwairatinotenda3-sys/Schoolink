@@ -170,7 +170,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
               {previewText(repliedTo)}
             </button>
           ) : null}
-          {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls className="max-w-full" /> : null}
+          {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls preload="metadata" className="max-w-full" /> : null}
           {m.media_type === 'image' && m.media_url ? <ChatImage url={m.media_url} autoDownloadMedia={autoDownloadMedia} onOpen={onOpenImage} /> : null}
           {m.media_type === 'file' && m.media_url ? (
             <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
@@ -680,31 +680,46 @@ export default function ChatThread() {
     return () => clearInterval(timer)
   }, [recording])
 
+  // Picks a sound format this phone can record and play back.
+  function pickAudioType() {
+    if (typeof MediaRecorder === 'undefined' || !MediaRecorder.isTypeSupported) return ''
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus']
+    return types.find((t) => MediaRecorder.isTypeSupported(t)) || ''
+  }
+
   async function startRecording() {
+    let stream
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    } catch {
+      alert("The microphone is turned off for Schoolink. Open your phone's Settings → Apps → Schoolink → Permissions → Microphone and allow it, then try again.")
+      return
+    }
+    try {
       streamRef.current = stream
-      const recorder = new MediaRecorder(stream)
+      const type = pickAudioType()
+      const recorder = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream)
       chunksRef.current = []
       cancelRecordingRef.current = false
-      recorder.ondataavailable = (e) => chunksRef.current.push(e.data)
+      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
       recorder.onstop = handleRecordingStop
       mediaRecorderRef.current = recorder
-      recorder.start()
+      recorder.start(250)
       setRecording(true)
     } catch {
-       alert("The microphone is turned off for Schoolink. Open your phone's Settings → Apps → Schoolink → Permissions → Microphone and allow it, then try again.")
+      stream.getTracks().forEach((t) => t.stop())
+      setSendError("This phone couldn't start a voice recording. Try again.")
     }
   }
 
   function stopRecording() {
-    mediaRecorderRef.current?.stop()
+    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop()
     setRecording(false)
   }
 
   function cancelRecording() {
     cancelRecordingRef.current = true
-    mediaRecorderRef.current?.stop()
+    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop()
     setRecording(false)
   }
 
@@ -712,17 +727,26 @@ export default function ChatThread() {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
     if (cancelRecordingRef.current) return
-    const blob = new Blob(chunksRef.current, { type: 'audio/webm' })
-    if (blob.size === 0) return
-    const path = `${user.id}/${Date.now()}.webm`
-    const { error } = await supabase.storage.from('chat-media').upload(path, blob)
+    const base = (mediaRecorderRef.current?.mimeType || 'audio/webm').split(';')[0]
+    const ext = base.includes('mp4') ? 'm4a' : base.includes('ogg') ? 'ogg' : 'webm'
+    const blob = new Blob(chunksRef.current, { type: base })
+    if (blob.size === 0) {
+      setSendError('Nothing was recorded. Hold the phone closer and try again.')
+      return
+    }
+    setUploading(true)
+    const path = `${user.id}/${Date.now()}.${ext}`
+    const { error } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: base })
     if (error) {
+      setUploading(false)
       setSendError("Couldn't send the voice message.")
       return
     }
     const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-    await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio', expire_at: computeExpiry() })
-  }
+    const { error: sendErr } = await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio', expire_at: computeExpiry() })
+    setUploading(false)
+    if (sendErr) setSendError("The voice message was uploaded but couldn't be sent. Try again.")
+      }
 
   async function handleForwardSend(recipientId) {
     if (!forwarding) return
