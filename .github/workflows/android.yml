@@ -125,6 +125,33 @@ jobs:
               print("Added notification permission")
           PY
 
+      - name: Ask the phone for the permissions the app needs
+        run: |
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perms = [
+              '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
+              '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+              '<uses-permission android:name="android.permission.CAMERA" />',
+              '<uses-permission android:name="android.permission.VIBRATE" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
+              '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />',
+              '<uses-feature android:name="android.hardware.camera" android:required="false" />',
+              '<uses-feature android:name="android.hardware.microphone" android:required="false" />',
+          ]
+          added = 0
+          for line in perms:
+              key = line.split('android:name="')[1].split('"')[0]
+              if key not in s:
+                  s = s.replace('<application', line + '\n    <application', 1)
+                  added += 1
+          open(p, 'w').write(s)
+          print("Added", added, "permissions")
+          PY
+
       - name: Match the website look and sharpen the opening screen
         run: |
           python3 - <<'PY'
