@@ -1,6 +1,8 @@
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
+import { supabase } from './lib/supabaseClient.js'
+import { PENDING_INVITE_KEY } from './pages/JoinByLink.jsx'
 
 import Welcome from './pages/Welcome.jsx'
 
@@ -38,6 +40,49 @@ function lazyPage(loader) {
 
 function PageLoading() {
   return <div className="app-shell flex items-center justify-center text-gray-400">Loading…</div>
+}
+
+// The first page. Someone who is already signed in goes straight to Home,
+// so reopening the app never shows the sign-in screen again.
+function RootRoute() {
+  const { user, loading } = useAuth()
+  const [showWelcome, setShowWelcome] = useState(false)
+  const [target, setTarget] = useState(null)
+
+  useEffect(() => {
+    if (loading) return undefined
+    if (!user) {
+      setShowWelcome(true)
+      return undefined
+    }
+    let cancelled = false
+    let pendingInvite = false
+    try {
+      pendingInvite = !!localStorage.getItem(PENDING_INVITE_KEY)
+    } catch {
+      pendingInvite = false
+    }
+    if (pendingInvite) {
+      setShowWelcome(true)
+      return undefined
+    }
+    supabase
+      .from('profiles')
+      .select('account_type')
+      .eq('id', user.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (data?.account_type) setTarget('/home')
+        else if (error) setTarget('/home')
+        else setShowWelcome(true)
+      })
+    return () => { cancelled = true }
+  }, [loading, user])
+
+  if (target) return <Navigate to={target} replace />
+  if (showWelcome) return <Welcome />
+  return <PageLoading />
 }
 
 const JoinByLink = lazyPage(() => import('./pages/JoinByLink.jsx'))
@@ -79,6 +124,7 @@ const CreateEvent = lazyPage(() => import('./pages/CreateEvent.jsx'))
 const Assignments = lazyPage(() => import('./pages/Assignments.jsx'))
 const Timetable = lazyPage(() => import('./pages/Timetable.jsx'))
 const Attendance = lazyPage(() => import('./pages/Attendance.jsx'))
+const FamilyLinks = lazyPage(() => import('./pages/FamilyLinks.jsx'))
 const AccountSettings = lazyPage(() => import('./pages/AccountSettings.jsx'))
 const PrivacySettings = lazyPage(() => import('./pages/PrivacySettings.jsx'))
 const NotificationSettings = lazyPage(() => import('./pages/NotificationSettings.jsx'))
@@ -182,19 +228,19 @@ export default function App() {
   return (
     <div className={shellClasses}>
       <TranslateBanner />
-        <PermissionsPrompt />
+      <PermissionsPrompt />
       <GuestPrompt />
       {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
       <Suspense fallback={<PageLoading />}>
       <Routes>
-        <Route path="/" element={<Welcome />} />
+        <Route path="/" element={<RootRoute />} />
         <Route path="/join/:code" element={<JoinByLink />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
 
-                <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
+        <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
         <Route path="/onboarding/join-school" element={<RequireAuth><JoinSchool /></RequireAuth>} />
         <Route path="/onboarding/join-student" element={<RequireAuth><JoinAsStudent /></RequireAuth>} />
@@ -235,6 +281,7 @@ export default function App() {
         <Route path="/assignments" element={<RequireAuth><Assignments /></RequireAuth>} />
         <Route path="/timetable" element={<RequireAuth><Timetable /></RequireAuth>} />
         <Route path="/attendance" element={<RequireAuth><Attendance /></RequireAuth>} />
+        <Route path="/family" element={<RequireAuth><FamilyLinks /></RequireAuth>} />
 
         <Route path="/settings/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
         <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
@@ -295,4 +342,4 @@ export default function App() {
       </Suspense>
     </div>
   )
-      }
+        }
