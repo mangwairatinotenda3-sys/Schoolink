@@ -202,6 +202,23 @@ jobs:
               print("Launch theme not found, skipped the sharp opening screen")
           PY
 
+      - name: Keep the same app signature so updates keep you signed in
+        env:
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            if keytool -list -keystore ~/.android/debug.keystore -storepass android > /dev/null 2>&1; then
+              echo "Using the saved signing key"
+            else
+              echo "The saved signing key is damaged, using a temporary one instead"
+              rm -f ~/.android/debug.keystore
+            fi
+          else
+            echo "No DEBUG_KEYSTORE_BASE64 secret, using a temporary signing key"
+          fi
+
       - run: npx cap sync android
 
       - name: Build the APK
