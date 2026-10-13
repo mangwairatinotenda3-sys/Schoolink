@@ -154,3 +154,37 @@ body {
 ::-webkit-scrollbar {
   display: none;
   }
+
+/* Inside the phone app it should feel like an app, not a web page. */
+html.native-app,
+html.native-app body {
+  overscroll-behavior: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  touch-action: manipulation;
+}
+
+html.native-app body {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html.native-app input,
+html.native-app textarea,
+html.native-app [contenteditable],
+html.native-app .selectable {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+html.native-app img {
+  -webkit-user-drag: none;
+}
+
+html.native-app * {
+  scrollbar-width: none;
+}
+
+html.native-app *::-webkit-scrollbar {
+  display: none;
+}
