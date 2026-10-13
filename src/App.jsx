@@ -78,6 +78,7 @@ const Calendar = lazyPage(() => import('./pages/Calendar.jsx'))
 const CreateEvent = lazyPage(() => import('./pages/CreateEvent.jsx'))
 const Assignments = lazyPage(() => import('./pages/Assignments.jsx'))
 const Timetable = lazyPage(() => import('./pages/Timetable.jsx'))
+const Attendance = lazyPage(() => import('./pages/Attendance.jsx'))
 const AccountSettings = lazyPage(() => import('./pages/AccountSettings.jsx'))
 const PrivacySettings = lazyPage(() => import('./pages/PrivacySettings.jsx'))
 const NotificationSettings = lazyPage(() => import('./pages/NotificationSettings.jsx'))
@@ -233,6 +234,7 @@ export default function App() {
         <Route path="/calendar/create" element={<RequireAuth><CreateEvent /></RequireAuth>} />
         <Route path="/assignments" element={<RequireAuth><Assignments /></RequireAuth>} />
         <Route path="/timetable" element={<RequireAuth><Timetable /></RequireAuth>} />
+        <Route path="/attendance" element={<RequireAuth><Attendance /></RequireAuth>} />
 
         <Route path="/settings/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
         <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
