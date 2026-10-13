@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <title>Schoolink — Connecting Schools Worldwide</title>
     <meta name="description" content="Schoolink is a social platform connecting schools, staff, students, parents, and alumni. Feed, chat, communities, library, calendar, and school tools — all in one place." />
     <meta name="keywords" content="Schoolink, school app, school social network, school communication platform, student portal, teacher portal, school community app" />
@@ -28,13 +28,22 @@
       .goog-te-banner-frame, .skiptranslate { display: none !important; }
       body { top: 0 !important; }
       #google_translate_element { display: none; }
+
+      /* Shown for a moment while the app loads, so there is never a blank white screen. */
+      #boot { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; background: #fff; }
+      #boot img { width: 96px; height: 96px; border-radius: 22px; box-shadow: 0 10px 30px rgba(108, 76, 224, 0.28); animation: boot-pop 0.7s ease-out both; }
+      #boot b { font: 700 26px/1 Helvetica, Arial, sans-serif; color: #241B4E; animation: boot-fade 0.9s ease-out both; }
+      #boot i { width: 34px; height: 3px; border-radius: 3px; background: #6C4CE0; animation: boot-bar 1.1s ease-in-out infinite alternate; }
+      @keyframes boot-pop { from { opacity: 0; transform: scale(0.85); } to { opacity: 1; transform: scale(1); } }
+      @keyframes boot-fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+      @keyframes boot-bar { from { width: 14px; opacity: 0.4; } to { width: 54px; opacity: 1; } }
     </style>
-    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <link rel="apple-touch-icon" href="icon.svg" />
     <link rel="icon" href="icon.svg" type="image/svg+xml" />
     <meta name="google-site-verification" content="g4VnVcehS-luze252KWrTjTmy0PvzHrajhvJm9zOYrg" />
   </head>
   <body class="bg-brand-light">
-    <div id="root"></div>
+    <div id="root"><div id="boot"><img src="icon.svg" alt="" /><b>Schoolink</b><i></i></div></div>
     <div id="google_translate_element"></div>
     <script type="module" src="/src/main.jsx"></script>
     <script>
@@ -43,5 +52,5 @@
       }
     </script>
     <script src="https://translate.google.com/translate_a/element.js?cb=googleTranslateElementInit"></script>
-      </body>
-      </html>
+  </body>
+</html>
