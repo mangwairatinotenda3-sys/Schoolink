@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { Navigate } from 'react-router-dom'
 import { Check, Search, ChevronDown, ChevronUp, CalendarCheck, Users } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -143,7 +144,7 @@ function MyAttendance({ user }) {
       )}
     </div>
   )
-}
+  }
 
 // ---------------------------------------------------------------- Staff: mark attendance
 function MarkAttendance({ user, profile, students }) {
@@ -542,6 +543,8 @@ export default function Attendance() {
     return () => { cancelled = true }
   }, [profile?.school_id, isStudent])
 
+  if (profile?.account_type === 'parent') return <Navigate to="/family" replace />
+
   if (!profile?.school_id) {
     return (
       <div className="app-shell">
@@ -585,4 +588,4 @@ export default function Attendance() {
       {isStudent || tab === 'report' || !marker ? <BottomNav /> : null}
     </div>
   )
-}
+    }
