@@ -18,8 +18,8 @@ const CHIPS = [
 ]
 
 const ROLES = [
-  'Headteacher', 'Deputy Head', 'Teacher', 'Student', 'Parent', 'Bursar',
-  'School Coach', 'ICT Administrator', 'Librarian', 'Counsellor', 'Receptionist', 'Investor',
+  'Headteacher', 'Deputy Head', 'Teacher / Tutor', 'Student', 'Parent / Guardian', 'Bursar',
+  'School Coach', 'ICT Administrator', 'Librarian', 'Guidance & Counselling', 'Receptionist',
 ]
 
 const DATES = [
@@ -105,7 +105,7 @@ function SectionTitle({ icon: Icon, label, count, onSeeAll }) {
       ) : null}
     </div>
   )
-   }
+    }
 
 export default function UnifiedSearch() {
   const navigate = useNavigate()
@@ -379,4 +379,4 @@ export default function UnifiedSearch() {
       </div>
     </div>
   )
-    }
+  }
