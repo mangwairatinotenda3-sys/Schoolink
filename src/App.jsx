@@ -40,8 +40,6 @@ function lazyPage(loader) {
   )
 }
   
-}
-
 function PageLoading() {
   return <div className="app-shell flex items-center justify-center text-gray-400">Loading…</div>
 }
