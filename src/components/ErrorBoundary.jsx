@@ -36,7 +36,11 @@ export default class ErrorBoundary extends React.Component {
             Go back
           </button>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              try { sessionStorage.removeItem('schoolink_chunk_reload') } catch { /* ignore */ }
+              const { origin, pathname, hash } = window.location
+              window.location.replace(`${origin}${pathname}?v=${Date.now()}${hash}`)
+            }}
             className="bg-brand-purple text-white font-medium px-5 py-2.5 rounded-xl"
           >
             Reload
@@ -45,4 +49,4 @@ export default class ErrorBoundary extends React.Component {
       </div>
     )
   }
-}
+      }
