@@ -170,7 +170,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
               {previewText(repliedTo)}
             </button>
           ) : null}
-          {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls preload="metadata" className="max-w-full" /> : null}
+          {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls preload="none" className="max-w-full" /> : null}
           {m.media_type === 'image' && m.media_url ? <ChatImage url={m.media_url} autoDownloadMedia={autoDownloadMedia} onOpen={onOpenImage} /> : null}
           {m.media_type === 'file' && m.media_url ? (
             <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
