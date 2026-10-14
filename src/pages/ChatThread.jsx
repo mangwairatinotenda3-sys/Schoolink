@@ -1,7 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Square, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import VoicePlayer from '../components/VoicePlayer.jsx'
+import MediaPreview from '../components/MediaPreview.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -12,6 +14,7 @@ import VerifiedBadge from '../components/VerifiedBadge.jsx'
 
 const PAGE_SIZE = 40
 const EDIT_WINDOW_MS = 15 * 60 * 1000
+const MAX_UPLOAD_MB = 50
 const QUICK_REACTIONS = ['❤️', '😂', '👍', '😮', '😢']
 
 const ALL_EMOJIS = [
@@ -53,12 +56,31 @@ function formatSeconds(total) {
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
+function kindOfFile(file) {
+  const type = file.type || ''
+  if (type.startsWith('image/')) return 'image'
+  if (type.startsWith('video/')) return 'video'
+  return 'file'
+}
+
+function fileExt(name) {
+  const part = String(name || '').split('.').pop()
+  return part && part.length <= 5 && part !== name ? part : 'file'
+}
+
+function sizeText(bytes) {
+  if (!bytes) return ''
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`
+}
+
 // Short text for a message, used in reply quotes and the reply bar.
 function previewText(m) {
   if (!m) return ''
   if (m.deleted_at) return 'Message deleted'
   if (m.content && m.media_type !== 'file') return m.content
   if (m.media_type === 'image') return '📷 Photo'
+  if (m.media_type === 'video') return '🎥 Video'
   if (m.media_type === 'audio') return '🎤 Voice message'
   if (m.media_type === 'file') return `📎 ${m.content || 'File'}`
   return m.content || ''
@@ -103,18 +125,79 @@ function ChatImage({ url, autoDownloadMedia, onOpen }) {
         src={url}
         alt=""
         onClick={(e) => { e.stopPropagation(); onOpen(url) }}
-        className="rounded-lg max-h-64 object-cover mb-1"
+        className="rounded-xl w-64 max-w-full max-h-72 object-cover"
       />
     )
   }
   return (
     <button
       onClick={(e) => { e.stopPropagation(); setRevealed(true) }}
-      className="w-40 h-28 rounded-lg bg-black/10 flex flex-col items-center justify-center gap-1 mb-1"
+      className="w-64 max-w-full h-40 rounded-xl bg-black/10 flex flex-col items-center justify-center gap-1"
     >
       <ImageIcon size={20} />
       <span className="text-xs">Tap to load</span>
     </button>
+  )
+}
+
+// A photo, video, document or voice note that is still on its way: it shows straight away, with a spinner.
+function PendingBubble({ item, onRetry, onDiscard }) {
+  const failed = item.status === 'failed'
+  const visual = item.kind === 'image' || item.kind === 'video'
+  return (
+    <div className="flex justify-end">
+      <div className="max-w-[75%]">
+        <div className={`rounded-2xl rounded-br-sm bg-brand-purple text-white text-sm ${visual ? 'p-1.5' : 'px-4 py-2'}`}>
+          {item.kind === 'image' ? (
+            <div className="relative">
+              <img src={item.previewUrl} alt="" className={`rounded-xl w-64 max-w-full max-h-72 object-cover ${failed ? 'opacity-60' : 'opacity-80'}`} />
+              {!failed ? <span className="absolute inset-0 flex items-center justify-center"><Loader2 size={28} className="text-white animate-spin" /></span> : null}
+            </div>
+          ) : null}
+          {item.kind === 'video' ? (
+            <div className="relative w-64 max-w-full h-40 rounded-xl bg-black/40 flex items-center justify-center">
+              <Film size={30} className="text-white/80" />
+              {!failed ? <span className="absolute bottom-2 right-2"><Loader2 size={18} className="text-white animate-spin" /></span> : null}
+            </div>
+          ) : null}
+          {item.kind === 'file' ? (
+            <div className="flex items-center gap-3 w-56 max-w-full">
+              <span className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0"><FileText size={20} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm truncate">{item.name}</span>
+                <span className="block text-[10px] opacity-70 uppercase">{fileExt(item.name)} · {sizeText(item.size)}</span>
+              </span>
+            </div>
+          ) : null}
+          {item.kind === 'audio' ? (
+            <div className="flex items-center gap-2 w-56 max-w-full py-1">
+              <span className="w-9 h-9 rounded-full bg-white/25 flex items-center justify-center shrink-0"><Mic size={16} /></span>
+              <span className="text-xs opacity-90">Voice message</span>
+            </div>
+          ) : null}
+          {item.caption ? <p className={`whitespace-pre-wrap break-words ${visual ? 'px-2 pt-1' : 'mt-1'}`}>{item.caption}</p> : null}
+          <span className={`flex items-center justify-end gap-1 mt-1 text-[10px] opacity-80 ${visual ? 'px-2 pb-0.5' : ''}`}>
+            {failed ? (
+              <>
+                <AlertCircle size={13} />
+                <span>Not sent</span>
+              </>
+            ) : (
+              <>
+                <span>Sending…</span>
+                <Clock size={12} />
+              </>
+            )}
+          </span>
+        </div>
+        {failed ? (
+          <div className="flex justify-end gap-3 mt-1 text-xs">
+            <button onClick={() => onRetry(item.tempId)} className="text-brand-purple font-medium">Retry</button>
+            <button onClick={() => onDiscard(item.tempId)} className="text-gray-400">Discard</button>
+          </div>
+        ) : null}
+      </div>
+    </div>
   )
 }
 
@@ -126,6 +209,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
   const isStarred = starred.has(m.id)
   const deleted = !!m.deleted_at
   const canEdit = isMine && !deleted && m.content && !m.media_type && Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS
+  const visual = (m.media_type === 'image' || m.media_type === 'video') && !!m.media_url
 
   function handleCopy(e) {
     e.stopPropagation()
@@ -161,7 +245,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[75%]">
-        <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl px-4 py-2 text-sm ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
+        <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl text-sm ${visual ? 'p-1.5' : 'px-4 py-2'} ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
           {repliedTo ? (
             <button
               onClick={(e) => { e.stopPropagation(); onJumpTo(repliedTo.id) }}
@@ -170,13 +254,23 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
               {previewText(repliedTo)}
             </button>
           ) : null}
-          {m.media_type === 'audio' && m.media_url ? <audio src={m.media_url} controls preload="none" className="max-w-full" /> : null}
+          {m.media_type === 'audio' && m.media_url ? <VoicePlayer url={m.media_url} mine={isMine} /> : null}
           {m.media_type === 'image' && m.media_url ? <ChatImage url={m.media_url} autoDownloadMedia={autoDownloadMedia} onOpen={onOpenImage} /> : null}
-          {m.media_type === 'file' && m.media_url ? (
-            <a href={m.media_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="flex items-center gap-2 underline"><FileText size={15} /> {m.content || 'Shared file'}</a>
+          {m.media_type === 'video' && m.media_url ? (
+            <video src={m.media_url} controls playsInline preload="metadata" onClick={(e) => e.stopPropagation()} className="rounded-xl w-64 max-w-full max-h-72 bg-black" />
           ) : null}
-          {m.content && m.media_type !== 'file' ? <p className="whitespace-pre-wrap break-words">{renderContent(m.content, highlightQuery)}</p> : null}
-          <span className="flex items-center justify-end gap-1 mt-1 text-[10px] opacity-70">
+          {m.media_type === 'file' && m.media_url ? (
+            <a href={m.media_url} target="_blank" rel="noreferrer" download={m.content || undefined} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 w-56 max-w-full">
+              <span className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${isMine ? 'bg-white/20' : 'bg-white'}`}><FileText size={20} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm truncate">{m.content || 'Shared file'}</span>
+                <span className="block text-[10px] opacity-70 uppercase">{fileExt(m.content)}</span>
+              </span>
+              <Download size={16} className="shrink-0 opacity-80" />
+            </a>
+          ) : null}
+          {m.content && m.media_type !== 'file' ? <p className={`whitespace-pre-wrap break-words ${visual ? 'px-2 pt-1' : ''}`}>{renderContent(m.content, highlightQuery)}</p> : null}
+          <span className={`flex items-center justify-end gap-1 mt-1 text-[10px] opacity-70 ${visual ? 'px-2 pb-0.5' : ''}`}>
             {m.edited_at ? <span>edited</span> : null}
             <span>{timeLabel(m.created_at)}</span>
             {isMine ? (m.read ? <CheckCheck size={14} className="text-blue-200" /> : <Check size={14} className="text-white/70" />) : null}
@@ -236,8 +330,10 @@ export default function ChatThread() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const isOnline = useIsOnline(partnerId)
-  const photoInputRef = useRef(null)
-  const fileInputRef = useRef(null)
+  const galleryInputRef = useRef(null)
+  const cameraInputRef = useRef(null)
+  const docInputRef = useRef(null)
+  const recordStartRef = useRef(0)
 
   const [partner, setPartner] = useState(null)
   const [messages, setMessages] = useState([])
@@ -253,7 +349,9 @@ export default function ChatThread() {
   const [isBlocked, setIsBlocked] = useState(false)
   const [recording, setRecording] = useState(false)
   const [recordSeconds, setRecordSeconds] = useState(0)
-  const [uploading, setUploading] = useState(false)
+  const [pending, setPending] = useState([])
+  const [previewItems, setPreviewItems] = useState(null)
+  const [showAttach, setShowAttach] = useState(false)
   const [forwarding, setForwarding] = useState(null)
   const [myChatSettings, setMyChatSettings] = useState({ disappearing_enabled: false, disappearing_seconds: 86400 })
   const mutedRef = useRef(false)
@@ -350,6 +448,11 @@ export default function ChatThread() {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
   }, [messages])
+
+  // A new "sending" bubble appeared: keep it in view.
+  useEffect(() => {
+    if (pending.length > 0) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [pending.length])
 
   useEffect(() => {
     setPartner(null)
@@ -634,42 +737,100 @@ export default function ChatThread() {
       setReplyTo(previousReply)
       setSendError('Message not sent. Check your connection and tap send again.')
     }
-    }
+        }
 
-  async function handlePhotoChange(e) {
+  // Camera, gallery or document picked: show the preview screen first (with a caption box).
+  function handlePicked(e) {
     const files = Array.from(e.target.files || [])
+    e.target.value = ''
+    setShowAttach(false)
     if (files.length === 0 || isBlocked) return
-    setUploading(true)
-    setSendError('')
+    const items = []
     for (const file of files) {
-      const path = `${user.id}/${Date.now()}-${file.name}`
-      const { error } = await supabase.storage.from('chat-media').upload(path, file)
-      if (error) {
-        setSendError(`Couldn't upload ${file.name}.`)
+      if (file.size > MAX_UPLOAD_MB * 1024 * 1024) {
+        setSendError(`${file.name} is bigger than ${MAX_UPLOAD_MB} MB.`)
         continue
       }
-      const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-      await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'image', expire_at: computeExpiry() })
+      const kind = kindOfFile(file)
+      items.push({
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        file,
+        kind,
+        url: kind === 'file' ? null : URL.createObjectURL(file),
+      })
     }
-    setUploading(false)
-    if (photoInputRef.current) photoInputRef.current.value = ''
+    if (items.length > 0) {
+      setSendError('')
+      setPreviewItems(items)
+    }
   }
 
-  async function handleFileChange(e) {
-    const file = e.target.files?.[0]
-    if (!file || isBlocked) return
-    setUploading(true)
-    setSendError('')
-    const path = `${user.id}/${Date.now()}-${file.name}`
-    const { error } = await supabase.storage.from('chat-media').upload(path, file)
+  function cancelPreview() {
+    for (const it of previewItems || []) if (it.url) URL.revokeObjectURL(it.url)
+    setPreviewItems(null)
+  }
+
+  // "Send" on the preview screen: the bubbles appear at once, then upload one by one in order.
+  function confirmPreview(list) {
+    setPreviewItems(null)
+    const queued = list.map((it) => ({
+      tempId: `tmp-${it.id}`,
+      kind: it.kind,
+      file: it.file,
+      name: it.file.name,
+      size: it.file.size,
+      previewUrl: it.url,
+      caption: (it.caption || '').trim(),
+      status: 'sending',
+    }))
+    setPending((prev) => [...prev, ...queued])
+    ;(async () => {
+      for (const q of queued) {
+        // eslint-disable-next-line no-await-in-loop
+        await uploadAndSend(q)
+      }
+    })()
+  }
+
+  async function uploadAndSend(item) {
+    setPending((prev) => prev.map((x) => (x.tempId === item.tempId ? { ...x, status: 'sending' } : x)))
+    const safeName = String(item.name || 'file').replace(/[^\w.\-]+/g, '_')
+    const path = `${user.id}/${Date.now()}-${safeName}`
+    const { error } = await supabase.storage.from('chat-media').upload(path, item.file, { contentType: item.file.type || undefined })
     if (error) {
-      setSendError(`Couldn't upload ${file.name}.`)
-    } else {
-      const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-      await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'file', content: file.name, expire_at: computeExpiry() })
+      setPending((prev) => prev.map((x) => (x.tempId === item.tempId ? { ...x, status: 'failed' } : x)))
+      return
     }
-    setUploading(false)
-    if (fileInputRef.current) fileInputRef.current.value = ''
+    const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
+    const { error: sendErr } = await sendRow({
+      sender_id: user.id,
+      receiver_id: partnerId,
+      media_url: data.publicUrl,
+      media_type: item.kind,
+      content: item.kind === 'file' ? item.name : item.caption || null,
+      expire_at: computeExpiry(),
+    })
+    if (sendErr) {
+      setSendError(`Couldn't send. (${sendErr.message || 'unknown error'})`)
+      setPending((prev) => prev.map((x) => (x.tempId === item.tempId ? { ...x, status: 'failed' } : x)))
+      return
+    }
+    setPending((prev) => prev.filter((x) => x.tempId !== item.tempId))
+    if (item.previewUrl) setTimeout(() => URL.revokeObjectURL(item.previewUrl), 5000)
+  }
+
+  function retryPending(tempId) {
+    const item = pending.find((x) => x.tempId === tempId)
+    if (item) {
+      setSendError('')
+      uploadAndSend(item)
+    }
+  }
+
+  function discardPending(tempId) {
+    const item = pending.find((x) => x.tempId === tempId)
+    if (item?.previewUrl) URL.revokeObjectURL(item.previewUrl)
+    setPending((prev) => prev.filter((x) => x.tempId !== tempId))
   }
 
   // Voice notes: a running timer, and the microphone is released when you stop or cancel.
@@ -705,6 +866,7 @@ export default function ChatThread() {
       recorder.onstop = handleRecordingStop
       mediaRecorderRef.current = recorder
       recorder.start(250)
+      recordStartRef.current = Date.now()
       setRecording(true)
     } catch {
       stream.getTracks().forEach((t) => t.stop())
@@ -730,22 +892,14 @@ export default function ChatThread() {
     const base = (mediaRecorderRef.current?.mimeType || 'audio/webm').split(';')[0]
     const ext = base.includes('mp4') ? 'm4a' : base.includes('ogg') ? 'ogg' : 'webm'
     const blob = new Blob(chunksRef.current, { type: base })
-    if (blob.size === 0) {
-      setSendError('Nothing was recorded. Hold the phone closer and try again.')
+    if (Date.now() - recordStartRef.current < 700 || blob.size === 0) {
+      setSendError('That was too short. Tap the microphone and speak a little longer.')
       return
     }
-    setUploading(true)
-    const path = `${user.id}/${Date.now()}.${ext}`
-    const { error } = await supabase.storage.from('chat-media').upload(path, blob, { contentType: base })
-    if (error) {
-      setUploading(false)
-      setSendError("Couldn't send the voice message.")
-      return
-    }
-    const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
-    const { error: sendErr } = await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio', expire_at: computeExpiry() })
-    setUploading(false)
-    if (sendErr) setSendError(`The voice message was uploaded but couldn't be sent. (${sendErr.message || 'unknown error'})`)
+    const file = new File([blob], `voice-${Date.now()}.${ext}`, { type: base })
+    const item = { tempId: `tmp-${Date.now()}`, kind: 'audio', file, name: file.name, size: file.size, previewUrl: null, caption: '', status: 'sending' }
+    setPending((prev) => [...prev, item])
+    await uploadAndSend(item)
   }
 
   async function handleForwardSend(recipientId) {
@@ -809,6 +963,9 @@ export default function ChatThread() {
             </div>
           )
         })}
+        {pending.map((item) => (
+          <PendingBubble key={item.tempId} item={item} onRetry={retryPending} onDiscard={discardPending} />
+        ))}
         <div ref={bottomRef} />
       </div>
 
@@ -849,6 +1006,30 @@ export default function ChatThread() {
         </div>
       ) : null}
 
+      <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={handlePicked} className="hidden" />
+      <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" onChange={handlePicked} className="hidden" />
+      <input ref={docInputRef} type="file" multiple onChange={handlePicked} className="hidden" />
+
+      {showAttach ? (
+        <>
+          <div onClick={() => setShowAttach(false)} className="fixed inset-0 z-10" />
+          <div className="absolute bottom-20 left-4 right-4 z-20 bg-white border border-gray-100 rounded-2xl shadow-lg p-4 grid grid-cols-3 gap-4">
+            <button onClick={() => docInputRef.current?.click()} className="flex flex-col items-center gap-1.5">
+              <span className="w-12 h-12 rounded-full bg-indigo-500 flex items-center justify-center"><FileText size={20} className="text-white" /></span>
+              <span className="text-xs text-gray-600">Document</span>
+            </button>
+            <button onClick={() => cameraInputRef.current?.click()} className="flex flex-col items-center gap-1.5">
+              <span className="w-12 h-12 rounded-full bg-pink-500 flex items-center justify-center"><Camera size={20} className="text-white" /></span>
+              <span className="text-xs text-gray-600">Camera</span>
+            </button>
+            <button onClick={() => galleryInputRef.current?.click()} className="flex flex-col items-center gap-1.5">
+              <span className="w-12 h-12 rounded-full bg-purple-500 flex items-center justify-center"><ImageIcon size={20} className="text-white" /></span>
+              <span className="text-xs text-gray-600">Gallery</span>
+            </button>
+          </div>
+        </>
+      ) : null}
+
       <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100">
         {recording ? (
           <>
@@ -861,10 +1042,6 @@ export default function ChatThread() {
           </>
         ) : (
           <>
-            <button onClick={() => photoInputRef.current?.click()} disabled={isBlocked || uploading || !!editing}><ImageIcon size={18} className={uploading ? 'text-gray-300' : 'text-gray-500'} /></button>
-            <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={handlePhotoChange} className="hidden" />
-            <button onClick={() => fileInputRef.current?.click()} disabled={isBlocked || uploading || !!editing}><Paperclip size={17} className={uploading ? 'text-gray-300' : 'text-gray-500'} /></button>
-            <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
             <button onClick={() => setShowEmojis((s) => !s)} aria-label="Emoji"><Smile size={18} className={showEmojis ? 'text-brand-purple' : 'text-gray-500'} /></button>
             <input
               value={text}
@@ -874,6 +1051,12 @@ export default function ChatThread() {
               disabled={isBlocked}
               className="flex-1 min-w-0 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple disabled:opacity-60"
             />
+            {!text.trim() && !editing ? (
+              <>
+                <button onClick={() => setShowAttach((v) => !v)} disabled={isBlocked} aria-label="Attach" className="shrink-0 disabled:opacity-40"><Paperclip size={19} className={showAttach ? 'text-brand-purple' : 'text-gray-500'} /></button>
+                <button onClick={() => cameraInputRef.current?.click()} disabled={isBlocked} aria-label="Camera" className="shrink-0 disabled:opacity-40"><Camera size={19} className="text-gray-500" /></button>
+              </>
+            ) : null}
             {text.trim() || editing ? (
               <button onClick={handleSend} disabled={sending || isBlocked} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60">
                 {editing ? <Check size={18} className="text-white" /> : <Send size={16} className="text-white" />}
@@ -895,8 +1078,9 @@ export default function ChatThread() {
         </div>
       ) : null}
 
+      {previewItems ? <MediaPreview items={previewItems} onSend={confirmPreview} onCancel={cancelPreview} /> : null}
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-    }
+      }
