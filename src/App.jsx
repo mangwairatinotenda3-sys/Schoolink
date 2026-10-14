@@ -39,7 +39,7 @@ function lazyPage(loader) {
       })
   )
 }
-  )
+  
 }
 
 function PageLoading() {
