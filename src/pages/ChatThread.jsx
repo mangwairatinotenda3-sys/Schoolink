@@ -4,6 +4,7 @@ import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Imag
 import BackHeader from '../components/BackHeader.jsx'
 import VoicePlayer from '../components/VoicePlayer.jsx'
 import MediaPreview from '../components/MediaPreview.jsx'
+import ZoomImage from '../components/ZoomImage.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -1070,11 +1071,13 @@ export default function ChatThread() {
         )}
       </div>
 
-      {lightboxUrl ? (
-        <div onClick={() => setLightboxUrl(null)} className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4">
-          <button onClick={() => setLightboxUrl(null)} aria-label="Close" className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"><X size={20} className="text-white" /></button>
-          <img src={lightboxUrl} alt="" onClick={(e) => e.stopPropagation()} className="max-w-full max-h-full object-contain" />
-          <a href={lightboxUrl} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} className="absolute bottom-6 text-xs text-white/80 underline">Open original</a>
+        {lightboxUrl ? (
+        <div className="fixed inset-0 z-50 bg-black flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3 shrink-0">
+            <button onClick={() => setLightboxUrl(null)} aria-label="Close" className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center"><X size={20} className="text-white" /></button>
+            <a href={lightboxUrl} target="_blank" rel="noreferrer" className="text-xs text-white/80 underline">Open original</a>
+          </div>
+          <div className="flex-1 min-h-0"><ZoomImage src={lightboxUrl} /></div>
         </div>
       ) : null}
 
