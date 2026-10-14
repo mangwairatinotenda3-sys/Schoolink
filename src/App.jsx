@@ -30,11 +30,15 @@ function lazyPage(loader) {
         try { already = !!sessionStorage.getItem('schoolink_chunk_reload') } catch { /* ignore */ }
         if (!already) {
           try { sessionStorage.setItem('schoolink_chunk_reload', '1') } catch { /* ignore */ }
-          window.location.reload()
+          // A plain reload can serve the same old, saved copy of the page. A new address forces the latest one.
+          const { origin, pathname, hash } = window.location
+          window.location.replace(`${origin}${pathname}?v=${Date.now()}${hash}`)
           return new Promise(() => {})
         }
         throw err
       })
+  )
+}
   )
 }
 
