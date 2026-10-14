@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import ThemeProvider from './lib/ThemeProvider.jsx'
 import OAuthErrorBanner, { OAUTH_ERROR_KEY } from './components/OAuthErrorBanner.jsx'
+import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient'
 import { listenForNativeSignIn } from './lib/nativeAuth.js'
 import { isNativeApp } from './lib/appPermissions.js'
@@ -50,7 +51,9 @@ function start() {
         <AuthProvider>
           <ThemeProvider>
             <OAuthErrorBanner />
-            <App />
+            <ErrorBoundary>
+              <App />
+            </ErrorBoundary>
           </ThemeProvider>
         </AuthProvider>
       </HashRouter>
