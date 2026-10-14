@@ -687,43 +687,7 @@ export default function ChatThread() {
     return types.find((t) => MediaRecorder.isTypeSupported(t)) || ''
   }
 
-  async function startRecording() {
-    let stream
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    } catch {
-      alert("The microphone is turned off for Schoolink. Open your phone's Settings → Apps → Schoolink → Permissions → Microphone and allow it, then try again.")
-      return
-    }
-    try {
-      streamRef.current = stream
-      const type = pickAudioType()
-      const recorder = type ? new MediaRecorder(stream, { mimeType: type }) : new MediaRecorder(stream)
-      chunksRef.current = []
-      cancelRecordingRef.current = false
-      recorder.ondataavailable = (e) => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data) }
-      recorder.onstop = handleRecordingStop
-      mediaRecorderRef.current = recorder
-      recorder.start(250)
-      setRecording(true)
-    } catch {
-      stream.getTracks().forEach((t) => t.stop())
-      setSendError("This phone couldn't start a voice recording. Try again.")
-    }
-  }
-
-  function stopRecording() {
-    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop()
-    setRecording(false)
-  }
-
-  function cancelRecording() {
-    cancelRecordingRef.current = true
-    if (mediaRecorderRef.current?.state !== 'inactive') mediaRecorderRef.current?.stop()
-    setRecording(false)
-  }
-
-  async function handleRecordingStop() {
+    async function handleRecordingStop() {
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
     if (cancelRecordingRef.current) return
@@ -745,8 +709,8 @@ export default function ChatThread() {
     const { data } = supabase.storage.from('chat-media').getPublicUrl(path)
     const { error: sendErr } = await sendRow({ sender_id: user.id, receiver_id: partnerId, media_url: data.publicUrl, media_type: 'audio', expire_at: computeExpiry() })
     setUploading(false)
-    if (sendErr) setSendError("The voice message was uploaded but couldn't be sent. Try again.")
-      }
+    if (sendErr) setSendError(`The voice message was uploaded but couldn't be sent. (${sendErr.message || 'unknown error'})`)
+}
 
   async function handleForwardSend(recipientId) {
     if (!forwarding) return
