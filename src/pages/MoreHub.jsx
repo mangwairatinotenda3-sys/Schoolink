@@ -34,9 +34,9 @@ export default function MoreHub() {
     ...(canManageStaff(profile)
       ? [{ label: 'Investor Proposals', icon: Briefcase, color: 'bg-emerald-700', to: '/proposals' }]
       : []),
-    ...(isStaffMember(profile)
-      ? [{ label: 'Exam Results', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
-      : []),
+    ...((isStaffMember(profile) || profile?.role === 'Student' || profile?.account_type === 'parent' || profile?.role === 'Parent / Guardian')
+  ? [{ label: profile?.role === 'Student' || profile?.account_type === 'parent' ? 'Report Card' : 'Exam Results', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
+  : []),
     ...(isStaffMember(profile) ? [{ label: 'Analytics', icon: BarChart3, color: 'bg-violet-500', to: '/dashboard' }] : []),
     ...(canManageFees(profile) ? [{ label: 'Bursar', icon: DollarSign, color: 'bg-green-600', to: '/bursar' }] : []),
     ...(canManageSports(profile) ? [{ label: 'Coach', icon: Trophy, color: 'bg-orange-600', to: '/coach' }] : []),
