@@ -2,16 +2,20 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, BarChart3, ClipboardList, Table, BookOpen, Users, GraduationCap,
   Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck, UserPlus,
-  Clock, Bookmark, MessagesSquare, Award, CalendarCheck,
+  Clock, Bookmark, MessagesSquare, Award,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember, isSchoolMember } from '../lib/permissions.js'
+import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember } from '../lib/permissions.js'
 
 export default function MoreHub() {
   const navigate = useNavigate()
   const { profile } = useAuth()
+
+  const isParent = profile?.account_type === 'parent' || profile?.role === 'Parent / Guardian'
+  const isStudent = profile?.account_type === 'school_member' && profile?.role === 'Student'
+  const isFamilyStaff = ['Headteacher', 'Deputy Head', 'Teacher / Tutor', 'Receptionist'].includes(profile?.role)
 
   const tiles = [
     { label: 'Saved', icon: Bookmark, color: 'bg-gray-500', to: '/saved' },
@@ -20,23 +24,31 @@ export default function MoreHub() {
     { label: 'Polls', icon: BarChart3, color: 'bg-emerald-500', to: '/polls' },
     { label: 'Assignments', icon: ClipboardList, color: 'bg-orange-500', to: '/assignments' },
     { label: 'Timetable', icon: Table, color: 'bg-purple-500', to: '/timetable' },
-    ...(profile?.account_type === 'parent' || profile?.role === 'Student'
-      ? [{ label: profile?.account_type === 'parent' ? 'My Children' : 'Family', icon: Users, color: 'bg-pink-500', to: '/family' }]
-      : []),
-    ...(isSchoolMember(profile) ? [{ label: 'Attendance', icon: CalendarCheck, color: 'bg-green-500', to: '/attendance' }] : []),
     { label: 'Library', icon: BookOpen, color: 'bg-teal-500', to: '/library' },
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
-    ...(isSchoolMember(profile) ? [{ label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' }] : []),
+    { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
     ...(canManageStaff(profile)
       ? [{ label: 'Investor Proposals', icon: Briefcase, color: 'bg-emerald-700', to: '/proposals' }]
       : []),
-    ...((isStaffMember(profile) || profile?.role === 'Student' || profile?.account_type === 'parent' || profile?.role === 'Parent / Guardian')
-  ? [{ label: profile?.role === 'Student' || profile?.account_type === 'parent' ? 'Report Card' : 'Exam Results', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
-  : []),
+    ...(isStaffMember(profile)
+      ? [{ label: 'Exam Results', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
+      : []),
+    ...(isStudent || isParent
+      ? [{ label: 'Report Card', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
+      : []),
+    ...(isParent
+      ? [{ label: 'My Children', icon: Users, color: 'bg-pink-500', to: '/family' }]
+      : []),
+    ...(isStudent
+      ? [{ label: 'My Parents', icon: Users, color: 'bg-pink-500', to: '/family' }]
+      : []),
+    ...(isFamilyStaff
+      ? [{ label: 'Parent Links', icon: Users, color: 'bg-pink-500', to: '/family' }]
+      : []),
     ...(isStaffMember(profile) ? [{ label: 'Analytics', icon: BarChart3, color: 'bg-violet-500', to: '/dashboard' }] : []),
     ...(canManageFees(profile) ? [{ label: 'Bursar', icon: DollarSign, color: 'bg-green-600', to: '/bursar' }] : []),
     ...(canManageSports(profile) ? [{ label: 'Coach', icon: Trophy, color: 'bg-orange-600', to: '/coach' }] : []),
@@ -77,4 +89,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-    }
+        }
