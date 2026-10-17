@@ -291,4 +291,4 @@ export default function CommunityGroupInfo() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 30 }}>{toast}</div> : null}
     </div>
   )
-            }
+              }
