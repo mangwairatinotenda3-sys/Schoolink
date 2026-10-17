@@ -14,6 +14,7 @@ import PermissionsPrompt from './components/PermissionsPrompt.jsx'
 import GuestWall from './components/GuestWall.jsx'
 import GuestProfileView from './components/GuestProfileView.jsx'
 import { guestCanOpen } from './lib/guestShield.js'
+import Family from './pages/Family.jsx'
 
 // Pages load only when someone opens them, so the app starts much faster.
 // If a new version was published while the app was open, the old page file is gone:
@@ -317,6 +318,7 @@ export default function App() {
         <Route path="/search" element={<RequireAuth><UnifiedSearch /></RequireAuth>} />
         <Route path="/proposals" element={<RequireAuth><ViewProposals /></RequireAuth>} />
         <Route path="/exam-results" element={<RequireAuth><ExamResults /></RequireAuth>} />
+        <Route path="/family" element={<RequireAuth><Family /></RequireAuth>} />
         <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
