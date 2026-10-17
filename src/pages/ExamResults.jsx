@@ -101,10 +101,12 @@ export default function ExamResults() {
         const { data: kids } = await supabase.from('profiles').select('id, full_name, avatar_url, school_id').in('id', list)
         setChildren(kids ?? [])
         setPeople(new Map((kids ?? []).map((k) => [k.id, k])))
-        setActiveKey((kids ?? [])[0]?.id || null)
+        const wanted = new URLSearchParams(window.location.hash.split('?')[1] || '').get('child')
+        const first = (kids ?? []).find((k) => k.id === wanted) || (kids ?? [])[0]
+        setActiveKey(first?.id || null)
         const { data } = await supabase.from('exam_results').select('*').in('student_id', list).order('created_at', { ascending: false })
         setRows(data ?? [])
-        await loadSchool((kids ?? [])[0]?.school_id)
+        await loadSchool(first?.school_id)
       }
     }
     setLoading(false)
@@ -194,7 +196,7 @@ export default function ExamResults() {
     const text = reportText({ student, school, term: termLabel(term), subjects: subs, average: avg, overall: gradeFor(avg, scale), position: summary?.class_position, size: summary?.class_size })
     if (navigator.share) navigator.share({ title: `${student?.full_name} — ${termLabel(term)}`, text }).catch(() => {})
     else navigator.clipboard?.writeText(text).then(() => setToast('Copied to share'))
-    }
+  }
 
   // ---------- Screens ----------
   const backFromDetail = isEditor && activeKey
@@ -202,7 +204,7 @@ export default function ExamResults() {
 
   function onBack() {
     if (backFromDetail) { setActiveKey(null); setTab('card') } else navigate(-1)
-  }
+              }
 
   if (loading) {
     return <div className="app-shell items-center justify-center flex text-gray-400"><Loader2 className="animate-spin" /></div>
@@ -415,4 +417,4 @@ function Header({ title, onBack, right }) {
       <div className="flex items-center gap-1">{right}</div>
     </div>
   )
-      }
+}
