@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, BarChart3, ClipboardList, Table, BookOpen, Users, GraduationCap,
   Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck, UserPlus,
-  Clock, Bookmark, MessagesSquare, Award,
+  Clock, Bookmark, MessagesSquare, Award, ShieldCheck,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -28,6 +28,7 @@ export default function MoreHub() {
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
     { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
+    { label: 'Safety & Data', icon: ShieldCheck, color: 'bg-slate-600', to: '/settings/safety' },
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
@@ -89,4 +90,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-        }
+     }
