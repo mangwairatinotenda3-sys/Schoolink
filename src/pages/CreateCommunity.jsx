@@ -107,8 +107,7 @@ export default function CreateCommunity() {
   const canCreate = name.trim().length >= 2 && !saving
 
   if (step === 'people') {
-    return (
-      <div className="app-shell relative">
+    return (      <div className="app-shell relative">
         <ScreenHeader title="New community" sub={selected.length ? `${selected.length} selected` : 'Add participants'} onBack={() => navigate(-1)} />
         <PeoplePicker meId={user?.id} schoolId={profile?.school_id} selected={selected} setSelected={setSelected} />
         <button onClick={() => setStep('info')} aria-label="Next" className="absolute right-5 w-14 h-14 rounded-full bg-brand-purple text-white shadow-lg flex items-center justify-center" style={{ bottom: 'max(24px, env(safe-area-inset-bottom))' }}>
@@ -157,8 +156,10 @@ export default function CreateCommunity() {
         <Label>Who can send messages</Label>
         <div className="flex gap-2">
           <Chip active={postingMode === 'everyone'} onClick={() => setPostingMode('everyone')}>Everyone</Chip>
+          <Chip active={postingMode === 'approval'} onClick={() => setPostingMode('approval')}>Admins approve</Chip>
           <Chip active={postingMode === 'admins_only'} onClick={() => setPostingMode('admins_only')}>Only admins</Chip>
         </div>
+        <p className="text-xs text-gray-400 mt-2">{postingMode === 'everyone' ? 'All members can post.' : postingMode === 'approval' ? 'Messages from members wait until an admin approves them.' : 'Everyone else can read but not post.'}</p>
 
         <Label>Participants · {selected.length + 1}</Label>
         <div className="rounded-2xl border border-gray-100 divide-y divide-gray-50">
@@ -194,4 +195,4 @@ export default function CreateCommunity() {
       </button>
     </div>
   )
-  }
+            }
