@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js'
-import { isGuestMode, askToSignIn } from './guestShield.js'
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -11,36 +10,27 @@ if (!supabaseUrl || !supabaseAnonKey) {
   )
 }
 
-export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '')
-
-// Guests can look but not change anything — except send help and feedback.
-// (The database blocks it too; this just gives a friendly "sign in" box
-// instead of an error, and stops screens from showing a fake "liked" state.)
-const GUEST_CAN_WRITE = new Set(['app_feedback', 'login_history', 'profiles'])
-const WRITE_METHODS = ['insert', 'upsert', 'update', 'delete']
-const realFrom = supabase.from.bind(supabase)
-
-function blockedQuery() {
-  const error = { message: 'Create an account to do this.', code: 'guest_blocked' }
-  const failed = Promise.reject(error)
-  failed.catch(() => {})
-  const proxy = new Proxy(function () {}, {
-    get(_target, key) {
-      if (key === 'then' || key === 'catch' || key === 'finally') return failed[key].bind(failed)
-      return () => proxy
-    },
-  })
-  return proxy
-}
-
-supabase.from = (table) => {
-  const query = realFrom(table)
-  if (!isGuestMode() || GUEST_CAN_WRITE.has(table)) return query
-  for (const method of WRITE_METHODS) {
-    query[method] = () => {
-      askToSignIn('action')
-      return blockedQuery()
+// When the database says "slow down" (too many posts or messages) or "this account is suspended",
+// tell the rest of the app so it can show a friendly message, whichever screen sent the request.
+async function watchedFetch(input, init) {
+  const res = await fetch(input, init)
+  try {
+    const url = typeof input === 'string' ? input : input?.url || ''
+    if ((res.status === 429 || res.status === 403) && url.includes('/rest/v1/')) {
+      const body = await res.clone().json().catch(() => null)
+      const message = String(body?.message || '')
+      if (res.status === 429 && /too fast|few times/i.test(message)) {
+        window.dispatchEvent(new CustomEvent('schoolink:limit', { detail: { message } }))
+      } else if (res.status === 403 && /suspended/i.test(message)) {
+        window.dispatchEvent(new CustomEvent('schoolink:suspended'))
+      }
     }
+  } catch {
+    // never let this get in the way of the real request
   }
-  return query
+  return res
 }
+
+export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
+  global: { fetch: watchedFetch },
+})
