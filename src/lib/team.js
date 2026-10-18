@@ -1,4 +1,5 @@
 // Shared bits for the site-controller (team) system.
+import { SITE_URL } from './links.js'
 
 export const ROLE_LABELS = {
   owner: 'Owner',
@@ -15,7 +16,7 @@ export const INVITE_ROLES = [
 
 // Where an invited person opens the invite from WhatsApp / email.
 export function inviteLink() {
-  return `${window.location.origin}${window.location.pathname}#/team/invite`
+  return `${SITE_URL}#/team/invite`
 }
 
 export function inviteMessage(email, roleKey) {
@@ -31,4 +32,4 @@ export function timeAgo(dateString) {
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours}h ago`
   return `${Math.floor(hours / 24)}d ago`
-}
+    }
