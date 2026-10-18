@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus } from 'lucide-react'
+import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Scale } from 'lucide-react'
 import ControllerShell, { ctl } from '../components/ControllerShell.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -9,6 +9,7 @@ import { ROLE_LABELS } from '../lib/team.js'
 const tiles = [
   { to: '/controller/verification', label: 'Verification Queue', sub: 'IDs and school documents', icon: ShieldCheck, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'pending_verifications' },
   { to: '/controller/reports', label: 'User Reports', sub: 'Posts, comments and profiles', icon: Flag, color: '#2563EB', roles: ['owner', 'moderator'], count: 'pending_reports' },
+  { to: '/controller/appeals', label: 'Ban Appeals', sub: 'People asking to be unbanned', icon: Scale, color: '#E11D48', roles: ['owner', 'moderator'], count: 'pending_appeals' },
   { to: '/controller/complaints', label: 'Complaints', sub: 'Help and feedback messages', icon: MessageSquare, color: '#10B981', roles: ['owner', 'support', 'moderator'], count: 'open_feedback' },
   { to: '/controller/users', label: 'Find a User', sub: 'Verify or ban accounts', icon: Search, color: '#F59E0B', roles: ['owner', 'verifier', 'moderator', 'support'] },
   { to: '/controller/team', label: 'Team Members', sub: 'Invite and manage the team', icon: UserCog, color: '#EC4899', roles: ['owner'] },
@@ -21,7 +22,10 @@ export default function ControllerHome() {
   const [stats, setStats] = useState(null)
 
   useEffect(() => {
-    supabase.rpc('site_stats').then(({ data }) => setStats(data || null))
+    supabase.rpc('site_stats').then(({ data }) => setStats((prev) => ({ ...(data || {}), ...(prev || {}) })))
+    supabase.rpc('list_appeals', { p_status: 'pending' }).then(({ data }) => {
+      if (data?.ok) setStats((prev) => ({ ...(prev || {}), pending_appeals: data.items?.length ?? 0 }))
+    })
   }, [])
 
   async function handleSignOut() {
@@ -97,7 +101,7 @@ export default function ControllerHome() {
             </div>
           </div>
 
-                    {/* signed-in card: tap to open your profile */}
+                              {/* signed-in card: tap to open your profile */}
           <button
             onClick={() => navigate('/controller/profile')}
             className="flex items-center gap-3 mt-5 w-full text-left"
@@ -215,4 +219,4 @@ export default function ControllerHome() {
       </div>
     </ControllerShell>
   )
-          }
+                }
