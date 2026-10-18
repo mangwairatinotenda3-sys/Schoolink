@@ -1,8 +1,8 @@
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, BarChart3, ClipboardList, Table, BookOpen, Users, GraduationCap,
-  Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck, UserPlus,
-  Clock, Bookmark, MessagesSquare, Award, ShieldCheck,
+  Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck,
+  Clock, MessagesSquare, Award,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
@@ -18,7 +18,6 @@ export default function MoreHub() {
   const isFamilyStaff = ['Headteacher', 'Deputy Head', 'Teacher / Tutor', 'Receptionist'].includes(profile?.role)
 
   const tiles = [
-    { label: 'Saved', icon: Bookmark, color: 'bg-gray-500', to: '/saved' },
     { label: 'Communities', icon: MessagesSquare, color: 'bg-indigo-500', to: '/communities' },
     { label: 'Calendar', icon: CalendarDays, color: 'bg-blue-500', to: '/calendar' },
     { label: 'Polls', icon: BarChart3, color: 'bg-emerald-500', to: '/polls' },
@@ -27,8 +26,6 @@ export default function MoreHub() {
     { label: 'Library', icon: BookOpen, color: 'bg-teal-500', to: '/library' },
     { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
     { label: 'Achievements', icon: Trophy, color: 'bg-amber-500', to: '/achievements' },
-    { label: 'Staff Directory', icon: Users, color: 'bg-sky-500', to: '/staff-directory' },
-    { label: 'Safety & Data', icon: ShieldCheck, color: 'bg-slate-600', to: '/settings/safety' },
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
@@ -61,10 +58,7 @@ export default function MoreHub() {
       ? [{ label: 'Reception', icon: UserCheck, color: 'bg-lime-600', to: '/reception' }]
       : []),
     ...(canManageStaff(profile)
-      ? [
-          { label: 'Invite Member', icon: UserPlus, color: 'bg-brand-purple', to: '/invite-member' },
-          { label: 'Pending Approvals', icon: Clock, color: 'bg-red-500', to: '/pending-approvals' },
-        ]
+      ? [{ label: 'Pending Approvals', icon: Clock, color: 'bg-red-500', to: '/pending-approvals' }]
       : []),
   ]
 
