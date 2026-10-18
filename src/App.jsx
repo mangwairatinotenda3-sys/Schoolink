@@ -15,6 +15,10 @@ import GuestWall from './components/GuestWall.jsx'
 import GuestProfileView from './components/GuestProfileView.jsx'
 import { guestCanOpen } from './lib/guestShield.js'
 import Family from './pages/Family.jsx'
+import AppealPage from './pages/AppealPage.jsx'
+import AppealsReview from './pages/AppealsReview.jsx'
+import SafetyData from './pages/SafetyData.jsx'
+import GlobalGuards from './components/GlobalGuards.jsx'
 
 // Pages load only when someone opens them, so the app starts much faster.
 // If a new version was published while the app was open, the old page file is gone:
@@ -231,6 +235,7 @@ export default function App() {
   return (
     <div className={shellClasses}>
       <TranslateBanner />
+      <GlobalGuards />
       <PermissionsPrompt />
       <GuestPrompt />
       {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
@@ -242,6 +247,9 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/appeal" element={<AppealPage />} />
+<Route path="/appeals" element={<RequireAuth><AppealsReview /></RequireAuth>} />
+<Route path="/settings/safety" element={<RequireAuth><SafetyData /></RequireAuth>} />
 
         <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
