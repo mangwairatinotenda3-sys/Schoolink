@@ -9,20 +9,6 @@ import CommunityAddPeople from '../components/CommunityAddPeople.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
-function Toggle({ on, onChange, label, sub, busy }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} disabled={busy} onClick={() => onChange(!on)} className="w-full flex items-center gap-3 py-3.5 text-left disabled:opacity-50">
-      <span className="flex-1 min-w-0">
-        <span className="block text-[15px] font-medium">{label}</span>
-        {sub ? <span className="block text-xs text-gray-400 mt-0.5">{sub}</span> : null}
-      </span>
-      <span className={`relative w-12 h-7 rounded-full shrink-0 transition-colors ${on ? 'bg-brand-purple' : 'bg-gray-200'}`}>
-        <span className="absolute top-0.5 w-6 h-6 rounded-full bg-white shadow transition-all" style={{ left: on ? 22 : 2 }} />
-      </span>
-    </button>
-  )
-}
-
 function QuickAction({ icon: Icon, label, onClick }) {
   return (
     <button onClick={onClick} className="flex-1 flex flex-col items-center gap-1.5 rounded-2xl border border-gray-100 py-3 active:bg-gray-50">
@@ -90,7 +76,8 @@ export default function CommunityGroupInfo() {
 
   const setRole = (m, role) => run(() => supabase.rpc('community_set_role', { p_community: String(communityId), p_user: m.user_id, p_role: role }), role === 'admin' ? `${m.profiles?.full_name || 'They'} is now an admin` : 'Admin removed')
   const removeMember = (m) => run(() => supabase.rpc('community_remove_member', { p_community: String(communityId), p_user: m.user_id }), `${m.profiles?.full_name || 'Member'} removed`)
-  const setPosting = (adminsOnly) => run(() => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: community.name, p_description: community.description || '', p_posting: adminsOnly ? 'admins_only' : 'everyone' }), adminsOnly ? 'Only admins can send messages' : 'Everyone can send messages')
+  const POSTING_TEXT = { everyone: 'Everyone can send messages', admins_only: 'Only admins can send messages', approval: 'Messages need an admin to approve them' }
+  const setPosting = (mode) => run(() => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: community.name, p_description: community.description || '', p_posting: mode }), POSTING_TEXT[mode])
   const saveInfo = async () => {
     const ok = await run(() => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: edit.name, p_description: edit.description, p_posting: community.posting_mode }), 'Saved')
     if (ok) setEdit(null)
@@ -187,7 +174,23 @@ export default function CommunityGroupInfo() {
 
         {isAdmin ? (
           <div className="mt-4 rounded-2xl border border-gray-100 px-4 divide-y divide-gray-50">
-            <Toggle on={community.posting_mode === 'admins_only'} busy={busy} onChange={setPosting} label="Only admins can send messages" sub="Everyone else can read but not post" />
+            <div className="py-3.5">
+              <p className="text-[15px] font-medium">Who can send messages</p>
+              <div className="mt-2 space-y-1">
+                {[['everyone', 'Everyone', 'All members can post'], ['approval', 'Admins approve each message', 'Messages from members wait until an admin approves them'], ['admins_only', 'Only admins', 'Everyone else can read but not post']].map(([k, label, sub]) => {
+                  const on = (community.posting_mode || 'everyone') === k
+                  return (
+                    <button key={k} type="button" disabled={busy} onClick={() => !on && setPosting(k)} className="w-full flex items-center gap-3 py-2 text-left disabled:opacity-50">
+                      <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${on ? 'border-brand-purple' : 'border-gray-300'}`}>{on ? <span className="w-2.5 h-2.5 rounded-full bg-brand-purple" /> : null}</span>
+                      <span className="min-w-0">
+                        <span className="block text-sm font-medium">{label}</span>
+                        <span className="block text-xs text-gray-400">{sub}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
             {community.is_private ? (
               <button onClick={() => navigate(`/communities/${communityId}/requests`)} className="w-full flex items-center gap-3 py-3.5 text-left">
                 <Inbox size={19} className="text-gray-500" />
@@ -291,4 +294,4 @@ export default function CommunityGroupInfo() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 30 }}>{toast}</div> : null}
     </div>
   )
-              }
+        }
