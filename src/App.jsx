@@ -181,6 +181,7 @@ const ControllerUsers = lazyPage(() => import('./pages/ControllerUsers.jsx'))
 const ControllerActivity = lazyPage(() => import('./pages/ControllerActivity.jsx'))
 const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx'))
 const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
+const ControllerAppeals = lazyPage(() => import('./pages/ControllerAppeals.jsx'))
 
 function RequireAuth({ children }) {
   const { user, loading } = useAuth()
@@ -348,6 +349,8 @@ export default function App() {
         <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
         <Route path="/controller/announce" element={<RequireAuth><ControllerAnnounce /></RequireAuth>} />
         <Route path="/controller/profile" element={<RequireAuth><ControllerProfile /></RequireAuth>} />
+        <Route path="/appeals" element={<Navigate to="/controller/appeals" replace />} />
+        <Route path="/controller/appeals" element={<RequireAuth><ControllerAppeals /></RequireAuth>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
