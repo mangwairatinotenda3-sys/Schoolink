@@ -36,7 +36,7 @@ export default function CommunityMessageBubble({ message, isMine, senderIsAdmin,
         tabIndex={0}
         onClick={() => onOpen(message)}
         onKeyDown={(e) => { if (e.key === 'Enter') onOpen(message) }}
-        className={`max-w-[80%] text-left cursor-pointer rounded-2xl px-3 py-2 text-[15px] transition-shadow ${isMine ? 'bg-brand-purple text-white rounded-br-md' : 'bg-gray-100 text-gray-900 rounded-bl-md'} ${pending ? 'opacity-70' : ''} ${highlight ? 'ring-2 ring-amber-400' : ''}`}
+        className={`max-w-[80%] text-left cursor-pointer chat-bubble chat-bubble-lg px-3 py-2 transition-shadow ${isMine ? 'mine bg-brand-purple text-white' : 'theirs bg-gray-100 text-gray-900'} ${pending ? 'opacity-70' : ''} ${highlight ? 'ring-2 ring-amber-400' : ''}`}
       >
         {!isMine && showName ? (
           <span className="flex items-center gap-1.5 mb-0.5">
