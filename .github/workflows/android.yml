@@ -145,37 +145,85 @@ jobs:
               print("Added notification permission")
           PY
 
-                - name: Keep the same app signature so updates keep you signed in
-        env:
-          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
+      - name: Ask the phone for the permissions the app needs
         run: |
-          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
-            mkdir -p ~/.android
-            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
-            if keytool -list -keystore ~/.android/debug.keystore -storepass android > /dev/null 2>&1; then
-              echo "Using the saved signing key"
-            else
-              echo "The saved signing key is damaged, using a temporary one instead"
-              rm -f ~/.android/debug.keystore
-            fi
-          else
-            echo "No DEBUG_KEYSTORE_BASE64 secret, using a temporary signing key"
-          fi
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perms = [
+              '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
+              '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+              '<uses-permission android:name="android.permission.CAMERA" />',
+              '<uses-permission android:name="android.permission.VIBRATE" />',
+              '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
+              '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />',
+              '<uses-feature android:name="android.hardware.camera" android:required="false" />',
+              '<uses-feature android:name="android.hardware.microphone" android:required="false" />',
+          ]
+          added = 0
+          for line in perms:
+              key = line.split('android:name="')[1].split('"')[0]
+              if key not in s:
+                  s = s.replace('<application', line + '\n    <application', 1)
+                  added += 1
+          open(p, 'w').write(s)
+          print("Added", added, "permissions")
+          PY
 
-      - run: npx cap sync android
-
-      - name: Build the APK
+      - name: Match the website look and sharpen the opening screen
         run: |
-          cd android
-          chmod +x gradlew
-          ./gradlew assembleDebug
+          python3 - <<'PY'
+          import os, re
+          res = 'android/app/src/main/res'
+          styles_path = res + '/values/styles.xml'
+          styles = open(styles_path).read() if os.path.exists(styles_path) else ''
 
-      - uses: actions/upload-artifact@v4
-        with:
-          name: schoolink-android
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          # Same colours as the website: status bar matches the website's theme colour.
+          if styles and 'statusBarColor' not in styles:
+              pattern = r'(<style name="AppTheme.NoActionBar"[^>]*>)'
+              if re.search(pattern, styles):
+                  add = '\\1\n        <item name="android:statusBarColor">#241B4E</item>\n        <item name="android:forceDarkAllowed">false</item>'
+                  styles = re.sub(pattern, add, styles, count=1)
+                  open(styles_path, 'w').write(styles)
+                  print("Status bar colour set")
 
-                - name: Keep the same app signature so updates keep you signed in
+          # Crisp opening screen on Android 12 and newer: a vector logo that stays sharp at any size.
+          bg, glyph = '#6C4CE0', 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          if os.path.exists('public/icon.svg'):
+              svg = open('public/icon.svg').read()
+              m1 = re.search(r'<rect[^>]*fill="([^"]+)"', svg)
+              m2 = re.search(r'<path[^>]*\sd="([^"]+)"', svg)
+              if m1: bg = m1.group(1)
+              if m2: glyph = m2.group(1)
+          if 'AppTheme.NoActionBarLaunch' in styles and 'AppTheme.NoActionBar"' in styles:
+              os.makedirs(res + '/drawable', exist_ok=True)
+              os.makedirs(res + '/values-v31', exist_ok=True)
+              open(res + '/drawable/splash_logo.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+                  '    android:width="288dp" android:height="288dp"\n'
+                  '    android:viewportWidth="512" android:viewportHeight="512">\n'
+                  '  <group android:scaleX="0.85" android:scaleY="0.85" android:pivotX="256" android:pivotY="256">\n'
+                  '    <path android:fillColor="' + bg + '" android:pathData="' + glyph + '"/>\n'
+                  '  </group>\n'
+                  '</vector>\n')
+              open(res + '/values-v31/splash_v31.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<resources>\n'
+                  '    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">\n'
+                  '        <item name="android:windowSplashScreenBackground">#FFFFFF</item>\n'
+                  '        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>\n'
+                  '    </style>\n'
+                  '</resources>\n')
+              print("Sharp opening screen added")
+          else:
+              print("Launch theme not found, skipped the sharp opening screen")
+          PY
+
+      - name: Keep the same app signature so updates keep you signed in
         env:
           DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
