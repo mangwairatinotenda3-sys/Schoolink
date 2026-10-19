@@ -228,7 +228,8 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
   function handleDelete(e) {
     e.stopPropagation()
     if (!window.confirm('Delete this message for everyone?')) 
-    return onDelete(m.id)
+      
+      return onDelete(m.id)
     setShowBar(false)
   }
 
@@ -447,11 +448,22 @@ export default function ChatThread() {
       bottomRef.current?.scrollIntoView({ behavior: 'auto' })
     } else if (stickToBottomRef.current || last?.sender_id === user?.id) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-            supabase.from('blocked_users').select('*').eq('blocker_id', user.id).eq('blocked_id', partnerId).maybeSingle().then(({ data }) => setIsBlocked(!!data))
+    }
+  }, [messages])
+
+  // A new "sending" bubble appeared: keep it in view.
+  useEffect(() => {
+    if (pending.length > 0) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [pending.length])
+
+  useEffect(() => {
+    setPartner(null)
+    supabase.from('profiles').select('full_name, avatar_url, role').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
+        supabase.from('blocked_users').select('*').eq('blocker_id', user.id).eq('blocked_id', partnerId).maybeSingle().then(({ data }) => setIsBlocked(!!data))
     supabase.from('chat_settings').select('*').eq('user_id', user.id).eq('partner_id', partnerId).maybeSingle().then(({ data }) => {
       if (data) setMyChatSettings(data)
     })
-  } [partnerId]
+  }, [partnerId])
 
   // Unsent text is kept per chat, so leaving the screen does not lose it.
   const draftKey = `schoolink_draft_${user?.id}_${partnerId}`
@@ -677,7 +689,8 @@ export default function ChatThread() {
 
   function cancelEdit() {
     setEditing(null)
-          try {
+
+        try {
       setText(localStorage.getItem(draftKey) || '')
     } catch {
       setText('')
@@ -1077,13 +1090,5 @@ export default function ChatThread() {
   )
               }
     
-  } [messages])
 
-  // A new "sending" bubble appeared: keep it in view.
-  useEffect(() => {
-    if (pending.length > 0) bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [pending.length])
-
-  useEffect(() => {
-    setPartner(null)
-    supabase.from('profiles').select('full_name, avatar_url, role').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
+  
