@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Link2, MapPin, GraduationCap, ChevronRight, Loader2, ImageOff, FileText, CalendarDays, BadgeCheck, Play, Layers } from 'lucide-react'
-import PostCard from './PostCard.jsx'
 import PhotoViewer from './PhotoViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { postThumb } from '../lib/notificationUtils.js'
 
-const PAGE = 12
+const PAGE = 18
 const TABS = ['Posts', 'Media', 'About']
 
 function photosOf(post) {
@@ -16,6 +15,11 @@ function photosOf(post) {
   }
   if (Array.isArray(urls) && urls.length) return urls
   return post.image_url ? [post.image_url] : []
+}
+
+function textOf(post) {
+  const t = post.content ?? post.body ?? post.text ?? post.caption ?? post.title ?? ''
+  return String(t).trim()
 }
 
 function Row({ icon: Icon, label, children }) {
@@ -30,8 +34,42 @@ function Row({ icon: Icon, label, children }) {
   )
 }
 
+function GridSkeleton() {
+  return <div className="grid grid-cols-3 gap-px">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="bg-gray-100 animate-pulse" style={{ aspectRatio: '3 / 4' }} />)}</div>
+}
+
+// One square-ish tile: a photo, a video frame, or the first lines of a text post.
+function Tile({ post, photos, onClick }) {
+  const thumb = photos[0] || post.video_thumb_url || postThumb(post)
+  const isVideo = !!post.video_url && photos.length === 0
+  const hasMedia = !!thumb || isVideo
+  const text = textOf(post)
+  return (
+    <button
+      onClick={onClick}
+      className={`relative overflow-hidden active:opacity-80 ${hasMedia ? 'bg-neutral-800' : 'bg-brand-purple'}`}
+      style={{ aspectRatio: '3 / 4' }}
+    >
+      {thumb ? (
+        <img src={thumb} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+      ) : isVideo ? (
+        <video src={`${post.video_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+      ) : (
+        <span className="absolute inset-0 p-2.5 flex items-center justify-center text-center text-white text-[12px] leading-snug font-medium break-words overflow-hidden" style={{ background: 'linear-gradient(160deg, #7C5CF0, #4A2FB8)' }}>
+          <span style={{ display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text || 'Post'}</span>
+        </span>
+      )}
+      {isVideo ? (
+        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Play size={15} fill="currentColor" /></span>
+      ) : photos.length > 1 ? (
+        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Layers size={15} /></span>
+      ) : null}
+    </button>
+  )
+}
+
 // The tabs under a profile: Posts, Media and About. Used for your own profile and for other people's.
-export default function ProfileContent({ userId, person, school, isMe, canSeePosts, joined, stickyTop = 52, onPostsCount }) {
+export default function ProfileContent({ userId, person, school, isMe, canSeePosts, joined, stickyTop = 52 }) {
   const navigate = useNavigate()
   const [tab, setTab] = useState('Posts')
   const [posts, setPosts] = useState([])
@@ -77,29 +115,30 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
     return () => io.disconnect()
   }, [hasMore, posts.length, tab, moreLoading])
 
+  // Every post with its photos, and where its first photo sits in the photo viewer.
+  const tiles = useMemo(() => {
+    let next = 0
+    return posts.map((p) => {
+      const photos = photosOf(p)
+      const first = next
+      next += photos.length
+      return { post: p, photos, first }
+    })
+  }, [posts])
+
   const media = useMemo(() => {
     const out = []
     posts.forEach((p) => photosOf(p).forEach((url) => out.push({ url, postId: p.id })))
     return out
   }, [posts])
 
-  // One tile per post with a photo or video, newest first, like a TikTok profile grid.
-  const tiles = useMemo(() => {
-    let next = 0
-    const out = []
-    posts.forEach((p) => {
-      const photos = photosOf(p)
-      const first = next
-      next += photos.length
-      if (photos.length === 0 && !p.video_url) return
-      out.push({ post: p, photos, first })
-    })
-    return out
-  }, [posts])
+  const mediaTiles = useMemo(() => tiles.filter((t) => t.photos.length > 0 || t.post.video_url), [tiles])
 
   const links = (person?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
+
   const tabs = canSeePosts ? TABS : ['About']
   const active = tabs.includes(tab) ? tab : tabs[0]
+  const more = hasMore ? <div ref={sentinel} className="py-4 flex justify-center text-gray-300"><Loader2 size={20} className="animate-spin" /></div> : null
 
   return (
     <div>
@@ -113,11 +152,11 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       </div>
 
       {active === 'Posts' ? (
-        <div className="px-4 py-4 space-y-3">
+        <div>
           {loading ? (
-            [0, 1].map((i) => <div key={i} className="h-44 rounded-2xl bg-gray-100 animate-pulse" />)
-          ) : posts.length === 0 ? (
-            <div className="text-center py-14">
+            <GridSkeleton />
+          ) : tiles.length === 0 ? (
+            <div className="text-center py-14 px-6">
               <span className="w-16 h-16 rounded-full bg-brand-light mx-auto flex items-center justify-center mb-3"><FileText size={26} className="text-brand-purple" /></span>
               <p className="font-semibold">{isMe ? "You haven't posted yet" : 'No posts yet'}</p>
               <p className="text-sm text-gray-400 mt-1">{isMe ? 'Share something with your school.' : 'Their posts will show up here.'}</p>
@@ -125,8 +164,10 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
             </div>
           ) : (
             <>
-              {posts.map((p) => <PostCard key={p.id} post={p} onDeleted={(id) => { setPosts((prev) => prev.filter((x) => x.id !== id)); onPostsCount?.(-1) }} />)}
-              {hasMore ? <div ref={sentinel} className="py-4 flex justify-center text-gray-300"><Loader2 size={20} className="animate-spin" /></div> : null}
+              <div className="grid grid-cols-3 gap-px">
+                {tiles.map((t) => <Tile key={t.post.id} post={t.post} photos={t.photos} onClick={() => navigate(`/post/${t.post.id}`)} />)}
+              </div>
+              {more}
             </>
           )}
         </div>
@@ -135,8 +176,8 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       {active === 'Media' ? (
         <div>
           {loading ? (
-            <div className="grid grid-cols-3 gap-px">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="bg-gray-100 animate-pulse" style={{ aspectRatio: '3 / 4' }} />)}</div>
-          ) : tiles.length === 0 ? (
+            <GridSkeleton />
+          ) : mediaTiles.length === 0 ? (
             <div className="text-center py-14 px-6">
               <span className="w-16 h-16 rounded-full bg-brand-light mx-auto flex items-center justify-center mb-3"><ImageOff size={26} className="text-brand-purple" /></span>
               <p className="font-semibold">No photos yet</p>
@@ -145,31 +186,11 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
           ) : (
             <>
               <div className="grid grid-cols-3 gap-px">
-                {tiles.map((t) => {
-                  const thumb = t.photos[0] || t.post.video_thumb_url || postThumb(t.post)
-                  const isVideo = !!t.post.video_url && t.photos.length === 0
-                  return (
-                    <button
-                      key={t.post.id}
-                      onClick={() => (t.photos.length ? setViewer({ index: t.first }) : navigate(`/post/${t.post.id}`))}
-                      className="relative bg-neutral-800 overflow-hidden active:opacity-80"
-                      style={{ aspectRatio: '3 / 4' }}
-                    >
-                      {thumb ? (
-                        <img src={thumb} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-                      ) : (
-                        <video src={`${t.post.video_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
-                      )}
-                      {isVideo ? (
-                        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Play size={15} fill="currentColor" /></span>
-                      ) : t.photos.length > 1 ? (
-                        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Layers size={15} /></span>
-                      ) : null}
-                    </button>
-                  )
-                })}
+                {mediaTiles.map((t) => (
+                  <Tile key={t.post.id} post={t.post} photos={t.photos} onClick={() => (t.photos.length ? setViewer({ index: t.first }) : navigate(`/post/${t.post.id}`))} />
+                ))}
               </div>
-              {hasMore ? <div ref={sentinel} className="py-4 flex justify-center text-gray-300"><Loader2 size={20} className="animate-spin" /></div> : null}
+              {more}
             </>
           )}
         </div>
@@ -210,4 +231,4 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       {viewer ? <PhotoViewer images={media.map((m) => m.url)} initialIndex={viewer.index} postId={media[viewer.index]?.postId} onClose={() => setViewer(null)} /> : null}
     </div>
   )
-        }
+                                                           }
