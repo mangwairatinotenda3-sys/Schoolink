@@ -1076,8 +1076,8 @@ export default function ChatThread() {
     </div>
   )
               }
-    }
-  }, [messages])
+    
+  } [messages])
 
   // A new "sending" bubble appeared: keep it in view.
   useEffect(() => {
