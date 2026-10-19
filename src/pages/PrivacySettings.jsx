@@ -3,21 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { ChevronRight, UserX } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-
-function Toggle({ checked, onChange }) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`w-11 h-6 rounded-full relative transition-colors ${checked ? 'bg-brand-purple' : 'bg-gray-200'}`}
-    >
-      <span
-        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  )
-}
+import Toggle from '../components/Switch.jsx'
 
 export default function PrivacySettings() {
   const navigate = useNavigate()
