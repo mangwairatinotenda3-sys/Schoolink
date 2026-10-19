@@ -148,7 +148,7 @@ function PendingBubble({ item, onRetry, onDiscard }) {
   return (
     <div className="flex justify-end">
       <div className="max-w-[75%]">
-        <div className={`rounded-2xl rounded-br-sm bg-brand-purple text-white text-sm ${visual ? 'p-1.5' : 'px-4 py-2'}`}>
+        <div className={`chat-bubble mine bg-brand-purple text-white ${visual ? 'p-1.5' : 'px-4 py-2'}`}>
           {item.kind === 'image' ? (
             <div className="relative">
               <img src={item.previewUrl} alt="" className={`rounded-xl w-64 max-w-full max-h-72 object-cover ${failed ? 'opacity-60' : 'opacity-80'}`} />
@@ -246,7 +246,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
   return (
     <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
       <div className="max-w-[75%]">
-        <div onClick={() => setShowBar((s) => !s)} className={`rounded-2xl text-sm ${visual ? 'p-1.5' : 'px-4 py-2'} ${isMine ? 'bg-brand-purple text-white rounded-br-sm' : 'bg-gray-100 text-brand-navy rounded-bl-sm'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
+        <div onClick={() => setShowBar((s) => !s)} className={`chat-bubble ${visual ? 'p-1.5' : 'px-4 py-2'} ${isMine ? 'mine bg-brand-purple text-white' : 'theirs bg-gray-100 text-brand-navy'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
           {repliedTo ? (
             <button
               onClick={(e) => { e.stopPropagation(); onJumpTo(repliedTo.id) }}
@@ -947,7 +947,7 @@ export default function ChatThread() {
       {isBlocked ? <div className="bg-red-50 text-red-500 text-xs text-center py-2 px-4">You've blocked this person. Unblock to send messages.</div> : null}
       {myChatSettings.disappearing_enabled ? <div className="bg-brand-light text-brand-purple text-[11px] text-center py-1.5 px-4">Disappearing messages are on</div> : null}
 
-      <div ref={scrollRef} onScroll={handleScroll} className="screen-scroll px-4 py-3 flex flex-col gap-3" style={wallpapers.find((w) => w.key === (profile?.chat_wallpaper || 'default'))?.style}>
+      <div ref={scrollRef} onScroll={handleScroll} className="screen-scroll px-4 py-3 flex flex-col chat-surface" style={wallpapers.find((w) => w.key === (profile?.chat_wallpaper || 'default'))?.style}>
         {hasMore ? (
           <button onClick={loadOlder} disabled={loadingOlder} className="self-center text-xs text-brand-purple bg-white/80 border border-gray-100 rounded-full px-4 py-1.5 disabled:opacity-60">
             {loadingOlder ? 'Loading…' : 'Load earlier messages'}
