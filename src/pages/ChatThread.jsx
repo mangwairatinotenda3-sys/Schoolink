@@ -451,7 +451,7 @@ export default function ChatThread() {
     supabase.from('chat_settings').select('*').eq('user_id', user.id).eq('partner_id', partnerId).maybeSingle().then(({ data }) => {
       if (data) setMyChatSettings(data)
     })
-  } [partnerId])
+  } [partnerId]
 
   // Unsent text is kept per chat, so leaving the screen does not lose it.
   const draftKey = `schoolink_draft_${user?.id}_${partnerId}`
