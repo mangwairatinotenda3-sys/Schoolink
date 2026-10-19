@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Link2, MapPin, GraduationCap, ChevronRight, Loader2, ImageOff, FileText, CalendarDays, BadgeCheck, Play } from 'lucide-react'
+import { Link2, MapPin, GraduationCap, ChevronRight, Loader2, ImageOff, FileText, CalendarDays, BadgeCheck, Play, Layers } from 'lucide-react'
 import PostCard from './PostCard.jsx'
 import PhotoViewer from './PhotoViewer.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -82,7 +82,20 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
     posts.forEach((p) => photosOf(p).forEach((url) => out.push({ url, postId: p.id })))
     return out
   }, [posts])
-  const videoPosts = useMemo(() => posts.filter((p) => p.video_url), [posts])
+
+  // One tile per post with a photo or video, newest first, like a TikTok profile grid.
+  const tiles = useMemo(() => {
+    let next = 0
+    const out = []
+    posts.forEach((p) => {
+      const photos = photosOf(p)
+      const first = next
+      next += photos.length
+      if (photos.length === 0 && !p.video_url) return
+      out.push({ post: p, photos, first })
+    })
+    return out
+  }, [posts])
 
   const links = (person?.links || '').split('\n').map((l) => l.trim()).filter(Boolean)
   const tabs = canSeePosts ? TABS : ['About']
@@ -120,10 +133,10 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       ) : null}
 
       {active === 'Media' ? (
-        <div className="p-0.5">
+        <div>
           {loading ? (
-            <div className="grid grid-cols-3 gap-0.5">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="aspect-square bg-gray-100 animate-pulse" />)}</div>
-          ) : media.length === 0 && videoPosts.length === 0 ? (
+            <div className="grid grid-cols-3 gap-px">{Array.from({ length: 9 }).map((_, i) => <div key={i} className="bg-gray-100 animate-pulse" style={{ aspectRatio: '3 / 4' }} />)}</div>
+          ) : tiles.length === 0 ? (
             <div className="text-center py-14 px-6">
               <span className="w-16 h-16 rounded-full bg-brand-light mx-auto flex items-center justify-center mb-3"><ImageOff size={26} className="text-brand-purple" /></span>
               <p className="font-semibold">No photos yet</p>
@@ -131,18 +144,30 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-0.5">
-                {media.map((m, i) => (
-                  <button key={`${m.postId}-${i}`} onClick={() => setViewer({ index: i })} className="relative aspect-square bg-gray-100 overflow-hidden">
-                    <img src={m.url} alt="" loading="lazy" className="w-full h-full object-cover" />
-                  </button>
-                ))}
-                {videoPosts.map((p) => (
-                  <button key={`v-${p.id}`} onClick={() => navigate(`/post/${p.id}`)} className="relative aspect-square bg-neutral-800 overflow-hidden flex items-center justify-center">
-                    {p.video_thumb_url || postThumb(p) ? <img src={p.video_thumb_url || postThumb(p)} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : null}
-                    <span className="relative w-9 h-9 rounded-full bg-black/50 flex items-center justify-center"><Play size={16} fill="white" className="text-white ml-0.5" /></span>
-                  </button>
-                ))}
+              <div className="grid grid-cols-3 gap-px">
+                {tiles.map((t) => {
+                  const thumb = t.photos[0] || t.post.video_thumb_url || postThumb(t.post)
+                  const isVideo = !!t.post.video_url && t.photos.length === 0
+                  return (
+                    <button
+                      key={t.post.id}
+                      onClick={() => (t.photos.length ? setViewer({ index: t.first }) : navigate(`/post/${t.post.id}`))}
+                      className="relative bg-neutral-800 overflow-hidden active:opacity-80"
+                      style={{ aspectRatio: '3 / 4' }}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                      ) : (
+                        <video src={`${t.post.video_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+                      )}
+                      {isVideo ? (
+                        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Play size={15} fill="currentColor" /></span>
+                      ) : t.photos.length > 1 ? (
+                        <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Layers size={15} /></span>
+                      ) : null}
+                    </button>
+                  )
+                })}
               </div>
               {hasMore ? <div ref={sentinel} className="py-4 flex justify-center text-gray-300"><Loader2 size={20} className="animate-spin" /></div> : null}
             </>
@@ -185,4 +210,4 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       {viewer ? <PhotoViewer images={media.map((m) => m.url)} initialIndex={viewer.index} postId={media[viewer.index]?.postId} onClose={() => setViewer(null)} /> : null}
     </div>
   )
-}
+        }
