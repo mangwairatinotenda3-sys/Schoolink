@@ -1,3 +1,4 @@
+import { Capacitor } from '@capacitor/core'
 import { supabase } from './supabaseClient.js'
 
 // Builds the "download my data" file by asking the database for one section at a time.
@@ -47,8 +48,26 @@ export function sizeText(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+// Inside the Android app a normal download does nothing, so the file is written to the phone and handed to the share sheet.
+async function saveInApp(blob, name) {
+  try {
+    const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem')
+    const { Share } = await import('@capacitor/share')
+    const written = await Filesystem.writeFile({ path: name, data: await blob.text(), directory: Directory.Cache, encoding: Encoding.UTF8 })
+    await Share.share({ title: 'My Schoolink data', url: written.uri, dialogTitle: 'Save or send your data' })
+    return 'shared'
+  } catch (e) {
+    if (/cancel/i.test(String(e?.message || e))) return 'cancelled'
+    return null
+  }
+}
+
 // Share sheet first (works well on phones), then a normal download
 export async function saveFile(blob, name) {
+  if (Capacitor.isNativePlatform()) {
+    const done = await saveInApp(blob, name)
+    if (done) return done
+  }
   const file = new File([blob], name, { type: 'application/json' })
   if (navigator.canShare?.({ files: [file] })) {
     try {
@@ -67,4 +86,4 @@ export async function saveFile(blob, name) {
   a.remove()
   setTimeout(() => URL.revokeObjectURL(url), 60000)
   return 'downloaded'
-          }
+}
