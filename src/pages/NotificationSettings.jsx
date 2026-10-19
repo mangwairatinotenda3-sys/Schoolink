@@ -3,21 +3,7 @@ import { Play } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { tones, playTone } from '../lib/chatPrefs.js'
-
-function Toggle({ checked, onChange }) {
-  return (
-    <button
-      onClick={() => onChange(!checked)}
-      className={`w-11 h-6 rounded-full relative transition-colors shrink-0 ${checked ? 'bg-brand-purple' : 'bg-gray-200'}`}
-    >
-      <span
-        className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
-  )
-}
+import Toggle from '../components/Switch.jsx'
 
 const options = [
   { key: 'notify_likes', label: 'Likes', sub: 'When someone likes your post' },
