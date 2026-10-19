@@ -10,6 +10,7 @@ import { supabase } from './lib/supabaseClient'
 import { listenForNativeSignIn } from './lib/nativeAuth.js'
 import { isNativeApp } from './lib/appPermissions.js'
 import './index.css'
+import './lib/uiPrefs.js'
 
 // Stop the browser from trying to restore scroll position on refresh —
 // it fights with how this app renders content after loading, causing
