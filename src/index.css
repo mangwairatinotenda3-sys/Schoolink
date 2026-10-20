@@ -243,3 +243,44 @@ html[data-motion="reduce"] *:not(.animate-spin)::after {
 }
 html[data-targets="large"] button:not(.sl-switch):not([role="radio"]),
 html[data-targets="large"] [role="button"] { min-height: 44px; min-width: 44px; }
+
+/* ================= NATIVE APP FEEL: SCREEN SLIDES, PRESS FEEDBACK, FOCUS ================= */
+.sl-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+@keyframes sl-in-forward { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sl-in-back { from { transform: translateX(-22px); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes sl-in-fade { from { opacity: 0; } to { opacity: 1; } }
+.sl-forward { animation: sl-in-forward 0.26s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.sl-back { animation: sl-in-back 0.24s cubic-bezier(0.2, 0.8, 0.2, 1) backwards; }
+.sl-fade { animation: sl-in-fade 0.18s ease-out backwards; }
+html[data-motion="reduce"] .sl-page { animation: none !important; }
+
+/* Buttons press in a little, like a phone app. */
+button:not(:disabled), [role="button"] {
+  transition: transform 0.12s ease, opacity 0.12s ease, background-color 0.15s ease;
+}
+button:not(:disabled):active, [role="button"]:active {
+  transform: scale(0.97);
+}
+.sl-switch:active, nav a:active { transform: none; }
+html[data-motion="reduce"] button:active, html[data-motion="reduce"] [role="button"]:active { transform: none; }
+
+/* Keyboard and switch-access users can see where they are. */
+:focus-visible {
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 2px;
+}
+input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offset: 0; }
+
+/* People who ask their phone for less motion get less motion everywhere. */
+@media (prefers-reduced-motion: reduce) {
+  .sl-page { animation: none !important; }
+  *, *::before, *::after { scroll-behavior: auto !important; }
+}
+
+/* Selects look like the rest of the app. */
+select { -webkit-appearance: none; appearance: none; background-image: none; }
