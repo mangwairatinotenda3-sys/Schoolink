@@ -33,4 +33,10 @@ async function watchedFetch(input, init) {
 
 export const supabase = createClient(supabaseUrl ?? '', supabaseAnonKey ?? '', {
   global: { fetch: watchedFetch },
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined,
+  },
 })
