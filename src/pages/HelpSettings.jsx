@@ -127,7 +127,7 @@ export default function HelpSettings() {
         </div>
 
         <a
-          href={`mailto:${schoolink.support@gmail.com}`}
+          href={`mailto:${SUPPORT_EMAIL}`}
           className="w-full mt-8 flex items-center justify-center gap-2 border border-gray-200 rounded-full py-3 text-sm font-semibold"
         >
           <Mail size={16} /> Email us directly
@@ -139,4 +139,4 @@ export default function HelpSettings() {
       </div>
     </div>
   )
-}
+   }
