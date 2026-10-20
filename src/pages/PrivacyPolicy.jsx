@@ -14,6 +14,8 @@ const sections = [
       'Activity: who you follow, the communities you are in, your online status, notifications, and a login history with the method and time.',
       'Safety: reports you make, reports about content, ban status and appeals.',
       'Device: a notification token so we can send push notifications to your phone.',
+            'Age: your birth date, which we ask for once to check you are old enough. Other people never see it.',
+      'Diagnostics: crash reports (what broke, which screen, the app version and phone model) unless you turn them off in Settings, and anonymous screen counts only if you choose to share them.',
     ],
   },
   {
@@ -29,7 +31,7 @@ const sections = [
   {
     title: 'Children and parents',
     short: 'Children',
-    lead: 'Schoolink is used by students, including children, as part of a school\'s supervised community. A student account is created with a school code and needs admin approval before it is active.',
+     lead: 'Schoolink is for people aged 13 and over. We ask for your birth date when you sign up, and we do not allow accounts for anyone under 13. If we learn an account belongs to someone under 13, it is deleted. Students use Schoolink as part of a school\'s supervised community: a student account is created with a school code and needs admin approval before it is active. People under 18 confirm that a parent, guardian or their school has given them access.',
     points: [
       'A parent can see a linked child\'s timetable, homework and published results. They cannot read the child\'s chats.',
       'Schools and parents decide whether a student\'s use is right. We suggest schools go through this policy with families.',
