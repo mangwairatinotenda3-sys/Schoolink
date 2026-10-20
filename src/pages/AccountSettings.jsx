@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronRight, ShieldCheck, Clock, KeyRound } from 'lucide-react'
+ import { ChevronRight, ShieldCheck, Clock, KeyRound, Trash2 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -149,6 +149,15 @@ export default function AccountSettings() {
         </button>
 
         <div className="h-px bg-gray-100 my-6" />
+
+              
+          <button
+          onClick={() => navigate('/settings/delete-account')}
+          className="mb-5 w-full flex items-center justify-between border border-red-100 rounded-xl px-4 py-3 text-sm text-red-500"
+        >
+          <span className="flex items-center gap-2"><Trash2 size={15} /> Delete account</span>
+          <ChevronRight size={16} className="text-red-300" />
+        </button>
 
         <button
           onClick={() => {
