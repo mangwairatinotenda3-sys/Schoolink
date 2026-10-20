@@ -346,6 +346,9 @@ export default function App() {
         <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileRoute /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
+         <Route path="/settings/delete-account" element={<RequireAuth><DeleteAccount /></RequireAuth>} />
+        <Route path="/settings/data-sharing" element={<RequireAuth><DataSharingSettings /></RequireAuth>} />
+        <Route path="/controller/app-health" element={<RequireAuth><ControllerAppHealth /></RequireAuth>} />
         <Route path="/saved" element={<RequireAuth><Saved /></RequireAuth>} />
         <Route path="/notifications" element={<RequireAuth><Notifications /></RequireAuth>} />
         <Route path="/add-post" element={<RequireAuth><AddPost /></RequireAuth>} />
