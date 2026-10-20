@@ -19,6 +19,14 @@ import AppealPage from './pages/AppealPage.jsx'
 import AppealsReview from './pages/AppealsReview.jsx'
 import SafetyData from './pages/SafetyData.jsx'
 import GlobalGuards from './components/GlobalGuards.jsx'
+import NativeBridge from './components/NativeBridge.jsx'
+import OfflineBanner from './components/OfflineBanner.jsx'
+import UpdatePrompt from './components/UpdatePrompt.jsx'
+import AgeGate from './components/AgeGate.jsx'
+import PageTransition from './components/PageTransition.jsx'
+import DeleteAccount from './pages/DeleteAccount.jsx'
+import DataSharingSettings from './pages/DataSharingSettings.jsx'
+import ControllerAppHealth from './pages/ControllerAppHealth.jsx'
 
 // Pages load only when someone opens them, so the app starts much faster.
 // If a new version was published while the app was open, the old page file is gone:
@@ -237,9 +245,14 @@ export default function App() {
     <div className={shellClasses}>
       <TranslateBanner />
       <GlobalGuards />
+      <OfflineBanner />
+      <AgeGate />
+      <NativeBridge />
+      <UpdatePrompt />
       <PermissionsPrompt />
       <GuestPrompt />
       {user && !teamRole && !isGuest && path !== '/' ? <TeamInvitePrompt /> : null}
+      <PageTransition>
       <Suspense fallback={<PageLoading />}>
       <Routes>
         <Route path="/" element={<RootRoute />} />
@@ -249,8 +262,8 @@ export default function App() {
         <Route path="/terms" element={<TermsOfService />} />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/appeal" element={<AppealPage />} />
-<Route path="/appeals" element={<RequireAuth><AppealsReview /></RequireAuth>} />
-<Route path="/settings/safety" element={<RequireAuth><SafetyData /></RequireAuth>} />
+        <Route path="/appeals" element={<RequireAuth><AppealsReview /></RequireAuth>} />
+        <Route path="/settings/safety" element={<RequireAuth><SafetyData /></RequireAuth>} />
 
         <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
@@ -355,6 +368,7 @@ export default function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
+      </PageTransition>  
     </div>
   )
         }
