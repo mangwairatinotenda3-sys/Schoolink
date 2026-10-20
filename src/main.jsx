@@ -8,6 +8,7 @@ import OAuthErrorBanner, { OAUTH_ERROR_KEY } from './components/OAuthErrorBanner
 import ErrorBoundary from './components/ErrorBoundary.jsx'
 import { supabase } from './lib/supabaseClient'
 import { listenForNativeSignIn } from './lib/nativeAuth.js'
+import { installCrashReporter } from './lib/crashReporter.js'
 import { isNativeApp } from './lib/appPermissions.js'
 import './index.css'
 import './lib/uiPrefs.js'
@@ -67,6 +68,7 @@ if (isNativeApp()) document.documentElement.classList.add('native-app')
 
 // Inside the Android / iPhone app, catch the link Google sends the person back through.
 listenForNativeSignIn()
+installCrashReporter()
 
 const returnedError = errorFromAddress()
 if (returnedError) {
