@@ -1,4 +1,5 @@
 import React from 'react'
+import { reportCrash } from '../lib/crashReporter.js'
 
 // Catches a crash on one screen and shows what went wrong instead of a blank white page.
 export default class ErrorBoundary extends React.Component {
@@ -14,6 +15,7 @@ export default class ErrorBoundary extends React.Component {
   componentDidCatch(error, info) {
     // eslint-disable-next-line no-console
     console.error('Screen crashed:', error, info?.componentStack)
+    reportCrash(error, 'screen')
   }
 
   render() {
