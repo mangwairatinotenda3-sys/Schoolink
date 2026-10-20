@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Bug } from 'lucide-react'
+import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Bug, Scale } from 'lucide-react'
 import ControllerShell, { ctl } from '../components/ControllerShell.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -220,4 +220,4 @@ export default function ControllerHome() {
       </div>
     </ControllerShell>
   )
-                }
+                                                           }
