@@ -1,0 +1,12 @@
+{
+  "versionCode": 4,
+  "versionName": "4.0",
+  "minVersionCode": 1,
+  "notes": "New chat list, saved items and calendar. Account deletion, crash reports and many small fixes.",
+  "stores": {
+    "samsung": "",
+    "huawei": "",
+    "amazon": "",
+    "play": ""
+  }
+}
