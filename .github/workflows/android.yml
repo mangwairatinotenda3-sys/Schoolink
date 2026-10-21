@@ -262,6 +262,11 @@ jobs:
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
+          export KEYSTORE_PASSWORD="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
+          export KEY_PASSWORD="$(printf '%s' "$KEY_PASSWORD" | tr -d '\r\n')"
+          export KEY_ALIAS="$(printf '%s' "$KEY_ALIAS" | tr -d '\r\n ')"
+          echo "Aliases inside the key file:"
+          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep -i "PrivateKeyEntry" || keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD"
           cd android
           chmod +x gradlew
           ./gradlew assembleRelease bundleRelease
