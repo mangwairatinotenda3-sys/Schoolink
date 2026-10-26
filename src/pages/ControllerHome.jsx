@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Bug, Scale } from 'lucide-react'
+import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Bug, Scale, Wallet } from 'lucide-react'
 import ControllerShell, { ctl } from '../components/ControllerShell.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -15,6 +15,7 @@ const tiles = [
   { to: '/controller/team', label: 'Team Members', sub: 'Invite and manage the team', icon: UserCog, color: '#EC4899', roles: ['owner'] },
   { to: '/controller/activity', label: 'Site Activity', sub: 'Numbers across Schoolink', icon: BarChart3, color: '#14B8A6', roles: ['owner'] },
   { to: '/controller/app-health', label: 'App Health', sub: 'Crashes and screen usage', icon: Bug, color: '#EF4444', roles: ['owner'] },
+   { to: '/controller/payments', label: 'School Payments', sub: 'Confirm School Plus payments', icon: Wallet, color: '#D97706', roles: ['owner'] },
 ]
 
 export default function ControllerHome() {
