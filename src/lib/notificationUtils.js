@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, AtSign, Bell } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, AtSign, Bell, Gift, BadgeCheck } from 'lucide-react'
 
 // How each kind of notification looks and which filter it belongs to.
 export const TYPE_META = {
@@ -9,6 +9,8 @@ export const TYPE_META = {
   follow: { icon: UserPlus, bg: 'bg-brand-purple', filter: 'people' },
   message: { icon: MessageSquare, bg: 'bg-sky-500', filter: 'messages' },
   approval: { icon: CheckCircle, bg: 'bg-green-500', filter: 'school' },
+  promo: { icon: Gift, bg: 'bg-amber-500', filter: 'school' },
+  billing: { icon: BadgeCheck, bg: 'bg-amber-500', filter: 'school' },
 }
 export const DEFAULT_META = { icon: Bell, bg: 'bg-gray-500', filter: 'school' }
 
