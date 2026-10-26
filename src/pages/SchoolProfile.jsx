@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Camera, MapPin, Phone, Mail, MessageSquare, ShieldCheck, Plus, FileText, ExternalLink, Bell, BellRing, Video,
+  Camera, MapPin, Phone, Mail, MessageSquare, Plus, FileText, ExternalLink, Bell, BellRing, Video,
   Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2,
 } from 'lucide-react'
 import VerifiedBadge from '../components/VerifiedBadge.jsx'
@@ -92,6 +92,10 @@ export default function SchoolProfile() {
   const [asStudent, setAsStudent] = useState(false)
   const [formValue, setFormValue] = useState('')
   const [sheetBusy, setSheetBusy] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteText, setDeleteText] = useState('')
+  const [deleting, setDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
   const plusActive = useIsPlusSchool(school?.id)
 
   const isMember = !!school && profile?.school_id === school.id
@@ -456,6 +460,29 @@ export default function SchoolProfile() {
     setToast('Form updated')
   }
 
+  // Headteacher only: removes the school. Members are moved out of the school but keep their accounts.
+  async function removeStorageFolder(path) {
+    const { data: items } = await supabase.storage.from('school-media').list(path, { limit: 1000 })
+    const files = (items ?? []).filter((i) => i.id).map((i) => `${path}/${i.name}`)
+    if (files.length) await supabase.storage.from('school-media').remove(files)
+  }
+
+  async function deleteSchool() {
+    if (deleting || deleteText.trim().toLowerCase() !== (school.name || '').trim().toLowerCase()) return
+    setDeleting(true)
+    setDeleteError('')
+    try {
+      await removeStorageFolder(school.id)
+      await removeStorageFolder(`${school.id}/gallery`)
+      await removeStorageFolder(`${school.id}/documents`)
+    } catch { /* files are best-effort */ }
+    const { data: res, error } = await supabase.rpc('delete_school', { p_school: school.id })
+    setDeleting(false)
+    if (error || !res?.ok) { setDeleteError(res?.error || error?.message || 'Could not delete the school.'); return }
+    window.location.hash = '#/home'
+    window.location.reload()
+  }
+
   function setProfileForm(v) {
     saveProfileDetails?.({ class_name: v })
   }
@@ -502,7 +529,6 @@ export default function SchoolProfile() {
     ['Pass rate', school.pass_rate ? `${school.pass_rate}%` : ''],
     ['Classes', school.total_classes],
   ].filter(([, v]) => v)
-  const isHead = profile?.role === 'Headteacher' && profile?.school_id === school.id
 
   function goTab(t) {
     setActiveTab(t)
@@ -537,8 +563,8 @@ export default function SchoolProfile() {
           </button>
           <div className="absolute top-3 right-3 flex gap-2">
             <button onClick={shareSchool} aria-label="Share" className="w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center"><Share2 size={16} /></button>
-            {canEdit ? (
-              <button onClick={() => navigate('/school-settings')} aria-label="School settings" className="w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center"><Settings size={17} /></button>
+            {canManageMedia ? (
+              <button onClick={() => navigate('/school-settings')} aria-label="School dashboard" className="w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center"><Settings size={17} /></button>
             ) : null}
           </div>
         </div>
@@ -570,6 +596,9 @@ export default function SchoolProfile() {
                   <button onClick={openFollow} className="h-10 px-6 rounded-full bg-brand-purple text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm"><Bell size={15} /> Follow</button>
                 )
               ) : null}
+              {canEdit ? (
+                <button onClick={() => goTab('About')} className="h-10 px-4 rounded-full border border-gray-200 text-brand-navy text-sm font-semibold flex items-center gap-1.5"><Pencil size={14} /> Edit</button>
+              ) : null}
               <button onClick={handleMessageSchool} aria-label="Message school" className="h-10 w-10 rounded-full border border-gray-200 flex items-center justify-center text-brand-navy"><MessageSquare size={17} /></button>
             </div>
           </div>
@@ -597,11 +626,6 @@ export default function SchoolProfile() {
             <p className="mt-3 border-l-[3px] border-brand-purple pl-3 text-[14px] italic text-gray-600 leading-snug">“{school.motto}”</p>
           ) : null}
 
-          {isHead && !school.verified ? (
-            <button onClick={() => navigate('/school-profile/verification')} className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-brand-purple">
-              <ShieldCheck size={14} /> {school.verification_status === 'pending' ? 'Verification under review' : 'Get your school verified'} <ChevronRight size={13} />
-            </button>
-          ) : null}
         </div>
 
         {/* Ledger */}
@@ -619,12 +643,12 @@ export default function SchoolProfile() {
           ))}
         </div>
 
-        {canEdit ? (
+        {canManageMedia ? (
           <button onClick={() => navigate('/school-settings')} className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl bg-brand-navy text-white px-4 py-3.5 text-left active:opacity-90">
             <span className="w-9 h-9 rounded-xl bg-white/12 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.12)' }}><Settings size={18} /></span>
             <span className="flex-1">
-              <span className="block text-[15px] font-semibold leading-tight">School settings</span>
-              <span className="block text-xs text-white/60 mt-0.5">Learners, staff, verification and more</span>
+              <span className="block text-[15px] font-semibold leading-tight">School dashboard</span>
+              <span className="block text-xs text-white/60 mt-0.5">Learners, dashboards and school tools</span>
             </span>
             <ChevronRight size={18} className="text-white/50" />
           </button>
@@ -792,6 +816,16 @@ export default function SchoolProfile() {
                     {saving ? 'Saving…' : 'Save Changes'}
                   </button>
                 </>
+              ) : null}
+
+              {isMember && profile?.role === 'Headteacher' ? (
+                <div className="mt-2 pt-5 border-t border-gray-100">
+                  <p className="text-xs font-bold uppercase tracking-wide text-red-500 mb-1">Danger zone</p>
+                  <p className="text-xs text-gray-500 mb-3">Deleting the school removes its profile, photos, documents, events and followers for good. Members keep their accounts but leave the school.</p>
+                  <button onClick={() => { setDeleteText(''); setDeleteError(''); setDeleteOpen(true) }} className="w-full flex items-center justify-center gap-2 border border-red-200 text-red-500 font-semibold py-3 rounded-2xl text-sm">
+                    <Trash2 size={16} /> Delete school
+                  </button>
+                </div>
               ) : null}
             </div>
           ) : null}
@@ -1027,22 +1061,4 @@ export default function SchoolProfile() {
                 onClick={() => shareItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
                 className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium"
               >
-                <Share2 size={15} /> Share
-              </button>
-              {canManageMedia ? (
-                <button
-                  onClick={() => (lightboxItem.kind === 'gallery' ? deleteGalleryItem(lightboxItem) : deleteDocument(lightboxItem))}
-                  className="flex items-center justify-center gap-1.5 border border-red-200 text-red-500 rounded-xl py-2.5 px-3 text-sm font-medium"
-                >
-                  <Trash2 size={15} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
-    </div>
-  )
-                    }
+                
