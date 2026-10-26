@@ -1,14 +1,15 @@
 import { useNavigate } from 'react-router-dom'
 import {
   CalendarDays, BarChart3, ClipboardList, Table, BookOpen, Users, GraduationCap,
-  Trophy, Briefcase, DollarSign, Laptop, HeartHandshake, UserCheck,
-  Clock, MessagesSquare, Award,
+  Trophy, Briefcase, MessagesSquare, Award,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
-import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember } from '../lib/permissions.js'
+import { isStaffMember } from '../lib/permissions.js'
 
+// School dashboards (Analytics, Bursar, Coach, ICT, Counselling, Reception,
+// Pending approvals, Investor proposals) now live in School dashboard on the school profile.
 export default function MoreHub() {
   const navigate = useNavigate()
   const { profile } = useAuth()
@@ -29,9 +30,6 @@ export default function MoreHub() {
     ...(profile?.account_type === 'investor'
       ? [{ label: 'My Proposals', icon: Briefcase, color: 'bg-emerald-600', to: '/schools' }]
       : []),
-    ...(canManageStaff(profile)
-      ? [{ label: 'Investor Proposals', icon: Briefcase, color: 'bg-emerald-700', to: '/proposals' }]
-      : []),
     ...(isStaffMember(profile)
       ? [{ label: 'Exam Results', icon: Award, color: 'bg-red-600', to: '/exam-results' }]
       : []),
@@ -46,19 +44,6 @@ export default function MoreHub() {
       : []),
     ...(isFamilyStaff
       ? [{ label: 'Parent Links', icon: Users, color: 'bg-pink-500', to: '/family' }]
-      : []),
-    ...(isStaffMember(profile) ? [{ label: 'Analytics', icon: BarChart3, color: 'bg-violet-500', to: '/dashboard' }] : []),
-    ...(canManageFees(profile) ? [{ label: 'Bursar', icon: DollarSign, color: 'bg-green-600', to: '/bursar' }] : []),
-    ...(canManageSports(profile) ? [{ label: 'Coach', icon: Trophy, color: 'bg-orange-600', to: '/coach' }] : []),
-    ...(canManageDevices(profile) ? [{ label: 'ICT', icon: Laptop, color: 'bg-cyan-600', to: '/ict' }] : []),
-    ...(['Guidance & Counselling', 'Headteacher', 'Deputy Head'].includes(profile?.role)
-      ? [{ label: 'Counselling', icon: HeartHandshake, color: 'bg-pink-500', to: '/counselling' }]
-      : []),
-    ...(['Receptionist', 'Headteacher', 'Deputy Head'].includes(profile?.role)
-      ? [{ label: 'Reception', icon: UserCheck, color: 'bg-lime-600', to: '/reception' }]
-      : []),
-    ...(canManageStaff(profile)
-      ? [{ label: 'Pending Approvals', icon: Clock, color: 'bg-red-500', to: '/pending-approvals' }]
       : []),
   ]
 
@@ -84,4 +69,4 @@ export default function MoreHub() {
       <BottomNav />
     </div>
   )
-     }
+  }
