@@ -1061,4 +1061,42 @@ export default function SchoolProfile() {
                 onClick={() => shareItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
                 className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium"
               >
+              <Share2 size={15} /> Share
+              </button>
+              {canManageMedia ? (
+                <button
+                  onClick={() => (lightboxItem.kind === 'gallery' ? deleteGalleryItem(lightboxItem) : deleteDocument(lightboxItem))}
+                  className="flex items-center justify-center gap-1.5 border border-red-200 text-red-500 rounded-xl py-2.5 px-3 text-sm font-medium"
+                >
+                  <Trash2 size={15} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {deleteOpen ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => !deleting && setDeleteOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[480px] bg-white rounded-t-3xl px-5 pt-3 pb-6">
+            <span className="block w-10 h-1.5 rounded-full bg-gray-200 mx-auto mb-4" />
+            <p className="text-lg font-extrabold tracking-tight text-red-600">Delete {school.name}?</p>
+            <p className="text-sm text-gray-500 mt-1">This cannot be undone. Type the school's name to confirm.</p>
+            <input value={deleteText} onChange={(e) => setDeleteText(e.target.value)} placeholder={school.name} className="mt-4 w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-red-400" />
+            {deleteError ? <p className="text-sm text-red-500 mt-2">{deleteError}</p> : null}
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setDeleteOpen(false)} disabled={deleting} className="flex-1 border border-gray-200 rounded-2xl py-3.5 font-semibold">Cancel</button>
+              <button onClick={deleteSchool} disabled={deleting || deleteText.trim().toLowerCase() !== (school.name || '').trim().toLowerCase()} className="flex-1 bg-red-600 text-white rounded-2xl py-3.5 font-semibold disabled:opacity-40 flex items-center justify-center">
+                {deleting ? <Loader2 size={18} className="animate-spin" /> : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
+    </div>
+  )
+        }
+              
                 
