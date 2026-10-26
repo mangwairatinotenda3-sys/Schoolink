@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Loader2, Copy, Check, ExternalLink, Gift, Clock, Smartphone, CreditCard, Wallet, BadgeCheck, Zap } from 'lucide-react'
+import { Loader2, Check, ExternalLink, Gift, Clock, Smartphone, CreditCard, Wallet, BadgeCheck } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { PlusSeal, refreshPlusSchools } from '../components/SchoolPlusBadge.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -7,10 +7,10 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff } from '../lib/permissions.js'
 
 const METHODS = [
-  { key: 'paynow', label: 'Paynow', sub: 'EcoCash prompt or bank card', icon: Zap, color: '#0B8A4D' },
-  { key: 'ecocash', label: 'EcoCash', sub: 'Send from your phone', icon: Smartphone, color: '#0072CE' },
+  { key: 'ecocash', label: 'EcoCash', sub: 'Enter your number, approve with your PIN', icon: Smartphone, color: '#0072CE' },
+  { key: 'card', label: 'Card', sub: 'Visa, Mastercard and other wallets', icon: CreditCard, color: '#0B8A4D' },
   { key: 'paypal', label: 'PayPal', sub: 'Pay with PayPal', icon: Wallet, color: '#003087' },
-  { key: 'stripe', label: 'Card', sub: 'Visa or Mastercard', icon: CreditCard, color: '#635BFF' },
+  { key: 'stripe', label: 'Stripe', sub: 'Pay by card', icon: CreditCard, color: '#635BFF' },
 ]
 
 function fmtDate(iso) {
@@ -29,8 +29,6 @@ export default function SchoolPlus() {
   const [payer, setPayer] = useState('')
   const [busy, setBusy] = useState(false)
   const [msg, setMsg] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [pnMode, setPnMode] = useState('ecocash')
   const [phone, setPhone] = useState('')
   const [watchId, setWatchId] = useState(null)
   const [pnNote, setPnNote] = useState('')
@@ -45,7 +43,7 @@ export default function SchoolPlus() {
 
   useEffect(() => { if (schoolId) load() }, [schoolId])
 
-  // Resume watching a Paynow payment that is still waiting (e.g. after coming back from the Paynow page)
+  // Resume watching a payment that is still waiting (e.g. after coming back from the payment page)
   useEffect(() => {
     if (!data || watchId) return
     const waiting = (data.payments || []).find((p) => p.method === 'paynow' && p.status === 'pending' && Date.now() - new Date(p.created_at).getTime() < 30 * 60 * 1000)
@@ -108,7 +106,7 @@ export default function SchoolPlus() {
   const active = !!sub && new Date(sub.expires_at) > new Date()
   const daysLeft = active ? Math.max(1, Math.ceil((new Date(sub.expires_at) - Date.now()) / 86400000)) : 0
   const pending = (data.payments || []).filter((p) => p.status === 'pending' && p.method !== 'paynow')
-  const available = METHODS.filter((m) => (m.key === 'paynow' ? s.paynow_enabled === 'yes' : m.key === 'ecocash' ? !!s.ecocash_number : m.key === 'paypal' ? !!s.paypal_link : !!s.stripe_link))
+  const available = METHODS.filter((m) => (m.key === 'ecocash' || m.key === 'card' ? s.paynow_enabled === 'yes' : m.key === 'paypal' ? !!s.paypal_link : !!s.stripe_link))
   const people = data.counts?.total ?? 0
 
   function openPay() {
@@ -119,28 +117,22 @@ export default function SchoolPlus() {
   async function payWithPaynow() {
     setMsg('')
     setPnNote('')
-    if (pnMode === 'ecocash' && !/^(\+?263|0)?7[1-9]\d{7}$/.test(phone.replace(/\s/g, ''))) {
+    if (method === 'ecocash' && !/^(\+?263|0)?7[1-9]\d{7}$/.test(phone.replace(/\s/g, ''))) {
       setMsg('Enter your EcoCash number, e.g. 0771234567.')
       return
     }
     setBusy(true)
     const returnUrl = `${window.location.origin}${window.location.pathname}#/school-settings/verification`
-    const { data: res, error: e } = await supabase.functions.invoke('paynow', { body: { action: 'start', months, mode: pnMode, phone, returnUrl } })
+    const { data: res, error: e } = await supabase.functions.invoke('paynow', { body: { action: 'start', months, mode: method === 'ecocash' ? 'ecocash' : 'web', phone, returnUrl } })
     setBusy(false)
     if (e || !res?.ok) { setMsg(res?.error || 'Could not start the payment. Please try again.'); return }
     setWatchId(res.paymentId)
     if (res.redirect) {
-      setPnNote('Finish paying on the Paynow page. We will switch School Plus on as soon as it goes through.')
+      setPnNote('Finish paying on the secure payment page. School Plus switches on as soon as it goes through.')
       window.open(res.redirect, '_blank', 'noreferrer')
     } else {
-      setPnNote(res.instructions || 'Check your phone and enter your EcoCash PIN to approve the payment.')
+      setPnNote(res.instructions || 'Check your phone. Enter your EcoCash PIN on the prompt to finish the payment.')
     }
-  }
-
-  async function copyNumber() {
-    try { await navigator.clipboard.writeText(s.ecocash_number) } catch { /* ignore */ }
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
   }
 
   async function submit() {
@@ -232,47 +224,37 @@ export default function SchoolPlus() {
 
             {method ? (
               <div className="mt-4 rounded-2xl border border-gray-100 p-4 space-y-3">
-                {method === 'paynow' ? (
+                {method === 'ecocash' || method === 'card' ? (
                   <>
-                    <p className="text-sm text-gray-600">Pay <span className="font-bold text-brand-navy">${total} USD</span> and School Plus switches on by itself.</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {[['ecocash', 'EcoCash prompt'], ['web', 'Card / other']].map(([k, label]) => (
-                        <button key={k} onClick={() => setPnMode(k)} className={`rounded-xl py-2.5 text-sm font-semibold border ${pnMode === k ? 'border-brand-purple bg-brand-light text-brand-purple' : 'border-gray-200 text-gray-600'}`}>{label}</button>
-                      ))}
+                    <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+                      <span className="text-sm text-gray-500">Amount to pay</span>
+                      <span className="text-xl font-extrabold text-brand-navy">${total}</span>
                     </div>
-                    {pnMode === 'ecocash' ? (
-                      <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="Your EcoCash number, e.g. 0771234567" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
+                    {method === 'ecocash' ? (
+                      <>
+                        <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="EcoCash number, e.g. 0771234567" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
+                        <p className="text-xs text-gray-500">A prompt will pop up on this phone. Enter your EcoCash PIN there to finish.</p>
+                      </>
                     ) : (
-                      <p className="text-xs text-gray-500">You will go to Paynow's secure page to pay with your card or wallet.</p>
+                      <p className="text-xs text-gray-500">You will go to a secure payment page to pay with your card.</p>
                     )}
                     <button onClick={payWithPaynow} disabled={busy || !!watchId} className="w-full bg-brand-purple text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
                       {busy || watchId ? <Loader2 size={18} className="animate-spin" /> : null}
-                      {watchId ? 'Waiting for payment…' : `Pay $${total} now`}
+                      {watchId ? 'Waiting for payment…' : `Pay $${total}`}
                     </button>
                     {pnNote ? <p className="text-sm text-brand-purple text-center">{pnNote}</p> : null}
                   </>
                 ) : null}
-                {method === 'ecocash' ? (
-                  <>
-                    <p className="text-sm text-gray-600">1. Send <span className="font-bold text-brand-navy">${total} USD</span> by EcoCash to:</p>
-                    <div className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
-                      <div>
-                        <p className="text-lg font-extrabold tracking-wide">{s.ecocash_number}</p>
-                        {s.ecocash_name ? <p className="text-xs text-gray-500">{s.ecocash_name}</p> : null}
-                      </div>
-                      <button onClick={copyNumber} className="text-brand-purple text-sm font-semibold flex items-center gap-1">{copied ? <Check size={15} /> : <Copy size={15} />}{copied ? 'Copied' : 'Copy'}</button>
-                    </div>
-                  </>
-                ) : method !== 'paynow' ? (
+                {method === 'paypal' || method === 'stripe' ? (
                   <>
                     <p className="text-sm text-gray-600">1. Pay <span className="font-bold text-brand-navy">${total} USD</span> with {method === 'paypal' ? 'PayPal' : 'your card'}:</p>
                     <button onClick={openPay} className="w-full flex items-center justify-center gap-2 bg-brand-navy text-white rounded-xl py-3 text-sm font-semibold"><ExternalLink size={15} /> Open {method === 'paypal' ? 'PayPal' : 'secure card payment'}</button>
                   </>
                 ) : null}
-                {method !== 'paynow' ? <>
-                <p className="text-sm text-gray-600">2. Then type the {method === 'ecocash' ? 'EcoCash transaction ID' : method === 'paypal' ? 'PayPal transaction ID' : 'receipt number'} below.</p>
+                {method === 'paypal' || method === 'stripe' ? <>
+                <p className="text-sm text-gray-600">2. Then type the {method === 'paypal' ? 'PayPal transaction ID' : 'receipt number'} below.</p>
                 <input value={reference} onChange={(e) => setReference(e.target.value)} placeholder="Transaction reference" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
-                <input value={payer} onChange={(e) => setPayer(e.target.value)} placeholder={method === 'ecocash' ? 'Name or number you paid from' : 'Name on the payment'} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
+                <input value={payer} onChange={(e) => setPayer(e.target.value)} placeholder="Name on the payment" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
                 <button onClick={submit} disabled={busy || reference.trim().length < 4} className="w-full bg-brand-purple text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 flex items-center justify-center">
                   {busy ? <Loader2 size={18} className="animate-spin" /> : "I've paid"}
                 </button>
@@ -293,7 +275,7 @@ export default function SchoolPlus() {
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">${Number(p.amount).toFixed(2)} · {p.months} month{p.months > 1 ? 's' : ''}</p>
-                    <p className="text-xs text-gray-400 truncate">{fmtDate(p.created_at)} · {p.method === 'paynow' ? 'Paynow' : p.method} · {p.reference}</p>
+                    <p className="text-xs text-gray-400 truncate">{fmtDate(p.created_at)} · {p.method === 'paynow' ? 'EcoCash / card' : p.method} · {p.reference}</p>
                     {p.status === 'rejected' && p.reject_reason ? <p className="text-xs text-red-500 mt-0.5">{p.reject_reason}</p> : null}
                   </div>
                   <span className={`text-[11px] font-bold rounded-full px-2.5 py-1 ${p.status === 'approved' ? 'bg-green-50 text-green-600' : p.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
@@ -307,4 +289,4 @@ export default function SchoolPlus() {
       </div>
     </div>
   )
-}
+        }
