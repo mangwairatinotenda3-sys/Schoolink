@@ -6,8 +6,6 @@ import { supabase } from '../lib/supabaseClient.js'
 const FIELDS = [
   ['paynow_enabled', 'Paynow on? (type yes to turn on)', 'yes'],
   ['price_usd', 'Price per month (USD)', '2.99'],
-  ['ecocash_number', 'EcoCash number', '077…'],
-  ['ecocash_name', 'EcoCash account name', ''],
   ['paypal_link', 'PayPal link', 'https://paypal.me/yourname/2.99'],
   ['stripe_link', 'Stripe Payment Link', 'https://buy.stripe.com/…'],
   ['note', 'Note shown to schools', ''],
