@@ -100,6 +100,10 @@ function RootRoute() {
   return <PageLoading />
 }
 
+const SchoolSettings = lazyPage(() => import('./pages/SchoolSettings.jsx'))
+const SchoolLearners = lazyPage(() => import('./pages/SchoolLearners.jsx'))
+const SchoolPlus = lazyPage(() => import('./pages/SchoolPlus.jsx'))
+const ControllerPayments = lazyPage(() => import('./pages/ControllerPayments.jsx'))
 const JoinByLink = lazyPage(() => import('./pages/JoinByLink.jsx'))
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'))
 const ResetPassword = lazyPage(() => import('./pages/ResetPassword.jsx'))
@@ -276,6 +280,10 @@ export default function App() {
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
         <Route path="/school-profile" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/school-profile/verification" element={<RequireAuth><GetSchoolVerified /></RequireAuth>} />
+        <Route path="/school-settings" element={<RequireAuth><SchoolSettings /></RequireAuth>} />
+        <Route path="/school-settings/learners" element={<RequireAuth><SchoolLearners /></RequireAuth>} />
+        <Route path="/school-settings/verification" element={<RequireAuth><SchoolPlus /></RequireAuth>} />
+        <Route path="/controller/payments" element={<RequireAuth><ControllerPayments /></RequireAuth>} />
         <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
         <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
         <Route path="/schools/:schoolId/propose" element={<RequireAuth><SendProposal /></RequireAuth>} />
