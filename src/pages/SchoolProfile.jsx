@@ -1,12 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
-  Camera, MapPin, Phone, Mail, MessageSquare, ShieldCheck, Plus, Users, Award, CalendarDays,
-  UserCog, FileText, ExternalLink, Bell, BellRing, Video, Download, Share2, Heart, Star, Trash2, X,
+  Camera, MapPin, Phone, Mail, MessageSquare, ShieldCheck, Plus, FileText, ExternalLink, Bell, BellRing, Video,
+  Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2,
 } from 'lucide-react'
-import BackHeader from '../components/BackHeader.jsx'
 import VerifiedBadge from '../components/VerifiedBadge.jsx'
+import SchoolPlusBadge, { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
+import FormPicker from '../components/FormPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
+import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, isStaffMember } from '../lib/permissions.js'
@@ -47,7 +49,7 @@ function StarRow({ average, myRating, count, interactive, onRate, size = 14 }) {
 export default function SchoolProfile() {
   const navigate = useNavigate()
   const { schoolId: paramSchoolId } = useParams()
-  const { user, profile } = useAuth()
+  const { user, profile, saveProfileDetails } = useAuth()
   const onlineIds = useOnlineIds()
   const logoInputRef = useRef(null)
   const galleryInputRef = useRef(null)
@@ -84,6 +86,13 @@ export default function SchoolProfile() {
   const [lightboxItem, setLightboxItem] = useState(null)
   const [toast, setToast] = useState('')
   const [viewingLogo, setViewingLogo] = useState(null)
+  const [followRow, setFollowRow] = useState(null)
+  const [followerStats, setFollowerStats] = useState({ follows: 0, members: 0, total: 0 })
+  const [sheet, setSheet] = useState(null) // 'follow' | 'form' | null
+  const [asStudent, setAsStudent] = useState(false)
+  const [formValue, setFormValue] = useState('')
+  const [sheetBusy, setSheetBusy] = useState(false)
+  const plusActive = useIsPlusSchool(school?.id)
 
   const isMember = !!school && profile?.school_id === school.id
   const canEdit = isMember && canManageStaff(profile)
@@ -103,7 +112,7 @@ export default function SchoolProfile() {
     if (school) loadTabData(activeTab)
   }, [activeTab, school])
 
-  // Keep the header's Members / Staff numbers live: whenever a profile row
+  // Keep the Members / Staff numbers live: whenever a profile row
   // for this school changes (someone invited/approved/removed), refresh the
   // counts automatically instead of waiting for a manual page reload.
   useEffect(() => {
@@ -134,6 +143,11 @@ export default function SchoolProfile() {
     setStaffCount(staffRows?.length ?? 0)
   }
 
+  async function refreshFollowerStats(id) {
+    const { data } = await supabase.rpc('school_follower_count', { p_school: id })
+    if (data) setFollowerStats(data)
+  }
+
   async function loadSchool() {
     setLoading(true)
     const { data } = await supabase.from('schools').select('*').eq('id', targetSchoolId).maybeSingle()
@@ -150,6 +164,10 @@ export default function SchoolProfile() {
         .eq('user_id', user.id)
         .maybeSingle()
       setIsFollowing(!!followRow)
+      setFollowRow(followRow ?? null)
+      refreshFollowerStats(data.id)
+      const { data: pics } = await supabase.from('school_gallery').select('*').eq('school_id', data.id).order('created_at', { ascending: false })
+      setGallery(pics ?? [])
     }
 
     setLoading(false)
@@ -314,7 +332,7 @@ export default function SchoolProfile() {
     }
     setUploadingDoc(false)
     e.target.value = ''
-      }
+  }
 
   async function deleteGalleryItem(item) {
     if (!window.confirm('Delete this item? This cannot be undone.')) return
@@ -394,14 +412,58 @@ export default function SchoolProfile() {
     }
   }
 
-  async function toggleFollow() {
-    if (isFollowing) {
-      await supabase.from('school_follows').delete().eq('school_id', school.id).eq('user_id', user.id)
-      setIsFollowing(false)
-    } else {
-      await supabase.from('school_follows').insert({ school_id: school.id, user_id: user.id })
+  function openFollow() {
+    setAsStudent(false)
+    setFormValue('')
+    setSheet('follow')
+  }
+
+  async function confirmFollow() {
+    if (sheetBusy) return
+    setSheetBusy(true)
+    const { error } = await supabase.from('school_follows').insert({ school_id: school.id, user_id: user.id })
+    if (!error || error.code === '23505') {
+      if (asStudent) await supabase.rpc('set_follow_form', { p_school: school.id, p_form: formValue, p_is_student: true })
       setIsFollowing(true)
+      setFollowRow({ is_student: asStudent, form_class: asStudent ? formValue : null })
+      refreshFollowerStats(school.id)
+      setSheet(null)
+      setToast(`You follow ${school.name}`)
     }
+    setSheetBusy(false)
+  }
+
+  async function unfollow() {
+    await supabase.from('school_follows').delete().eq('school_id', school.id).eq('user_id', user.id)
+    setIsFollowing(false)
+    setFollowRow(null)
+    refreshFollowerStats(school.id)
+  }
+
+  const isStudentMember = isMember && profile?.role === 'Student'
+  const myForm = isStudentMember ? profile?.class_name : followRow?.is_student ? followRow?.form_class : ''
+  const showMyForm = isStudentMember || (isFollowing && followRow?.is_student)
+
+  async function saveMyForm() {
+    if (sheetBusy) return
+    setSheetBusy(true)
+    if (isStudentMember) await supabase.rpc('set_my_form', { p_form: formValue })
+    else await supabase.rpc('set_follow_form', { p_school: school.id, p_form: formValue, p_is_student: true })
+    if (isStudentMember) setProfileForm(formValue)
+    else setFollowRow((r) => ({ ...(r || {}), is_student: true, form_class: formValue }))
+    setSheetBusy(false)
+    setSheet(null)
+    setToast('Form updated')
+  }
+
+  function setProfileForm(v) {
+    saveProfileDetails?.({ class_name: v })
+  }
+
+  function shareSchool() {
+    const url = `${window.location.origin}${window.location.pathname}#/schools/${school.id}`
+    if (navigator.share) navigator.share({ title: school.name, url }).catch(() => {})
+    else { navigator.clipboard?.writeText(url); setToast('Link copied!') }
   }
 
   async function handleMessageSchool() {
@@ -411,13 +473,13 @@ export default function SchoolProfile() {
 
   function mapsUrl() {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(school?.location || '')}`
-  }
+        }
 
   if (loading) {
     return (
       <div className="app-shell">
-        <BackHeader title="Profile" />
-        <div className="screen-scroll flex items-center justify-center text-gray-400">Loading…</div>
+        <BackHeader title="School" />
+        <div className="screen-scroll flex items-center justify-center text-gray-400"><Loader2 className="animate-spin" /></div>
       </div>
     )
   }
@@ -425,7 +487,7 @@ export default function SchoolProfile() {
   if (!school) {
     return (
       <div className="app-shell">
-        <BackHeader title="Profile" />
+        <BackHeader title="School" />
         <div className="screen-scroll px-4 flex items-center justify-center text-gray-400 text-center">
           {paramSchoolId ? 'School not found.' : "You're not linked to a school yet."}
         </div>
@@ -434,159 +496,207 @@ export default function SchoolProfile() {
   }
 
   const aboutText = school.mission || school.description || ''
+  const facts = [
+    ['Type', school.school_type],
+    ['Founded', school.established_year],
+    ['Pass rate', school.pass_rate ? `${school.pass_rate}%` : ''],
+    ['Classes', school.total_classes],
+  ].filter(([, v]) => v)
+  const isHead = profile?.role === 'Headteacher' && profile?.school_id === school.id
+
+  function goTab(t) {
+    setActiveTab(t)
+    setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0)
+  }
 
   return (
     <div className="app-shell">
-      <div className="bg-brand-navy text-white px-4 pt-4 pb-6">
-        <BackHeader title="Profile" />
-
-        <div className="flex flex-col items-center mt-2">
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => school.logo_url && setViewingLogo(school.logo_url)}
-              className="w-24 h-24 rounded-full bg-white p-1 flex items-center justify-center"
-            >
-              {school.logo_url ? <img src={school.logo_url} alt="" className="w-full h-full rounded-full object-cover" /> : <span className="text-4xl">🏫</span>}
-            </button>
-            {isOnline ? (
-              <span className="absolute bottom-1 right-1 w-5 h-5 rounded-full bg-green-500 border-2 border-brand-navy flex items-center justify-center">
-                <span className="w-2 h-2 rounded-full bg-white" />
-              </span>
-            ) : null}
-            {canEdit ? (
-              <button onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} className="absolute top-0 right-0 w-7 h-7 rounded-full bg-brand-purple flex items-center justify-center border-2 border-brand-navy">
-                <Camera size={13} className="text-white" />
-              </button>
-            ) : null}
-            <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-          </div>
-
-          <p className="font-bold text-lg mt-3 flex items-center gap-1.5 flex-wrap justify-center">
-            {school.name}
-            <VerifiedBadge schoolId={school.id} size={18} />
-          </p>
-          <p className="text-xs text-white/50">{handle}</p>
-
-          {school.school_type ? <span className="text-[11px] bg-brand-purple/30 px-2 py-0.5 rounded-full mt-1">{school.school_type}</span> : null}
-
-          <p className="text-sm text-white/70 flex items-center gap-1 mt-2">
-            <MapPin size={13} /> {school.location || 'Location not set'}
-            {isOnline ? <span className="text-green-400 ml-1">· Online</span> : null}
-          </p>
-
-          {profile?.role === 'Headteacher' && profile?.school_id === school.id && !school.verified ? (
-            <button
-              onClick={() => navigate('/school-profile/verification')}
-              className="mt-3 flex items-center gap-1.5 bg-white/15 text-white text-xs font-medium px-3 py-1.5 rounded-full"
-            >
-              <ShieldCheck size={13} /> {school.verification_status === 'pending' ? 'Verification under review' : 'Get school verified'}
-            </button>
-          ) : null}
-        </div>
-
-        <div className="grid grid-cols-4 gap-2 mt-5 text-center">
-          <div>
-            <span className="w-9 h-9 rounded-full bg-purple-500/30 mx-auto flex items-center justify-center mb-1"><Users size={16} /></span>
-            <p className="font-bold text-sm">{memberCount}</p>
-            <p className="text-[10px] text-white/50">Members</p>
-          </div>
-          <div>
-            <span className="w-9 h-9 rounded-full bg-green-500/30 mx-auto flex items-center justify-center mb-1"><Award size={16} /></span>
-            <p className="font-bold text-sm">{school.pass_rate ? `${school.pass_rate}%` : '—'}</p>
-            <p className="text-[10px] text-white/50">Pass Rate</p>
-          </div>
-          <div>
-            <span className="w-9 h-9 rounded-full bg-blue-500/30 mx-auto flex items-center justify-center mb-1"><CalendarDays size={16} /></span>
-            <p className="font-bold text-sm">{school.established_year || '—'}</p>
-            <p className="text-[10px] text-white/50">Est.</p>
-          </div>
-          <div>
-            <span className="w-9 h-9 rounded-full bg-orange-500/30 mx-auto flex items-center justify-center mb-1"><UserCog size={16} /></span>
-            <p className="font-bold text-sm">{staffCount}</p>
-            <p className="text-[10px] text-white/50">Staff</p>
-          </div>
-        </div>
-      </div>
-
-      <div className="screen-scroll px-4">
-        <div className="border border-gray-100 rounded-xl p-4 mt-4 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">School Type</span>
-            <span className="text-sm font-medium">{school.school_type || '—'}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-500">Location</span>
-            <a href={mapsUrl()} target="_blank" rel="noreferrer" className="text-sm font-medium text-brand-purple flex items-center gap-1">
-              View on Map <ExternalLink size={12} />
-            </a>
-          </div>
-          {school.phone ? <div className="flex items-center gap-2 text-sm text-gray-600"><Phone size={14} /> {school.phone}</div> : null}
-          {school.contact_email ? <div className="flex items-center gap-2 text-sm text-gray-600"><Mail size={14} /> {school.contact_email}</div> : null}
-        </div>
-
-        <div className="flex gap-2 mt-3">
-          <button onClick={handleMessageSchool} className="flex-1 flex items-center justify-center gap-1.5 border border-gray-200 rounded-xl py-2.5 text-sm font-medium">
-            <MessageSquare size={15} /> Message School
+      <div className="screen-scroll">
+        {/* Cover */}
+        <div className="relative h-44 overflow-hidden bg-brand-navy shrink-0">
+          <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 176" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+            <defs>
+              <linearGradient id="sp-cover" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#241B4E" />
+                <stop offset="0.65" stopColor="#3A2A86" />
+                <stop offset="1" stopColor="#5B3FD0" />
+              </linearGradient>
+            </defs>
+            <rect width="400" height="176" fill="url(#sp-cover)" />
+            <g fill="none" stroke="#fff" strokeOpacity="0.1" strokeWidth="1.2">
+              <circle cx="360" cy="30" r="70" />
+              <circle cx="360" cy="30" r="105" />
+              <circle cx="360" cy="30" r="140" />
+              <path d="M-10 150 C 80 110, 150 190, 260 140" />
+              <path d="M-10 168 C 90 128, 160 205, 270 158" />
+            </g>
+            <path d="M0 176 L0 138 C 90 112, 170 160, 400 118 L400 176 Z" fill="#fff" fillOpacity="0.06" />
+          </svg>
+          <button onClick={() => navigate(-1)} aria-label="Go back" className="absolute top-3 left-3 w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center">
+            <ChevronLeft size={21} />
           </button>
-          {!isMember ? (
-            <button
-              onClick={toggleFollow}
-              className={`flex-1 flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-medium ${
-                isFollowing ? 'bg-brand-navy text-white' : 'border border-brand-purple text-brand-purple'
-              }`}
-            >
-              {isFollowing ? <BellRing size={15} /> : <Bell size={15} />} {isFollowing ? 'Following' : 'Follow'}
+          <div className="absolute top-3 right-3 flex gap-2">
+            <button onClick={shareSchool} aria-label="Share" className="w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center"><Share2 size={16} /></button>
+            {canEdit ? (
+              <button onClick={() => navigate('/school-settings')} aria-label="School settings" className="w-9 h-9 rounded-full bg-black/25 backdrop-blur text-white flex items-center justify-center"><Settings size={17} /></button>
+            ) : null}
+          </div>
+        </div>
+
+        {/* Identity */}
+        <div className="px-4 -mt-11 relative">
+          <div className="flex items-end gap-3">
+            <div className="relative shrink-0">
+              <button
+                type="button"
+                onClick={() => school.logo_url && setViewingLogo(school.logo_url)}
+                className="w-[88px] h-[88px] rounded-[26px] bg-white ring-4 ring-white shadow-lg flex items-center justify-center overflow-hidden"
+              >
+                {school.logo_url ? <img src={school.logo_url} alt="" className="w-full h-full object-cover" /> : <span className="text-4xl">🏫</span>}
+              </button>
+              {isOnline ? <span className="absolute -bottom-0.5 -right-0.5 w-5 h-5 rounded-full bg-green-500 border-[3px] border-white" /> : null}
+              {canEdit ? (
+                <button onClick={() => logoInputRef.current?.click()} disabled={uploadingLogo} aria-label="Change logo" className="absolute -top-1 -right-1 w-7 h-7 rounded-full bg-brand-navy flex items-center justify-center border-2 border-white">
+                  {uploadingLogo ? <Loader2 size={12} className="text-white animate-spin" /> : <Camera size={12} className="text-white" />}
+                </button>
+              ) : null}
+              <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
+            </div>
+            <div className="flex-1 min-w-0 pb-1 flex justify-end gap-2">
+              {!isMember ? (
+                isFollowing ? (
+                  <button onClick={unfollow} className="h-10 px-5 rounded-full bg-gray-100 text-brand-navy text-sm font-semibold flex items-center gap-1.5"><BellRing size={15} /> Following</button>
+                ) : (
+                  <button onClick={openFollow} className="h-10 px-6 rounded-full bg-brand-purple text-white text-sm font-semibold flex items-center gap-1.5 shadow-sm"><Bell size={15} /> Follow</button>
+                )
+              ) : null}
+              <button onClick={handleMessageSchool} aria-label="Message school" className="h-10 w-10 rounded-full border border-gray-200 flex items-center justify-center text-brand-navy"><MessageSquare size={17} /></button>
+            </div>
+          </div>
+
+          <h1 className="mt-3 text-[23px] leading-[1.15] font-extrabold tracking-tight text-brand-navy flex items-center gap-1.5 flex-wrap">
+            {school.name}
+            <VerifiedBadge schoolId={school.id} size={20} />
+            <SchoolPlusBadge schoolId={school.id} size={21} />
+          </h1>
+          <p className="text-[13px] text-gray-400 mt-0.5">
+            {handle}{school.school_type ? ` · ${school.school_type}` : ''}{isOnline ? <span className="text-green-500 font-medium"> · Online</span> : null}
+          </p>
+
+          {plusActive ? (
+            <p className="inline-flex items-center gap-1 mt-2 text-[11px] font-bold tracking-wide uppercase text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">School Plus · Verified school</p>
+          ) : null}
+
+          {school.location ? (
+            <a href={mapsUrl()} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 text-sm text-gray-600">
+              <MapPin size={14} className="text-brand-purple shrink-0" /> <span className="truncate">{school.location}</span>
+            </a>
+          ) : null}
+
+          {school.motto ? (
+            <p className="mt-3 border-l-[3px] border-brand-purple pl-3 text-[14px] italic text-gray-600 leading-snug">“{school.motto}”</p>
+          ) : null}
+
+          {isHead && !school.verified ? (
+            <button onClick={() => navigate('/school-profile/verification')} className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-brand-purple">
+              <ShieldCheck size={14} /> {school.verification_status === 'pending' ? 'Verification under review' : 'Get your school verified'} <ChevronRight size={13} />
             </button>
           ) : null}
         </div>
+
+        {/* Ledger */}
+        <div className="mx-4 mt-5 grid grid-cols-4 rounded-2xl border border-gray-100 bg-white divide-x divide-gray-100">
+          {[
+            [followerStats.follows, 'Followers'],
+            [studentCount, 'Students'],
+            [staffCount, 'Staff'],
+            [memberCount, 'Members'],
+          ].map(([n, label]) => (
+            <div key={label} className="py-3 text-center">
+              <p className="text-[19px] font-extrabold tracking-tight tabular-nums text-brand-navy leading-none">{Number(n || 0).toLocaleString()}</p>
+              <p className="text-[10px] uppercase tracking-[0.1em] text-gray-400 mt-1.5">{label}</p>
+            </div>
+          ))}
+        </div>
+
+        {canEdit ? (
+          <button onClick={() => navigate('/school-settings')} className="mx-4 mt-3 w-[calc(100%-2rem)] flex items-center gap-3 rounded-2xl bg-brand-navy text-white px-4 py-3.5 text-left active:opacity-90">
+            <span className="w-9 h-9 rounded-xl bg-white/12 flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.12)' }}><Settings size={18} /></span>
+            <span className="flex-1">
+              <span className="block text-[15px] font-semibold leading-tight">School settings</span>
+              <span className="block text-xs text-white/60 mt-0.5">Learners, staff, verification and more</span>
+            </span>
+            <ChevronRight size={18} className="text-white/50" />
+          </button>
+        ) : null}
+
+        {showMyForm ? (
+          <div className="mx-4 mt-3 rounded-2xl border border-gray-100 px-4 py-3 flex items-center gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[11px] uppercase tracking-[0.1em] text-gray-400">Your form</p>
+              <p className="text-[15px] font-semibold text-brand-navy truncate">{myForm || 'Not set yet'}</p>
+            </div>
+            <button onClick={() => { setFormValue(myForm || ''); setSheet('form') }} className="text-sm font-semibold text-brand-purple flex items-center gap-1"><Pencil size={13} /> {myForm ? 'Change' : 'Add'}</button>
+          </div>
+        ) : null}
 
         {profile?.account_type === 'investor' ? (
-          <button
-            onClick={() => navigate(`/schools/${school.id}/propose`)}
-            className="w-full bg-brand-purple text-white font-medium py-2.5 rounded-xl text-sm mt-2"
-          >
+          <button onClick={() => navigate(`/schools/${school.id}/propose`)} className="mx-4 mt-3 w-[calc(100%-2rem)] bg-brand-purple text-white font-semibold py-3 rounded-2xl text-sm">
             Send Investment Proposal
           </button>
         ) : null}
 
-        {aboutText ? (
-          <div className="border border-gray-100 rounded-xl p-4 mt-3">
-            <div className="flex items-center justify-between mb-1">
-              <p className="font-semibold text-sm">About School</p>
-              <button
-                onClick={() => { setActiveTab('About'); setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }}
-                className="text-xs text-brand-purple font-medium"
-              >
-                Read all
-              </button>
-            </div>
-            <p className="text-sm text-gray-600 line-clamp-2">{aboutText}</p>
+        {/* At a glance */}
+        {(facts.length || school.phone || school.contact_email) ? (
+          <div className="mx-4 mt-5">
+            <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400 mb-2">At a glance</p>
+            <dl className="rounded-2xl border border-gray-100 divide-y divide-gray-100">
+              {facts.map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between px-4 py-2.5">
+                  <dt className="text-sm text-gray-500">{k}</dt>
+                  <dd className="text-sm font-semibold text-brand-navy">{v}</dd>
+                </div>
+              ))}
+              {school.phone ? (
+                <a href={`tel:${school.phone}`} className="flex items-center justify-between px-4 py-2.5">
+                  <span className="text-sm text-gray-500 flex items-center gap-1.5"><Phone size={13} /> Phone</span>
+                  <span className="text-sm font-semibold text-brand-purple">{school.phone}</span>
+                </a>
+              ) : null}
+              {school.contact_email ? (
+                <a href={`mailto:${school.contact_email}`} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                  <span className="text-sm text-gray-500 flex items-center gap-1.5 shrink-0"><Mail size={13} /> Email</span>
+                  <span className="text-sm font-semibold text-brand-purple truncate">{school.contact_email}</span>
+                </a>
+              ) : null}
+            </dl>
           </div>
         ) : null}
 
-        <div className="border border-gray-100 rounded-xl p-4 mt-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="font-semibold text-sm">School Media</p>
-            <button
-              onClick={() => { setActiveTab('Media'); setTimeout(() => tabsRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0) }}
-              className="text-xs text-brand-purple font-medium"
-            >
-              View all
-            </button>
+        {aboutText ? (
+          <div className="mx-4 mt-5">
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Our story</p>
+              <button onClick={() => goTab('About')} className="text-xs text-brand-purple font-semibold">Read all</button>
+            </div>
+            <p className="text-[14px] text-gray-600 leading-relaxed line-clamp-3">{aboutText}</p>
           </div>
-          {gallery.length === 0 && activeTab !== 'Media' ? (
-            <p className="text-xs text-gray-400">No photos or videos yet.</p>
-          ) : (
-            <div className="grid grid-cols-4 gap-1.5">
-              {gallery.slice(0, 4).map((g) => (
-                <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative w-full h-16 rounded-md overflow-hidden">
+        ) : null}
+
+        {/* Media mosaic */}
+        {gallery.length > 0 ? (
+          <div className="mx-4 mt-5">
+            <div className="flex items-baseline justify-between mb-2">
+              <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-gray-400">Around the school</p>
+              <button onClick={() => goTab('Media')} className="text-xs text-brand-purple font-semibold">View all</button>
+            </div>
+            <div className="grid grid-cols-3 grid-rows-2 gap-1.5 h-44 rounded-2xl overflow-hidden">
+              {gallery.slice(0, 3).map((g, i) => (
+                <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className={`relative overflow-hidden bg-gray-100 ${i === 0 ? 'col-span-2 row-span-2' : ''}`}>
                   {g.media_type === 'video' ? (
                     <>
                       <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/20">
-                        <Video size={14} className="text-white" />
-                      </span>
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/25"><Video size={18} className="text-white" /></span>
                     </>
                   ) : (
                     <img src={g.image_url} alt="" className="w-full h-full object-cover" />
@@ -594,27 +704,31 @@ export default function SchoolProfile() {
                 </button>
               ))}
             </div>
-          )}
+          </div>
+        ) : null}
+
+        {/* Tabs */}
+        <div ref={tabsRef} className="sticky top-0 z-20 bg-white/95 backdrop-blur mt-5 border-b border-gray-100 scroll-mt-0">
+          <div className="flex gap-6 overflow-x-auto px-4" style={{ scrollbarWidth: 'none' }}>
+            {tabs.map((t) => (
+              <button key={t} onClick={() => setActiveTab(t)} className={`relative py-3 text-[14px] shrink-0 ${activeTab === t ? 'font-bold text-brand-navy' : 'font-medium text-gray-400'}`}>
+                {t}
+                {activeTab === t ? <span className="absolute left-0 right-0 -bottom-px h-[3px] rounded-full bg-brand-purple" /> : null}
+              </button>
+            ))}
+          </div>
         </div>
 
-        <div ref={tabsRef} className="flex gap-5 overflow-x-auto mt-4 border-b border-gray-100 scroll-mt-4">
-          {tabs.map((t) => (
-            <button key={t} onClick={() => setActiveTab(t)} className={`pb-2 text-sm font-medium border-b-2 shrink-0 ${activeTab === t ? 'border-brand-purple text-brand-purple' : 'border-transparent text-gray-400'}`}>
-              {t}
-            </button>
-          ))}
-        </div>
-
-        <div className="py-4 pb-6">
+        <div className="px-4 py-4 pb-8">
           {activeTab === 'Posts' ? (
             posts.length === 0 ? (
               <p className="text-center text-gray-400 mt-6">No posts from this school yet.</p>
             ) : (
               <div className="space-y-3">
                 {posts.map((p) => (
-                  <button key={p.id} onClick={() => navigate(`/post/${p.id}`)} className="w-full text-left border border-gray-100 rounded-xl p-3">
-                    <p className="font-medium text-sm">{p.author_name}</p>
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{p.content}</p>
+                  <button key={p.id} onClick={() => navigate(`/post/${p.id}`)} className="w-full text-left rounded-2xl border border-gray-100 p-4 active:bg-gray-50">
+                    <p className="font-semibold text-sm text-brand-navy">{p.author_name}</p>
+                    <p className="text-sm text-gray-600 mt-1 line-clamp-3">{p.content}</p>
                   </button>
                 ))}
               </div>
@@ -627,15 +741,15 @@ export default function SchoolProfile() {
                 <div className="grid grid-cols-1 gap-3">
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase mb-1">School Name</p>
-                    <input value={form.name || ''} onChange={(e) => updateField('name', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <input value={form.name || ''} onChange={(e) => updateField('name', e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase mb-1">Location</p>
-                    <input value={form.location || ''} onChange={(e) => updateField('location', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <input value={form.location || ''} onChange={(e) => updateField('location', e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
                   </div>
                   <div>
                     <p className="text-xs font-semibold text-gray-400 uppercase mb-1">School Type</p>
-                    <select value={form.school_type || ''} onChange={(e) => updateField('school_type', e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple">
+                    <select value={form.school_type || ''} onChange={(e) => updateField('school_type', e.target.value)} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple">
                       <option value="">Select type</option>
                       <option value="Primary School">Primary School</option>
                       <option value="High School">High School</option>
@@ -649,11 +763,11 @@ export default function SchoolProfile() {
 
               {['motto', 'vision', 'mission'].map((key) => (
                 <div key={key}>
-                  <p className="text-xs font-semibold text-gray-400 uppercase mb-1 capitalize">{key}</p>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">{key}</p>
                   {canEdit ? (
-                    <textarea value={form[key] || ''} onChange={(e) => updateField(key, e.target.value)} rows={2} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple resize-none" />
+                    <textarea value={form[key] || ''} onChange={(e) => updateField(key, e.target.value)} rows={2} className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple resize-none" />
                   ) : (
-                    <p className="text-sm text-gray-600">{school[key] || '—'}</p>
+                    <p className="text-[14px] text-gray-600 leading-relaxed">{school[key] || '—'}</p>
                   )}
                 </div>
               ))}
@@ -661,20 +775,20 @@ export default function SchoolProfile() {
               {canEdit ? (
                 <>
                   <div className="grid grid-cols-2 gap-3">
-                    <input value={form.pass_rate || ''} onChange={(e) => updateField('pass_rate', e.target.value)} placeholder="Pass rate %" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.established_year || ''} onChange={(e) => updateField('established_year', e.target.value)} placeholder="Established year" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <div className="border border-gray-100 bg-gray-50 rounded-lg px-3 py-2 text-sm text-gray-500 flex items-center justify-between">
+                    <input value={form.pass_rate || ''} onChange={(e) => updateField('pass_rate', e.target.value)} placeholder="Pass rate %" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <input value={form.established_year || ''} onChange={(e) => updateField('established_year', e.target.value)} placeholder="Established year" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <div className="border border-gray-100 bg-gray-50 rounded-xl px-3 py-2.5 text-sm text-gray-500 flex items-center justify-between">
                       <span>Total students</span>
                       <span className="font-semibold text-gray-700">{studentCount}</span>
                     </div>
-                    <input value={form.total_teachers || ''} onChange={(e) => updateField('total_teachers', e.target.value)} placeholder="Teachers" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.non_teaching_staff || ''} onChange={(e) => updateField('non_teaching_staff', e.target.value)} placeholder="Non-teaching staff" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.total_classes || ''} onChange={(e) => updateField('total_classes', e.target.value)} placeholder="Classes" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.phone || ''} onChange={(e) => updateField('phone', e.target.value)} placeholder="Phone" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
-                    <input value={form.contact_email || ''} onChange={(e) => updateField('contact_email', e.target.value)} placeholder="Contact email" className="border border-gray-200 rounded-lg px-3 py-2 text-sm outline-brand-purple" />
+                    <input value={form.total_teachers || ''} onChange={(e) => updateField('total_teachers', e.target.value)} placeholder="Teachers" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <input value={form.non_teaching_staff || ''} onChange={(e) => updateField('non_teaching_staff', e.target.value)} placeholder="Non-teaching staff" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <input value={form.total_classes || ''} onChange={(e) => updateField('total_classes', e.target.value)} placeholder="Classes" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <input value={form.phone || ''} onChange={(e) => updateField('phone', e.target.value)} placeholder="Phone" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
+                    <input value={form.contact_email || ''} onChange={(e) => updateField('contact_email', e.target.value)} placeholder="Contact email" className="border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-brand-purple" />
                   </div>
                   {message ? <p className="text-sm text-brand-purple">{message}</p> : null}
-                  <button onClick={handleSave} disabled={saving} className="w-full bg-brand-purple text-white font-medium py-3 rounded-xl disabled:opacity-60">
+                  <button onClick={handleSave} disabled={saving} className="w-full bg-brand-purple text-white font-semibold py-3.5 rounded-2xl disabled:opacity-60">
                     {saving ? 'Saving…' : 'Save Changes'}
                   </button>
                 </>
@@ -689,9 +803,9 @@ export default function SchoolProfile() {
               <div className="divide-y divide-gray-100">
                 {staff.map((s) => (
                   <div key={s.id} className="flex items-center gap-3 py-3">
-                    {s.avatar_url ? <img src={s.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover" /> : <span className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center">🙂</span>}
+                    {s.avatar_url ? <img src={s.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover" /> : <span className="w-11 h-11 rounded-full bg-brand-light text-brand-purple font-semibold flex items-center justify-center">{(s.full_name || '?').slice(0, 1).toUpperCase()}</span>}
                     <div>
-                      <p className="font-medium text-sm">{s.full_name || 'Staff member'}</p>
+                      <p className="font-semibold text-sm text-brand-navy">{s.full_name || 'Staff member'}</p>
                       <p className="text-xs text-gray-400">{s.role}</p>
                     </div>
                   </div>
@@ -703,7 +817,7 @@ export default function SchoolProfile() {
           {activeTab === 'Media' ? (
             <>
               {canManageMedia ? (
-                <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingPhoto} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
+                <button onClick={() => galleryInputRef.current?.click()} disabled={uploadingPhoto} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-2xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
                   <Plus size={16} /> {uploadingPhoto ? 'Uploading…' : 'Add Photo or Video'}
                 </button>
               ) : (
@@ -715,19 +829,17 @@ export default function SchoolProfile() {
               ) : (
                 <div className="grid grid-cols-2 gap-2">
                   {gallery.map((g) => (
-                    <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative w-full h-32 rounded-lg overflow-hidden">
+                    <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative w-full h-36 rounded-2xl overflow-hidden bg-gray-100">
                       {g.media_type === 'video' ? (
                         <>
                           <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
-                          <span className="absolute inset-0 flex items-center justify-center bg-black/20">
-                            <Video size={20} className="text-white" />
-                          </span>
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/20"><Video size={20} className="text-white" /></span>
                         </>
                       ) : (
                         <img src={g.image_url} alt="" className="w-full h-full object-cover" />
                       )}
                       {galleryLikes[g.id]?.count > 0 ? (
-                        <span className="absolute bottom-1 right-1 bg-black/50 text-white text-[10px] rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
+                        <span className="absolute bottom-1.5 right-1.5 bg-black/50 text-white text-[10px] rounded-full px-1.5 py-0.5 flex items-center gap-0.5">
                           <Heart size={10} className="fill-white" /> {galleryLikes[g.id].count}
                         </span>
                       ) : null}
@@ -741,7 +853,7 @@ export default function SchoolProfile() {
           {activeTab === 'Events' ? (
             <>
               {canManageMedia ? (
-                <button onClick={() => navigate('/calendar/create')} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3">
+                <button onClick={() => navigate('/calendar/create')} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-2xl py-3 text-sm text-gray-500 mb-3">
                   <Plus size={16} /> Add Event
                 </button>
               ) : (
@@ -751,12 +863,21 @@ export default function SchoolProfile() {
                 <p className="text-center text-gray-400 mt-6">No events scheduled.</p>
               ) : (
                 <div className="space-y-2">
-                  {events.map((e) => (
-                    <div key={e.id} className="border border-gray-100 rounded-xl p-3">
-                      <p className="font-medium text-sm">{e.title}</p>
-                      <p className="text-xs text-gray-400">{new Date(e.event_date).toLocaleString()}</p>
-                    </div>
-                  ))}
+                  {events.map((e) => {
+                    const d = new Date(e.event_date)
+                    return (
+                      <div key={e.id} className="flex items-center gap-3 rounded-2xl border border-gray-100 p-3">
+                        <div className="w-12 shrink-0 text-center rounded-xl bg-brand-light py-1.5">
+                          <p className="text-[10px] font-bold uppercase text-brand-purple">{d.toLocaleDateString(undefined, { month: 'short' })}</p>
+                          <p className="text-lg font-extrabold leading-none text-brand-navy">{d.getDate()}</p>
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-semibold text-sm text-brand-navy truncate">{e.title}</p>
+                          <p className="text-xs text-gray-400">{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
             </>
@@ -765,7 +886,7 @@ export default function SchoolProfile() {
           {activeTab === 'Documents' ? (
             <>
               {canManageMedia ? (
-                <button onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
+                <button onClick={() => docInputRef.current?.click()} disabled={uploadingDoc} className="w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-2xl py-3 text-sm text-gray-500 mb-3 disabled:opacity-60">
                   <Plus size={16} /> {uploadingDoc ? 'Uploading…' : 'Add Document'}
                 </button>
               ) : (
@@ -778,9 +899,9 @@ export default function SchoolProfile() {
                 <div className="divide-y divide-gray-100">
                   {documents.map((d) => (
                     <button key={d.id} onClick={() => setLightboxItem({ ...d, kind: 'document' })} className="w-full flex items-center gap-3 py-3 text-left">
-                      <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center shrink-0"><FileText size={16} className="text-brand-purple" /></span>
+                      <span className="w-10 h-10 rounded-xl bg-brand-light flex items-center justify-center shrink-0"><FileText size={17} className="text-brand-purple" /></span>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm truncate">{d.title}</p>
+                        <p className="text-sm font-medium truncate">{d.title}</p>
                         <div className="flex items-center gap-2 mt-0.5">
                           {docLikes[d.id]?.count > 0 ? <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><Heart size={10} /> {docLikes[d.id].count}</span> : null}
                           {docRatings[d.id]?.count > 0 ? <span className="text-[11px] text-gray-400">★ {(docRatings[d.id].sum / docRatings[d.id].count).toFixed(1)}</span> : null}
@@ -794,6 +915,43 @@ export default function SchoolProfile() {
           ) : null}
         </div>
       </div>
+
+      {toast && !lightboxItem ? (
+        <div className="fixed left-1/2 -translate-x-1/2 z-40 bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg" style={{ bottom: 90 }}>{toast}</div>
+      ) : null}
+
+      {sheet ? (
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={() => !sheetBusy && setSheet(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[480px] bg-white rounded-t-3xl px-5 pt-3 pb-6 max-h-[88dvh] overflow-y-auto">
+            <span className="block w-10 h-1.5 rounded-full bg-gray-200 mx-auto mb-4" />
+            {sheet === 'follow' ? (
+              <>
+                <p className="text-lg font-extrabold tracking-tight text-brand-navy">Follow {school.name}</p>
+                <p className="text-sm text-gray-500 mt-1">See their posts, events and news.</p>
+                <button onClick={() => setAsStudent((v) => !v)} className={`mt-4 w-full flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left ${asStudent ? 'border-brand-purple bg-brand-light' : 'border-gray-200'}`}>
+                  <span className={`w-5 h-5 rounded-md border-2 flex items-center justify-center ${asStudent ? 'bg-brand-purple border-brand-purple' : 'border-gray-300'}`}>{asStudent ? <span className="text-white text-xs font-bold">✓</span> : null}</span>
+                  <span className="flex-1">
+                    <span className="block text-sm font-semibold">I'm a student at this school</span>
+                    <span className="block text-xs text-gray-500">Tell them which form you are in</span>
+                  </span>
+                </button>
+                {asStudent ? <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div> : null}
+                <button onClick={confirmFollow} disabled={sheetBusy || (asStudent && !formValue.trim())} className="mt-5 w-full bg-brand-purple text-white font-semibold py-3.5 rounded-2xl disabled:opacity-50 flex items-center justify-center">
+                  {sheetBusy ? <Loader2 size={18} className="animate-spin" /> : 'Follow'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-extrabold tracking-tight text-brand-navy">Which form are you in?</p>
+                <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div>
+                <button onClick={saveMyForm} disabled={sheetBusy || !formValue.trim()} className="mt-5 w-full bg-brand-purple text-white font-semibold py-3.5 rounded-2xl disabled:opacity-50 flex items-center justify-center">
+                  {sheetBusy ? <Loader2 size={18} className="animate-spin" /> : 'Save'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {lightboxItem ? (
         <div className="fixed inset-0 bg-black/80 z-50 flex flex-col">
@@ -887,4 +1045,4 @@ export default function SchoolProfile() {
       {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
     </div>
   )
-              }
+                    }
