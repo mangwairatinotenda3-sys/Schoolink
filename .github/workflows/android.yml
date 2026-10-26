@@ -1,16 +1,16 @@
-name: Build signed Android release (for the app stores)
+name: Build Android app
 
 on:
   workflow_dispatch:
 
-# Change these two lines before every store upload.
-# The number must be higher than the last one you uploaded to ANY store. The name is what people see.
+# Change these two lines every time you make changes and want a new build.
+# The number must go up each time (2, 3, 4...). The name is what people see.
 env:
-  APP_VERSION_CODE: 4
-  APP_VERSION_NAME: "4.0"
+  APP_VERSION_CODE: 5
+  APP_VERSION_NAME: "5.0"
 
 jobs:
-  release:
+  apk:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -155,6 +155,7 @@ jobs:
               '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
               '<uses-permission android:name="android.permission.CAMERA" />',
               '<uses-permission android:name="android.permission.VIBRATE" />',
+              '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />',
               '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
               '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
               '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
@@ -222,62 +223,32 @@ jobs:
               print("Launch theme not found, skipped the sharp opening screen")
           PY
 
-      - name: Sign the release with your own key
+      - name: Keep the same app signature so updates keep you signed in
         env:
-          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          DEBUG_KEYSTORE_BASE64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          if [ -z "$KEYSTORE_B64" ]; then
-            echo "ANDROID_KEYSTORE_BASE64 secret is missing. Run 'Create Android signing key' first and add the secrets."
-            exit 1
+          if [ -n "$DEBUG_KEYSTORE_BASE64" ]; then
+            mkdir -p ~/.android
+            printf '%s' "$DEBUG_KEYSTORE_BASE64" | base64 -d > ~/.android/debug.keystore
+            if keytool -list -keystore ~/.android/debug.keystore -storepass android > /dev/null 2>&1; then
+              echo "Using the saved signing key"
+            else
+              echo "The saved signing key is damaged, using a temporary one instead"
+              rm -f ~/.android/debug.keystore
+            fi
+          else
+            echo "No DEBUG_KEYSTORE_BASE64 secret, using a temporary signing key"
           fi
-          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/schoolink.jks"
-          python3 - <<'PY'
-          p = 'android/app/build.gradle'
-          s = open(p).read()
-          if 'signingConfigs.release' not in s:
-              i = s.index('buildTypes')
-              j = s.index('release {', i)
-              s = s[:j] + 'release {\n            signingConfig signingConfigs.release' + s[j + len('release {'):]
-              signing = '''signingConfigs {
-                  release {
-                      storeFile file(System.getenv('KEYSTORE_PATH'))
-                      storePassword System.getenv('KEYSTORE_PASSWORD')
-                      keyAlias System.getenv('KEY_ALIAS')
-                      keyPassword System.getenv('KEY_PASSWORD')
-                  }
-              }
-              '''
-              import re
-              s = re.sub(r'^(\s*)buildTypes \{', lambda m: m.group(1) + signing + m.group(1) + 'buildTypes {', s, count=1, flags=re.M)
-              open(p, 'w').write(s)
-              print('Release signing added')
-          PY
 
       - run: npx cap sync android
 
-      - name: Build the signed APK and AAB
-        env:
-          KEYSTORE_PATH: ${{ runner.temp }}/schoolink.jks
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Build the APK
         run: |
-          export KEYSTORE_PASSWORD="$(printf '%s' "$KEYSTORE_PASSWORD" | tr -d '\r\n')"
-          export KEY_PASSWORD="$(printf '%s' "$KEY_PASSWORD" | tr -d '\r\n')"
-          export KEY_ALIAS="$(printf '%s' "$KEY_ALIAS" | tr -d '\r\n ')"
-          echo "Aliases inside the key file:"
-          keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep -i "PrivateKeyEntry" || keytool -list -keystore "$KEYSTORE_PATH" -storepass "$KEYSTORE_PASSWORD"
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease bundleRelease
-
-      - name: Name the files clearly
-        run: |
-          mkdir -p store-files
-          cp android/app/build/outputs/apk/release/app-release.apk "store-files/schoolink-${APP_VERSION_NAME}-signed.apk"
-          cp android/app/build/outputs/bundle/release/app-release.aab "store-files/schoolink-${APP_VERSION_NAME}.aab"
+          ./gradlew assembleDebug
 
       - uses: actions/upload-artifact@v4
         with:
-          name: schoolink-store-files
-          path: store-files/*
+          name: schoolink-android
+          path: android/app/build/outputs/apk/debug/app-debug.apk
