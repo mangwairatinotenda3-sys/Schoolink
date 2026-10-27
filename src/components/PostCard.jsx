@@ -201,7 +201,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       <div className="flex items-center justify-between gap-2">
         <button onClick={goToAuthorProfile} className="min-w-0 text-left">
           <div className="flex items-center gap-1 min-w-0"><span className="font-semibold truncate hover:underline">{post.author_name}</span><VerifiedBadge userId={post.author_id} size={15} /></div>
-          <p className="text-xs text-gray-400 truncate">{post.author_role}{post.author_role && post.created_at ? ' · ' : ''}{timeAgo(post.created_at)}</p>
+          <p className="text-xs text-gray-400 truncate">{post.author_role}{post.author_role && post.created_at ? ' · ' : ''}{timeAgo(post.created_at)}{post.location ? ` · 📍 ${post.location}` : ''}</p>
         </button>
         <div className="flex items-center gap-2 shrink-0">
           {user && post.author_id !== user.id ? (
@@ -283,7 +283,9 @@ export default function PostCard({ post, onDeleted, expandComments }) {
               <span className="font-medium inline-flex items-center gap-1">{c.author_name}<VerifiedBadge userId={c.author_id} size={13} /></span> <span className="text-gray-600">{c.content}</span>
             </div>
           ))}
-          {user ? (
+            {post.comments_off ? (
+            <p className="text-xs text-gray-400 text-center py-1">Comments are turned off for this post.</p>
+          ) : user ? (
             <div className="flex items-center gap-2 mt-2">
               <input
                 value={commentText}
