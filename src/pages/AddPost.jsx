@@ -469,4 +469,145 @@ export default function AddPost() {
               )}
             </div>
             <span className="absolute bottom-2 left-2 bg-black/65 text-white text-[11px] rounded-md px-1.5 py-0.5">{video.duration ? `${formatDuration(video.duration)} · ` : ''}{formatSize(video.file.size)}</span>
-            <button onClick={removeVideo} aria-label="Remove video" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/65 flex items-center justify-center"><X size={15} cl
+            <button onClick={removeVideo} aria-label="Remove video" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/65 flex items-center justify-center"><X size={15} className="text-white" /></button>
+          </div>
+        ) : null}
+
+        {/* File */}
+        {doc ? (
+          <div className="flex items-center gap-3 mt-3 border border-gray-100 rounded-xl p-3">
+            <span className="w-11 h-11 rounded-lg bg-brand-light text-brand-purple flex items-center justify-center text-[11px] font-bold shrink-0">{fileExtension(doc.file.name)}</span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-medium truncate">{doc.file.name}</p>
+              <p className="text-xs text-gray-400">{formatSize(doc.file.size)}</p>
+            </div>
+            <button onClick={removeDoc} aria-label="Remove file" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={15} /></button>
+          </div>
+        ) : null}
+
+        {/* Post options */}
+        <div className="mt-5 rounded-2xl border border-gray-100 divide-y divide-gray-100">
+          {showLocation ? (
+            <div className="flex items-center gap-3 px-4 py-3">
+              <MapPin size={18} className="text-brand-purple shrink-0" />
+              <input
+                autoFocus={!location}
+                value={location}
+                maxLength={80}
+                onChange={(e) => setLocation(e.target.value)}
+                placeholder="Where is this? (e.g. School hall)"
+                className="flex-1 min-w-0 bg-transparent outline-none text-sm"
+              />
+              <button onClick={() => { setLocation(''); setShowLocation(false) }} aria-label="Remove place"><X size={16} className="text-gray-400" /></button>
+            </div>
+          ) : (
+            <button onClick={() => setShowLocation(true)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
+              <MapPin size={18} className="text-gray-400 shrink-0" />
+              <span className="text-sm text-gray-500">Add a place</span>
+            </button>
+          )}
+          <div className="flex items-center gap-3 px-4 py-3">
+            <MessageCircle size={18} className={commentsOn ? 'text-gray-400' : 'text-brand-purple'} />
+            <span className="flex-1">
+              <span className="block text-sm text-brand-navy">Allow comments</span>
+              <span className="block text-xs text-gray-400">{commentsOn ? 'Anyone who sees this post can comment.' : 'Comments are turned off for this post.'}</span>
+            </span>
+            <Switch checked={commentsOn} onChange={setCommentsOn} label="Allow comments" />
+          </div>
+        </div>
+
+        {error ? (
+          <div className="mt-4 flex gap-2 items-start bg-red-50 text-red-600 text-sm rounded-xl p-3">
+            <AlertCircle size={16} className="shrink-0 mt-0.5" />
+            <span>{error}</span>
+          </div>
+        ) : null}
+      </div>
+
+      {notice ? <div className="mx-4 mb-2 bg-gray-900 text-white text-xs rounded-full px-4 py-2 text-center shrink-0">{notice}</div> : null}
+
+      {/* Emoji tray */}
+      {emojiOpen ? (
+        <div className="shrink-0 border-t border-gray-100 px-3 py-2 grid grid-cols-8 gap-1 max-h-40 overflow-y-auto">
+          {EMOJIS.map((em) => (
+            <button key={em} onClick={() => insertAtCursor(em)} className="text-2xl leading-none p-1.5 rounded-lg active:bg-gray-100">{em}</button>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Add-to-post bar */}
+      <div className="shrink-0 border-t border-gray-100 px-2 py-2 flex items-center justify-between">
+        <div className="flex items-center">
+          <button onClick={() => photoInputRef.current?.click()} disabled={posting} aria-label="Add photos" className="relative w-11 h-11 rounded-full flex items-center justify-center active:bg-gray-100">
+            <ImageIcon size={23} className="text-green-500" />
+            {tiles ? <span className="absolute top-1 right-0.5 min-w-[16px] h-4 px-1 rounded-full bg-brand-purple text-white text-[10px] font-bold flex items-center justify-center">{tiles}</span> : null}
+          </button>
+          <button onClick={() => videoInputRef.current?.click()} disabled={posting} aria-label="Add a video" className="w-11 h-11 rounded-full flex items-center justify-center active:bg-gray-100"><Video size={23} className="text-red-500" /></button>
+          <button onClick={() => docInputRef.current?.click()} disabled={posting} aria-label="Add a file" className="w-11 h-11 rounded-full flex items-center justify-center active:bg-gray-100"><FileText size={23} className="text-blue-500" /></button>
+          <button onClick={() => setEmojiOpen((v) => !v)} aria-label="Emoji" className={`w-11 h-11 rounded-full flex items-center justify-center ${emojiOpen ? 'bg-brand-light' : 'active:bg-gray-100'}`}><Smile size={23} className="text-amber-500" /></button>
+          <button onClick={() => insertAtCursor('#')} aria-label="Add a hashtag" className="w-11 h-11 rounded-full flex items-center justify-center active:bg-gray-100"><Hash size={22} className="text-brand-purple" /></button>
+        </div>
+        <button onClick={() => setPreview(true)} disabled={!hasAnything} className="h-10 px-4 rounded-full border border-gray-200 text-sm font-semibold text-brand-navy flex items-center gap-1.5 disabled:opacity-40">
+          <Eye size={16} /> Preview
+        </button>
+      </div>
+
+      <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
+      <input ref={videoInputRef} type="file" accept="video/*" onChange={addVideo} className="hidden" />
+      <input ref={docInputRef} type="file" accept={DOC_TYPES} onChange={addDoc} className="hidden" />
+
+      {/* Preview */}
+      {preview ? (
+        <div className="fixed inset-0 z-40 bg-black/50 flex items-end" onClick={() => setPreview(false)}>
+          <div className="bg-white w-full rounded-t-3xl p-4 pb-6 max-w-[520px] mx-auto max-h-[88dvh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+            <p className="font-semibold px-1 mb-3">This is how it will look</p>
+            <div className="border border-gray-100 rounded-xl p-4">
+              <p className="font-semibold">{profile?.full_name || 'You'}</p>
+              <p className="text-xs text-gray-400">{profile?.role}{profile?.role ? ' · ' : ''}just now{location ? ` · 📍 ${location}` : ''}</p>
+              {category !== 'General' ? <span className="inline-block mt-2 text-[10px] font-medium px-2 py-0.5 rounded-full bg-brand-light text-brand-purple">{category}</span> : null}
+              {content.trim() ? <p className="text-sm whitespace-pre-wrap break-words mt-2">{content.trim()}</p> : null}
+              {photos.length ? (
+                <div className={`grid gap-1 mt-2 rounded-xl overflow-hidden ${photos.length === 1 ? 'grid-cols-1' : 'grid-cols-2'}`}>
+                  {photos.slice(0, 4).map((p) => <img key={p.id} src={p.url} alt="" className="w-full h-32 object-cover" />)}
+                </div>
+              ) : null}
+              {video ? <p className="mt-2 text-xs text-gray-500 flex items-center gap-1.5"><Video size={14} /> Video · {formatSize(video.file.size)}</p> : null}
+              {doc ? <p className="mt-2 text-xs text-gray-500 flex items-center gap-1.5"><FileText size={14} /> {doc.file.name}</p> : null}
+              <p className="mt-3 text-xs text-gray-400">{commentsOn ? 'Comments on' : 'Comments off'}</p>
+            </div>
+            <button onClick={() => setPreview(false)} className="w-full mt-4 bg-brand-purple text-white font-medium py-3 rounded-full">Back to editing</button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Discard? */}
+      {leaveAsk ? (
+        <div className="fixed inset-0 z-40 bg-black/50 flex items-end" onClick={() => setLeaveAsk(false)}>
+          <div className="bg-white w-full rounded-t-3xl p-4 pb-6 max-w-[520px] mx-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
+            <p className="font-semibold px-1">Leave without posting?</p>
+            <p className="text-sm text-gray-500 px-1 mt-1">Your words are saved as a draft. Photos, videos and files are not.</p>
+            <button onClick={() => setLeaveAsk(false)} className="w-full mt-4 bg-brand-purple text-white font-medium py-3 rounded-full">Keep editing</button>
+            <button onClick={discardAndLeave} className="w-full mt-2 text-red-500 font-medium py-3">Delete draft and leave</button>
+            <button onClick={() => navigate(-1)} className="w-full text-gray-500 font-medium py-2">Save draft and leave</button>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Uploading */}
+      {posting ? (
+        <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center px-8">
+          <div className="bg-white rounded-2xl p-5 w-full max-w-[320px]">
+            <p className="font-semibold text-center">{stage || 'Working…'}</p>
+            <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div className="h-full bg-brand-purple rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
+            </div>
+            <p className="text-center text-xs text-gray-400 mt-2">{progress}%</p>
+            <button onClick={cancelPosting} className="w-full mt-3 text-sm text-gray-500 py-2">Cancel</button>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  )
+}
