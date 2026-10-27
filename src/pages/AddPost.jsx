@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import { Navigate, useNavigate } from 'react-router-dom'
-import { X, Image as ImageIcon, Video, FileText, Plus, Play, ChevronDown, Check, AlertCircle, Loader2 } from 'lucide-react'
+import { Navigate, useNavigate, useSearchParams } from 'react-router-dom'
+import {
+  X, Image as ImageIcon, Video, FileText, Plus, Play, AlertCircle, Loader2, Smile, Hash, MapPin, Eye, MessageCircle, Star,
+} from 'lucide-react'
+import Switch from '../components/Switch.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -9,12 +12,25 @@ import { uploadWithProgress } from '../lib/uploadWithProgress.js'
 import { prepareImage, videoInfo, formatSize, formatDuration, fileExtension, safeFileName } from '../lib/mediaTools.js'
 
 const CATEGORIES = [
-  { key: 'General', icon: '💬', hint: 'Anything for your school community' },
-  { key: 'Announcement', icon: '📢', hint: 'Important notices' },
-  { key: 'Event', icon: '📅', hint: 'Dates, trips and activities' },
-  { key: 'News', icon: '📰', hint: 'School news and updates' },
-  { key: 'Sports Update', icon: '⚽', hint: 'Matches, results and training' },
-  { key: 'Photo', icon: '📷', hint: 'Share moments' },
+  { key: 'General', icon: '💬', starters: ['Good morning everyone! ☀️', 'So proud of our learners today 👏', 'A quick reminder: '] },
+  { key: 'Announcement', icon: '📢', starters: ['📢 Notice to all parents and guardians: ', '📢 School will close early on ', '📢 Reminder: fees are due by '] },
+  { key: 'Event', icon: '📅', starters: ['📅 Join us on ', 'Save the date! ', 'We are hosting '] },
+  { key: 'News', icon: '📰', starters: ['📰 News from school: ', 'Congratulations to ', 'This week at school: '] },
+  { key: 'Sports Update', icon: '⚽', starters: ['⚽ Match day! ', 'Final score: ', 'Training starts at '] },
+  { key: 'Photo', icon: '📷', starters: ['Moments from today 📷', 'Throwback to ', 'Look at this! '] },
+]
+
+const MODES = {
+  photo: { category: 'Photo', title: 'Add photos', hint: 'Pick up to 10 photos from your phone.', icon: ImageIcon },
+  video: { category: 'General', title: 'Add a video', hint: 'Videos can be up to 50 MB.', icon: Video },
+  file: { category: 'General', title: 'Share a file', hint: 'PDF, Word, Excel, PowerPoint, text or CSV.', icon: FileText },
+  announcement: { category: 'Announcement' },
+}
+
+const EMOJIS = [
+  '😀', '😂', '🥰', '😍', '😎', '🤩', '😊', '😇', '🙏', '👏', '🙌', '👍', '💪', '❤️', '💜', '🔥',
+  '✨', '🎉', '🎊', '🏆', '🥇', '⚽', '🏀', '🏏', '📚', '✏️', '🎓', '🏫', '📢', '📅', '⏰', '📍',
+  '🌟', '💯', '👀', '🤝', '😢', '😮', '🥳', '🎂', '🍎', '🚌', '🎶', '🖼️', '📷', '🎨', '🔬', '💡',
 ]
 
 const MAX_PHOTOS = 10
@@ -30,6 +46,8 @@ function newId() {
 
 export default function AddPost() {
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  const mode = MODES[params.get('mode')] ? params.get('mode') : ''
   const { profile, user, loading } = useAuth()
   const photoInputRef = useRef(null)
   const videoInputRef = useRef(null)
@@ -40,11 +58,15 @@ export default function AddPost() {
   const draftKey = `schoolink_post_draft_${user?.id || 'x'}`
 
   const [content, setContent] = useState('')
-  const [category, setCategory] = useState('General')
+  const [category, setCategory] = useState(MODES[mode]?.category || 'General')
   const [photos, setPhotos] = useState([])
   const [video, setVideo] = useState(null)
   const [doc, setDoc] = useState(null)
-  const [sheet, setSheet] = useState(false)
+  const [location, setLocation] = useState('')
+  const [showLocation, setShowLocation] = useState(false)
+  const [commentsOn, setCommentsOn] = useState(true)
+  const [emojiOpen, setEmojiOpen] = useState(false)
+  const [preview, setPreview] = useState(false)
   const [leaveAsk, setLeaveAsk] = useState(false)
   const [posting, setPosting] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -59,7 +81,9 @@ export default function AddPost() {
       const saved = JSON.parse(localStorage.getItem(draftKey) || 'null')
       if (saved) {
         setContent(saved.content || '')
-        if (saved.category) setCategory(saved.category)
+        if (saved.category && !mode) setCategory(saved.category)
+        if (saved.location) { setLocation(saved.location); setShowLocation(true) }
+        if (saved.commentsOn === false) setCommentsOn(false)
       }
     } catch {
       // ignore
@@ -69,12 +93,12 @@ export default function AddPost() {
   useEffect(() => {
     if (!user) return
     try {
-      if (content.trim()) localStorage.setItem(draftKey, JSON.stringify({ content, category }))
+      if (content.trim()) localStorage.setItem(draftKey, JSON.stringify({ content, category, location, commentsOn }))
       else localStorage.removeItem(draftKey)
     } catch {
       // ignore
     }
-  }, [content, category])
+  }, [content, category, location, commentsOn])
 
   // The text box grows as you type.
   useEffect(() => {
@@ -117,8 +141,24 @@ export default function AddPost() {
   }
 
   const hasAnything = !!(content.trim() || photos.length || video || doc)
-  const hasWork = hasAnything
   const activeCategory = CATEGORIES.find((c) => c.key === category) || CATEGORIES[0]
+  const modeInfo = MODES[mode]
+  const showDrop = !!modeInfo?.title && !photos.length && !video && !doc
+
+  function insertAtCursor(text) {
+    const el = textRef.current
+    const start = el?.selectionStart ?? content.length
+    const end = el?.selectionEnd ?? start
+    const next = content.slice(0, start) + text + content.slice(end)
+    if (next.length > MAX_TEXT) return
+    setContent(next)
+    requestAnimationFrame(() => {
+      if (!el) return
+      el.focus()
+      const pos = start + text.length
+      el.setSelectionRange(pos, pos)
+    })
+  }
 
   function addPhotos(e) {
     const files = Array.from(e.target.files || [])
@@ -151,6 +191,14 @@ export default function AddPost() {
       return prev.filter((p) => p.id !== id)
     })
     uploadedRef.current.delete(id)
+  }
+
+  function makeCover(id) {
+    setPhotos((prev) => {
+      const pick = prev.find((p) => p.id === id)
+      if (!pick) return prev
+      return [pick, ...prev.filter((p) => p.id !== id)]
+    })
   }
 
   async function addVideo(e) {
@@ -202,7 +250,7 @@ export default function AddPost() {
 
   function requestClose() {
     if (posting) return
-    if (hasWork) setLeaveAsk(true)
+    if (hasAnything) setLeaveAsk(true)
     else navigate(-1)
   }
 
@@ -268,7 +316,7 @@ export default function AddPost() {
       setStage('Posting…')
       setProgress(100)
       const imageUrls = photos.map((p) => uploadedRef.current.get(p.id)).filter(Boolean)
-      const { error: insertError } = await supabase.from('posts').insert({
+      const row = {
         author_id: user.id,
         author_name: profile?.full_name || user.email,
         author_role: profile?.role || '',
@@ -278,7 +326,13 @@ export default function AddPost() {
         video_url: video ? uploadedRef.current.get(video.id) || null : null,
         file_url: doc ? uploadedRef.current.get(doc.id) || null : null,
         file_name: doc?.file.name || null,
-      })
+      }
+      const extras = { comments_off: !commentsOn, location: location.trim() || null }
+      let { error: insertError } = await supabase.from('posts').insert({ ...row, ...extras })
+      // The new post options need the updates SQL. Until it is run, post without them instead of failing.
+      if (insertError && /comments_off|location|column/i.test(insertError.message || '')) {
+        ;({ error: insertError } = await supabase.from('posts').insert(row))
+      }
       if (insertError) throw insertError
 
       try {
@@ -324,33 +378,74 @@ export default function AddPost() {
           )}
           <div className="min-w-0">
             <p className="font-semibold text-sm truncate">{profile?.full_name || 'You'}</p>
-            <button onClick={() => setSheet(true)} className="mt-0.5 flex items-center gap-1 text-xs text-brand-purple bg-brand-light rounded-full pl-2 pr-1.5 py-0.5">
-              <span>{activeCategory.icon}</span>
-              <span className="font-medium">{activeCategory.key}</span>
-              <ChevronDown size={13} />
-            </button>
+            <p className="text-xs text-gray-400 truncate">{profile?.role || 'School member'}</p>
           </div>
+        </div>
+
+        {/* Category */}
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 mt-3 pb-1" style={{ scrollbarWidth: 'none' }}>
+          {CATEGORIES.map((c) => {
+            const on = c.key === category
+            return (
+              <button
+                key={c.key}
+                onClick={() => setCategory(c.key)}
+                className={`shrink-0 h-9 px-3.5 rounded-full text-[13px] font-semibold flex items-center gap-1.5 border ${on ? 'bg-brand-navy text-white border-brand-navy' : 'bg-white text-gray-500 border-gray-200'}`}
+              >
+                <span>{c.icon}</span> {c.key}
+              </button>
+            )
+          })}
         </div>
 
         <textarea
           ref={textRef}
-          autoFocus
+          autoFocus={!modeInfo?.title}
           value={content}
           maxLength={MAX_TEXT}
           onChange={(e) => setContent(e.target.value)}
-          placeholder="What's happening at school?"
+          placeholder={category === 'Announcement' ? 'What should everyone know?' : "What's happening at school?"}
           className="w-full mt-3 bg-transparent border-0 outline-none resize-none text-[17px] leading-relaxed placeholder:text-gray-400"
           style={{ minHeight: 96 }}
         />
         {over ? <p className={`text-right text-xs ${content.length >= MAX_TEXT ? 'text-red-500' : 'text-gray-400'}`}>{content.length}/{MAX_TEXT}</p> : null}
 
-                {/* Photos */}
+        {/* Quick starters */}
+        {!content.trim() ? (
+          <div className="mt-1">
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-gray-400 mb-2">Need a start?</p>
+            <div className="flex flex-wrap gap-2">
+              {activeCategory.starters.map((s) => (
+                <button key={s} onClick={() => insertAtCursor(s)} className="text-[13px] text-brand-purple bg-brand-light rounded-full px-3.5 py-2 text-left">{s}</button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        {/* The shortcut that opened this screen */}
+        {showDrop ? (
+          <button
+            onClick={() => (mode === 'photo' ? photoInputRef : mode === 'video' ? videoInputRef : docInputRef).current?.click()}
+            className="w-full mt-4 rounded-2xl border-2 border-dashed border-brand-purple/40 bg-brand-light py-7 flex flex-col items-center gap-2"
+          >
+            <span className="w-14 h-14 rounded-2xl bg-white flex items-center justify-center">{modeInfo.icon ? <modeInfo.icon size={26} className="text-brand-purple" /> : null}</span>
+            <span className="font-bold text-brand-navy">{modeInfo.title}</span>
+            <span className="text-xs text-gray-500">{modeInfo.hint}</span>
+          </button>
+        ) : null}
+
+        {/* Photos */}
         {tiles > 0 ? (
           <div className="grid grid-cols-3 gap-1.5 mt-3">
-            {photos.map((p) => (
+            {photos.map((p, i) => (
               <div key={p.id} className="relative aspect-square rounded-xl overflow-hidden bg-gray-100">
                 <img src={p.url} alt="" className="w-full h-full object-cover" />
                 <button onClick={() => removePhoto(p.id)} aria-label="Remove photo" className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/65 flex items-center justify-center"><X size={14} className="text-white" /></button>
+                {i === 0 ? (
+                  <span className="absolute bottom-1.5 left-1.5 text-[10px] font-bold bg-black/65 text-white rounded-full px-2 py-0.5 flex items-center gap-1"><Star size={10} fill="currentColor" /> Cover</span>
+                ) : (
+                  <button onClick={() => makeCover(p.id)} className="absolute bottom-1.5 left-1.5 text-[10px] font-semibold bg-black/55 text-white rounded-full px-2 py-0.5">Set cover</button>
+                )}
               </div>
             ))}
             {tiles < MAX_PHOTOS ? (
@@ -374,95 +469,4 @@ export default function AddPost() {
               )}
             </div>
             <span className="absolute bottom-2 left-2 bg-black/65 text-white text-[11px] rounded-md px-1.5 py-0.5">{video.duration ? `${formatDuration(video.duration)} · ` : ''}{formatSize(video.file.size)}</span>
-            <button onClick={removeVideo} aria-label="Remove video" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/65 flex items-center justify-center"><X size={15} className="text-white" /></button>
-          </div>
-        ) : null}
-
-        {/* File */}
-        {doc ? (
-          <div className="flex items-center gap-3 mt-3 border border-gray-100 rounded-xl p-3">
-            <span className="w-11 h-11 rounded-lg bg-brand-light text-brand-purple flex items-center justify-center text-[11px] font-bold shrink-0">{fileExtension(doc.file.name)}</span>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium truncate">{doc.file.name}</p>
-              <p className="text-xs text-gray-400">{formatSize(doc.file.size)}</p>
-            </div>
-            <button onClick={removeDoc} aria-label="Remove file" className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><X size={15} /></button>
-          </div>
-        ) : null}
-
-        {error ? (
-          <div className="mt-4 flex gap-2 items-start bg-red-50 text-red-600 text-sm rounded-xl p-3">
-            <AlertCircle size={16} className="shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        ) : null}
-      </div>
-
-      {notice ? <div className="mx-4 mb-2 bg-gray-900 text-white text-xs rounded-full px-4 py-2 text-center shrink-0">{notice}</div> : null}
-
-      {/* Add-to-post bar */}
-      <div className="shrink-0 border-t border-gray-100 px-3 py-2 flex items-center gap-1">
-        <button onClick={() => photoInputRef.current?.click()} disabled={posting} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-gray-600 active:bg-gray-100">
-          <ImageIcon size={21} className="text-green-500" /> Photo{tiles ? ` · ${tiles}` : ''}
-        </button>
-        <button onClick={() => videoInputRef.current?.click()} disabled={posting} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-gray-600 active:bg-gray-100">
-          <Video size={21} className="text-red-500" /> Video
-        </button>
-        <button onClick={() => docInputRef.current?.click()} disabled={posting} className="flex items-center gap-1.5 px-3 py-2 rounded-full text-sm text-gray-600 active:bg-gray-100">
-          <FileText size={21} className="text-blue-500" /> File
-        </button>
-      </div>
-
-      <input ref={photoInputRef} type="file" accept="image/*" multiple onChange={addPhotos} className="hidden" />
-      <input ref={videoInputRef} type="file" accept="video/*" onChange={addVideo} className="hidden" />
-      <input ref={docInputRef} type="file" accept={DOC_TYPES} onChange={addDoc} className="hidden" />
-
-      {/* Category sheet */}
-      {sheet ? (
-        <div className="fixed inset-0 z-40 bg-black/50 flex items-end" onClick={() => setSheet(false)}>
-          <div className="bg-white w-full rounded-t-3xl p-4 pb-6 max-w-[520px] mx-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
-            <p className="font-semibold mb-2 px-1">Choose a category</p>
-            {CATEGORIES.map((c) => (
-              <button key={c.key} onClick={() => { setCategory(c.key); setSheet(false) }} className="w-full flex items-center gap-3 py-3 px-1 text-left">
-                <span className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center text-lg">{c.icon}</span>
-                <span className="flex-1">
-                  <span className="block text-sm font-medium text-brand-navy">{c.key}</span>
-                  <span className="block text-xs text-gray-400">{c.hint}</span>
-                </span>
-                {category === c.key ? <Check size={18} className="text-brand-purple" /> : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
-
-      {/* Discard? */}
-      {leaveAsk ? (
-        <div className="fixed inset-0 z-40 bg-black/50 flex items-end" onClick={() => setLeaveAsk(false)}>
-          <div className="bg-white w-full rounded-t-3xl p-4 pb-6 max-w-[520px] mx-auto" onClick={(e) => e.stopPropagation()}>
-            <div className="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-3" />
-            <p className="font-semibold px-1">Leave without posting?</p>
-            <p className="text-sm text-gray-500 px-1 mt-1">Your words are saved as a draft. Photos, videos and files are not.</p>
-            <button onClick={() => setLeaveAsk(false)} className="w-full mt-4 bg-brand-purple text-white font-medium py-3 rounded-full">Keep editing</button>
-            <button onClick={discardAndLeave} className="w-full mt-2 text-red-500 font-medium py-3">Leave</button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Uploading */}
-      {posting ? (
-        <div className="fixed inset-0 z-50 bg-black/55 flex items-center justify-center px-8">
-          <div className="bg-white rounded-2xl p-5 w-full max-w-[320px]">
-            <p className="font-semibold text-center">{stage || 'Working…'}</p>
-            <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
-              <div className="h-full bg-brand-purple rounded-full transition-all duration-200" style={{ width: `${progress}%` }} />
-            </div>
-            <p className="text-center text-xs text-gray-400 mt-2">{progress}%</p>
-            <button onClick={cancelPosting} className="w-full mt-3 text-sm text-gray-500 py-2">Cancel</button>
-          </div>
-        </div>
-      ) : null}
-    </div>
-  )
-                }
+            <button onClick={removeVideo} aria-label="Remove video" className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/65 flex items-center justify-center"><X size={15} cl
