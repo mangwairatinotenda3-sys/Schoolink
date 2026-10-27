@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Home, MessageCircle, Plus, Bell, User } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
@@ -5,6 +6,7 @@ import { useTranslation } from '../lib/i18n.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canPost } from '../lib/permissions.js'
 import OnboardingTour from './OnboardingTour.jsx'
+import CreateSheet from './CreateSheet.jsx'
 
 // Dark bottom bar with a raised round "+" button in the middle.
 // Colours are inline so the bar looks the same in every theme.
@@ -16,6 +18,7 @@ export default function BottomNav() {
   const { t } = useTranslation()
   const { profile } = useAuth()
   const showPost = canPost(profile)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const left = [
     { to: '/home', label: t('home'), icon: Home },
@@ -77,8 +80,9 @@ export default function BottomNav() {
         {left.map((item) => <Tab key={item.to} {...item} />)}
         {showPost ? (
           <div style={{ width: 84, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-            <NavLink
-              to="/add-post"
+            <button
+              type="button"
+              onClick={() => setCreateOpen(true)}
               aria-label={t('post')}
               style={{
                 width: 62, height: 62, marginTop: -34, borderRadius: 999, flexShrink: 0,
@@ -88,13 +92,14 @@ export default function BottomNav() {
               }}
             >
               <Plus size={32} strokeWidth={2.75} color="#fff" />
-            </NavLink>
+            </button>
           </div>
         ) : null}
         {right.map((item) => <Tab key={item.to} {...item} />)}
       </div>
     </nav>
+    <CreateSheet open={createOpen} onClose={() => setCreateOpen(false)} />
     <OnboardingTour />
     </>
   )
-      }
+    }
