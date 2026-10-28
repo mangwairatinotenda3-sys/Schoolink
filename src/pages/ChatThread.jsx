@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2 } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2, Info } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import VoicePlayer from '../components/VoicePlayer.jsx'
 import MediaPreview from '../components/MediaPreview.jsx'
@@ -12,6 +12,7 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
 import { wallpapers, playTone, shouldAutoLoadMedia } from '../lib/chatPrefs.js'
 import VerifiedBadge from '../components/VerifiedBadge.jsx'
+import { haptic } from '../lib/uiPrefs.js'
 
 const PAGE_SIZE = 40
 const EDIT_WINDOW_MS = 15 * 60 * 1000
@@ -202,35 +203,78 @@ function PendingBubble({ item, onRetry, onDiscard }) {
   )
 }
 
-function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, onRemoveReaction, onReply, onStar, onForward, onDelete, onEdit, onJumpTo, onOpenImage, allMessages, highlightQuery, isCurrentMatch, autoDownloadMedia }) {
-  const [showBar, setShowBar] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+function fullStamp(iso) {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })} · ${timeLabel(iso)}`
+}
+
+// Three bouncing dots shown while the other person is typing.
+function TypingBubble() {
+  return (
+    <div className="flex justify-start">
+      <style>{`@keyframes sl-dot{0%,60%,100%{transform:translateY(0);opacity:.35}30%{transform:translateY(-4px);opacity:1}}html[data-motion="reduce"] .sl-dot{animation:none!important}`}</style>
+      <div className="chat-bubble theirs bg-gray-100 px-4 py-3 flex items-center gap-1">
+        {[0, 1, 2].map((i) => (
+          <span key={i} className="sl-dot w-1.5 h-1.5 rounded-full bg-gray-500" style={{ animation: 'sl-dot 1.1s infinite', animationDelay: `${i * 0.16}s` }} />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// One chat bubble. Swipe right to reply, double-tap for a heart, press and hold (or right-click) for the menu.
+function MessageBubble({ m, isMine, reactions, starred, currentUserId, partnerName, onOpenMenu, onReply, onReact, onRemoveReaction, onJumpTo, onOpenImage, allMessages, highlightQuery, isCurrentMatch, flash, autoDownloadMedia, last }) {
+  const [dx, setDx] = useState(0)
+  const touch = useRef({ x: 0, y: 0, active: false, swiping: false, moved: false, timer: null })
+  const lastTap = useRef(0)
   const repliedTo = m.reply_to_id ? allMessages.find((x) => x.id === m.reply_to_id) : null
-  const myReactions = reactions[m.id] ?? []
   const isStarred = starred.has(m.id)
   const deleted = !!m.deleted_at
-  const canEdit = isMine && !deleted && m.content && !m.media_type && Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS
   const visual = (m.media_type === 'image' || m.media_type === 'video') && !!m.media_url
 
-  function handleCopy(e) {
-    e.stopPropagation()
-    if (m.content) navigator.clipboard?.writeText(m.content)
-    setShowBar(false)
+  const groups = []
+  for (const r of reactions[m.id] ?? []) {
+    const g = groups.find((x) => x.emoji === r.emoji)
+    if (g) { g.count += 1; if (r.user_id === currentUserId) g.mine = true } else groups.push({ emoji: r.emoji, count: 1, mine: r.user_id === currentUserId })
   }
 
-  function handlePickEmoji(e, emoji) {
-    e.stopPropagation()
-    onReact(m.id, emoji)
-    setShowEmojiPicker(false)
-    setShowBar(false)
+  // Only the last bubble in a run gets the little corner "tail".
+  const tailStyle = last ? undefined : { [isMine ? 'borderBottomRightRadius' : 'borderBottomLeftRadius']: 'var(--bubble-r, 16px)' }
+
+  function clearTimer() { clearTimeout(touch.current.timer) }
+
+  function onTouchStart(e) {
+    const t = e.touches[0]
+    clearTimer()
+    touch.current = {
+      x: t.clientX, y: t.clientY, active: true, swiping: false, moved: false,
+      timer: setTimeout(() => {
+        if (!touch.current.moved) { touch.current.active = false; haptic(12); onOpenMenu(m) }
+      }, 450),
+    }
   }
 
-  function handleDelete(e) {
-    e.stopPropagation()
-    if (!window.confirm('Delete this message for everyone?')) 
-      
-      return onDelete(m.id)
-    setShowBar(false)
+  function onTouchMove(e) {
+    const t = e.touches[0]
+    const ddx = t.clientX - touch.current.x
+    const ddy = t.clientY - touch.current.y
+        if (Math.abs(ddx) > 8 || Math.abs(ddy) > 8) { touch.current.moved = true; clearTimer() }
+    if (!touch.current.active) return
+    if (!touch.current.swiping && ddx > 14 && Math.abs(ddx) > Math.abs(ddy) * 1.6) touch.current.swiping = true
+    if (touch.current.swiping) setDx(Math.min(72, Math.max(0, ddx)))
+  }
+
+  function onTouchEnd() {
+    clearTimer()
+    if (touch.current.swiping && dx >= 56) { haptic(10); onReply(m) }
+    setDx(0)
+    touch.current.active = false
+    touch.current.swiping = false
+  }
+
+  function handleTap() {
+    const now = Date.now()
+    if (now - lastTap.current < 300) { lastTap.current = 0; haptic(8); onReact(m.id, '❤️') } else lastTap.current = now
   }
 
   if (deleted) {
@@ -245,15 +289,35 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
   }
 
   return (
-    <div className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-      <div className="max-w-[75%]">
-        <div onClick={() => setShowBar((s) => !s)} className={`chat-bubble ${visual ? 'p-1.5' : 'px-4 py-2'} ${isMine ? 'mine bg-brand-purple text-white' : 'theirs bg-gray-100 text-brand-navy'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''}`}>
+    <div className={`relative flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+      <span className="absolute left-1 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-white shadow flex items-center justify-center" style={{ opacity: Math.min(1, dx / 56), transform: `translateY(-50%) scale(${0.6 + Math.min(1, dx / 56) * 0.4})` }}>
+        <CornerUpLeft size={16} className="text-brand-purple" />
+      </span>
+      <div
+        className="max-w-[78%]"
+        style={{ transform: `translateX(${dx}px)`, transition: dx ? 'none' : 'transform 180ms ease', WebkitTouchCallout: 'none' }}
+        onTouchStart={onTouchStart}
+        onTouchMove={onTouchMove}
+        onTouchEnd={onTouchEnd}
+        onTouchCancel={onTouchEnd}
+        onContextMenu={(e) => { e.preventDefault(); onOpenMenu(m) }}
+      >
+        <div
+          onClick={handleTap}
+          style={tailStyle}
+          className={`chat-bubble ${visual ? 'p-1.5' : 'px-3.5 py-2'} ${isMine ? 'mine bg-brand-purple text-white' : 'theirs bg-gray-100 text-brand-navy'} ${isCurrentMatch ? 'ring-2 ring-amber-400' : ''} ${flash ? 'ring-2 ring-brand-purple/70' : ''}`}
+        >
           {repliedTo ? (
             <button
               onClick={(e) => { e.stopPropagation(); onJumpTo(repliedTo.id) }}
-              className={`block w-full text-left text-xs border-l-2 pl-2 mb-1 opacity-80 truncate ${isMine ? 'border-white/50' : 'border-brand-purple/50'}`}
+              className={`flex w-full text-left mb-1.5 rounded-lg overflow-hidden ${isMine ? 'bg-white/15' : 'bg-black/5'}`}
             >
-              {previewText(repliedTo)}
+              <span className={`w-1 shrink-0 ${isMine ? 'bg-white/70' : 'bg-brand-purple'}`} />
+              <span className="min-w-0 flex-1 px-2 py-1">
+                <span className={`block text-[11px] font-bold ${isMine ? 'text-white' : 'text-brand-purple'}`}>{repliedTo.sender_id === currentUserId ? 'You' : partnerName}</span>
+                <span className="block text-xs opacity-85 truncate">{previewText(repliedTo)}</span>
+              </span>
+              {repliedTo.media_type === 'image' && repliedTo.media_url ? <img src={repliedTo.media_url} alt="" className="w-11 h-11 object-cover shrink-0" /> : null}
             </button>
           ) : null}
           {m.media_type === 'audio' && m.media_url ? <VoicePlayer url={m.media_url} mine={isMine} /> : null}
@@ -272,56 +336,104 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, onReact, 
             </a>
           ) : null}
           {m.content && m.media_type !== 'file' ? <p className={`whitespace-pre-wrap break-words ${visual ? 'px-2 pt-1' : ''}`}>{renderContent(m.content, highlightQuery)}</p> : null}
-          <span className={`flex items-center justify-end gap-1 mt-1 text-[10px] opacity-70 ${visual ? 'px-2 pb-0.5' : ''}`}>
+          <span className={`flex items-center justify-end gap-1 mt-0.5 text-[10px] opacity-70 ${visual ? 'px-2 pb-0.5' : ''}`}>
+            {isStarred ? <Star size={10} className="fill-current" /> : null}
             {m.edited_at ? <span>edited</span> : null}
             <span>{timeLabel(m.created_at)}</span>
-            {isMine ? (m.read ? <CheckCheck size={14} className="text-blue-200" /> : <Check size={14} className="text-white/70" />) : null}
+            {isMine ? (m.read ? <CheckCheck size={14} className="text-sky-300" /> : <Check size={14} className="opacity-80" />) : null}
           </span>
         </div>
 
-        {(myReactions.length > 0 || isStarred) ? (
-          <div className="flex gap-1 mt-0.5">
-            {isStarred ? <Star size={12} className="text-amber-500 fill-amber-500" /> : null}
-            {myReactions.map((r, i) => {
-              const mine = r.user_id === currentUserId
-              return (
-                <span
-                  key={`${r.emoji}-${r.user_id}-${i}`}
-                  onClick={(e) => { e.stopPropagation(); if (mine) onRemoveReaction(m.id) }}
-                  className={`text-xs bg-white border border-gray-100 rounded-full px-1.5 ${mine ? 'cursor-pointer' : ''}`}
-                  title={mine ? 'Tap to remove' : ''}
-                >
-                  {r.emoji}
-                </span>
-              )
-            })}
+        {groups.length > 0 ? (
+          <div className={`flex gap-1 -mt-2 px-2 relative ${isMine ? 'justify-end' : 'justify-start'}`}>
+            {groups.map((g) => (
+              <button
+                key={g.emoji}
+                onClick={(e) => { e.stopPropagation(); if (g.mine) onRemoveReaction(m.id) }}
+                className={`text-xs rounded-full px-1.5 py-0.5 bg-white shadow-sm border ${g.mine ? 'border-brand-purple' : 'border-gray-100'}`}
+              >
+                {g.emoji}{g.count > 1 ? <span className="ml-0.5 text-[10px] text-gray-500">{g.count}</span> : null}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+// The menu that opens when you press and hold a message.
+function MessageSheet({ m, isMine, isStarred, reactions, currentUserId, onClose, onReact, onRemoveReaction, onReply, onStar, onForward, onEdit, onDelete }) {
+  const [more, setMore] = useState(false)
+  const [info, setInfo] = useState(false)
+  if (!m) return null
+  const canEdit = isMine && !m.deleted_at && m.content && !m.media_type && Date.now() - new Date(m.created_at).getTime() < EDIT_WINDOW_MS
+  const myEmoji = (reactions[m.id] ?? []).find((r) => r.user_id === currentUserId)?.emoji
+  const canCopy = !!m.content && m.media_type !== 'file'
+
+  function run(fn) {
+    onClose()
+    fn()
+  }
+
+  function pick(emoji) {
+    if (myEmoji === emoji) onRemoveReaction(m.id)
+    else onReact(m.id, emoji)
+    onClose()
+  }
+
+  const actions = [
+    { label: 'Reply', icon: CornerUpLeft, fn: () => onReply(m) },
+    ...(canCopy ? [{ label: 'Copy', icon: Copy, fn: () => navigator.clipboard?.writeText(m.content) }] : []),
+    { label: 'Forward', icon: Forward, fn: () => onForward(m) },
+    { label: isStarred ? 'Remove star' : 'Star', icon: Star, fn: () => onStar(m.id, isStarred) },
+    ...(canEdit ? [{ label: 'Edit', icon: Pencil, fn: () => onEdit(m) }] : []),
+  ]
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50" onClick={onClose}>
+      <div onClick={(e) => e.stopPropagation()} className="w-full max-w-[520px] bg-white rounded-t-3xl px-4 pt-3 pb-6 max-h-[85dvh] overflow-y-auto">
+        <span className="block w-10 h-1.5 rounded-full bg-gray-200 mx-auto mb-3" />
+
+        <div className="flex items-center justify-between bg-gray-50 rounded-full px-3 py-1.5">
+          {QUICK_REACTIONS.map((emoji) => (
+            <button key={emoji} onClick={() => pick(emoji)} className={`w-10 h-10 rounded-full text-[22px] flex items-center justify-center ${myEmoji === emoji ? 'bg-brand-light' : ''}`}>{emoji}</button>
+          ))}
+          <button onClick={() => setMore((v) => !v)} aria-label="More reactions" className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center"><Plus size={16} className="text-gray-500" /></button>
+        </div>
+        {more ? (
+          <div className="mt-2 max-h-40 overflow-y-auto grid grid-cols-8 gap-1">
+            {ALL_EMOJIS.map((emoji, i) => (
+              <button key={`${emoji}-${i}`} onClick={() => pick(emoji)} className="text-2xl leading-none p-1.5 rounded-lg active:bg-gray-100">{emoji}</button>
+            ))}
           </div>
         ) : null}
 
-        {showBar ? (
-          <div className="mt-1 relative w-fit">
-            <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-full px-2 py-1 shadow w-fit">
-              {QUICK_REACTIONS.map((emoji) => (
-                <button key={emoji} onClick={(e) => { e.stopPropagation(); onReact(m.id, emoji); setShowBar(false) }} className="text-base">{emoji}</button>
-              ))}
-              <button onClick={(e) => { e.stopPropagation(); setShowEmojiPicker((s) => !s) }} className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><Plus size={12} className="text-gray-500" /></button>
-              <button onClick={(e) => { e.stopPropagation(); onReply(m); setShowBar(false) }} className="pl-1 border-l border-gray-100 ml-1"><CornerUpLeft size={14} className="text-gray-400" /></button>
-              <button onClick={(e) => { e.stopPropagation(); onStar(m.id, isStarred); setShowBar(false) }}><Star size={14} className={isStarred ? 'text-amber-500 fill-amber-500' : 'text-gray-400'} /></button>
-              {m.content ? <button onClick={handleCopy}><Copy size={14} className="text-gray-400" /></button> : null}
-              <button onClick={(e) => { e.stopPropagation(); onForward(m); setShowBar(false) }}><Forward size={14} className="text-gray-400" /></button>
-              {canEdit ? <button onClick={(e) => { e.stopPropagation(); onEdit(m); setShowBar(false) }}><Pencil size={14} className="text-gray-400" /></button> : null}
-              {isMine ? <button onClick={handleDelete}><Trash2 size={14} className="text-red-400" /></button> : null}
+        <div className="mt-3 rounded-2xl border border-gray-100 divide-y divide-gray-100">
+          {actions.map(({ label, icon: Icon, fn }) => (
+            <button key={label} onClick={() => run(fn)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+              <Icon size={19} className="text-gray-500" /> <span className="text-[15px] text-brand-navy">{label}</span>
+            </button>
+          ))}
+          <button onClick={() => setInfo((v) => !v)} className="w-full flex items-center gap-3 px-4 py-3.5 text-left">
+            <Info size={19} className="text-gray-500" /> <span className="text-[15px] text-brand-navy">Message info</span>
+          </button>
+          {info ? (
+            <div className="px-4 py-3 bg-gray-50 text-sm text-gray-600 space-y-1">
+              <p>Sent: {fullStamp(m.created_at)}</p>
+              {isMine ? <p>{m.read ? 'Seen by them' : 'Delivered, not seen yet'}</p> : null}
+              {m.edited_at ? <p>Edited: {fullStamp(m.edited_at)}</p> : null}
             </div>
-
-            {showEmojiPicker ? (
-              <div onClick={(e) => e.stopPropagation()} className="absolute top-full mt-1 left-0 z-10 w-56 max-h-40 overflow-y-auto bg-white border border-gray-100 rounded-xl shadow p-2 grid grid-cols-7 gap-1">
-                {ALL_EMOJIS.map((emoji) => (
-                  <button key={emoji} onClick={(e) => handlePickEmoji(e, emoji)} className="text-lg leading-none p-0.5">{emoji}</button>
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+          ) : null}
+          {isMine ? (
+            <button
+              onClick={() => { if (window.confirm('Delete this message for everyone?')) run(() => onDelete(m.id)) }}
+              className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+            >
+              <Trash2 size={19} className="text-red-500" /> <span className="text-[15px] text-red-500">Delete for everyone</span>
+            </button>
+          ) : null}
+        </div>
       </div>
     </div>
   )
@@ -367,6 +479,11 @@ export default function ChatThread() {
   const [matchIndex, setMatchIndex] = useState(0)
   const [atBottom, setAtBottom] = useState(true)
   const [newCount, setNewCount] = useState(0)
+  const [menuMsg, setMenuMsg] = useState(null)
+  const [flashId, setFlashId] = useState(null)
+  const [dividerId, setDividerId] = useState(null)
+  const [unreadCount, setUnreadCount] = useState(0)
+  const inputRef = useRef(null)
   const scrollRef = useRef(null)
   const bottomRef = useRef(null)
   const mediaRecorderRef = useRef(null)
@@ -402,7 +519,7 @@ export default function ChatThread() {
   function goToNextMatch() {
     if (matches.length === 0) return
     setMatchIndex((i) => (i + 1) % matches.length)
-  }
+      }
 
   function closeSearch() {
     setSearchOpen(false)
@@ -411,7 +528,11 @@ export default function ChatThread() {
 
   function jumpTo(messageId) {
     const el = messageRefs.current[messageId]
-    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      setFlashId(messageId)
+      setTimeout(() => setFlashId(null), 1400)
+    }
   }
 
   // Keep the person's place: stay at the bottom for new messages, but never yank the screen
@@ -445,7 +566,9 @@ export default function ChatThread() {
     const last = messages[messages.length - 1]
     if (firstLoadRef.current) {
       firstLoadRef.current = false
-      bottomRef.current?.scrollIntoView({ behavior: 'auto' })
+      const unreadEl = dividerId ? messageRefs.current[dividerId] : null
+      if (unreadEl) unreadEl.scrollIntoView({ behavior: 'auto', block: 'start' })
+      else bottomRef.current?.scrollIntoView({ behavior: 'auto' })
     } else if (stickToBottomRef.current || last?.sender_id === user?.id) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
     }
@@ -459,7 +582,7 @@ export default function ChatThread() {
   useEffect(() => {
     setPartner(null)
     supabase.from('profiles').select('full_name, avatar_url, role').eq('id', partnerId).maybeSingle().then(({ data }) => setPartner(data))
-        supabase.from('blocked_users').select('*').eq('blocker_id', user.id).eq('blocked_id', partnerId).maybeSingle().then(({ data }) => setIsBlocked(!!data))
+    supabase.from('blocked_users').select('*').eq('blocker_id', user.id).eq('blocked_id', partnerId).maybeSingle().then(({ data }) => setIsBlocked(!!data))
     supabase.from('chat_settings').select('*').eq('user_id', user.id).eq('partner_id', partnerId).maybeSingle().then(({ data }) => {
       if (data) setMyChatSettings(data)
     })
@@ -477,6 +600,13 @@ export default function ChatThread() {
     setEditing(null)
     setShowEmojis(false)
   }, [partnerId])
+
+  useEffect(() => {
+    const el = inputRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${Math.min(120, el.scrollHeight)}px`
+  }, [text])
 
   function updateText(value) {
     setText(value)
@@ -502,6 +632,7 @@ export default function ChatThread() {
     firstLoadRef.current = true
     stickToBottomRef.current = true
     setNewCount(0)
+    setDividerId(null)
     loadMessages()
 
     const isThisThread = (m) => (m.sender_id === user.id && m.receiver_id === partnerId) || (m.sender_id === partnerId && m.receiver_id === user.id)
@@ -601,6 +732,9 @@ export default function ChatThread() {
     if (expired.length > 0) {
       await supabase.from('messages').delete().in('id', expired.map((m) => m.id))
     }
+    const firstUnread = active.find((m) => m.receiver_id === user.id && !m.read)
+    setDividerId(firstUnread ? firstUnread.id : null)
+    setUnreadCount(active.filter((m) => m.receiver_id === user.id && !m.read).length)
     setMessages(active)
     await loadExtras(active.map((m) => m.id))
 
@@ -639,6 +773,12 @@ export default function ChatThread() {
     const { data, error } = await supabase.from('messages').insert(row).select().single()
     if (data) addMessage(data)
     return { error }
+        }
+
+  async function sendQuick(words) {
+    if (isBlocked) return
+    const { error } = await sendRow({ sender_id: user.id, receiver_id: partnerId, content: words, expire_at: computeExpiry() })
+    if (error) setSendError('Message not sent. Check your connection and try again.')
   }
 
   async function handleReact(messageId, emoji) {
@@ -689,8 +829,7 @@ export default function ChatThread() {
 
   function cancelEdit() {
     setEditing(null)
-
-        try {
+    try {
       setText(localStorage.getItem(draftKey) || '')
     } catch {
       setText('')
@@ -910,7 +1049,7 @@ export default function ChatThread() {
     await supabase.from('messages').insert({ sender_id: user.id, receiver_id: recipientId, content: forwarding.content, media_url: forwarding.media_url, media_type: forwarding.media_type })
     setForwarding(null)
     navigate(`/chats/${recipientId}`)
-  }
+      }
 
   return (
     <div className="app-shell">
@@ -936,10 +1075,10 @@ export default function ChatThread() {
               {partner?.avatar_url ? <img src={partner.avatar_url} alt="" className="w-9 h-9 rounded-full object-cover" /> : <span className="w-9 h-9 rounded-full bg-brand-light flex items-center justify-center text-lg">🙂</span>}
               {isOnline ? <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-green-500 border-2 border-white" /> : null}
             </button>
-            <div className="min-w-0 flex-1">
-              <p className="font-medium text-sm truncate flex items-center gap-1"><span className="truncate">{partner?.full_name || 'Schoolink member'}</span><VerifiedBadge userId={partnerId} size={14} /></p>
-              <p className={`text-xs truncate ${partnerTyping ? 'text-brand-purple font-medium' : 'text-gray-400'}`}>{partnerTyping ? 'typing…' : isOnline ? 'Online' : partner?.role || ''}</p>
-            </div>
+            <button onClick={() => navigate(`/users/${partnerId}`)} className="min-w-0 flex-1 text-left">
+              <p className="font-semibold text-[15px] truncate flex items-center gap-1"><span className="truncate">{partner?.full_name || 'Schoolink member'}</span><VerifiedBadge userId={partnerId} size={14} /></p>
+              <p className={`text-xs truncate ${partnerTyping ? 'text-brand-purple font-medium' : isOnline ? 'text-green-600' : 'text-gray-400'}`}>{partnerTyping ? 'typing…' : isOnline ? 'Online' : partner?.role || ''}</p>
+            </button>
             <button onClick={() => setSearchOpen(true)}><Search size={18} className="text-gray-400" /></button>
             <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
           </>
@@ -955,20 +1094,48 @@ export default function ChatThread() {
             {loadingOlder ? 'Loading…' : 'Load earlier messages'}
           </button>
         ) : null}
+        {messages.length === 0 && pending.length === 0 && !hasMore ? (
+          <div className="m-auto text-center px-6 py-10 flex flex-col items-center">
+            {partner?.avatar_url ? <img src={partner.avatar_url} alt="" className="w-20 h-20 rounded-full object-cover" /> : <span className="w-20 h-20 rounded-full bg-brand-light text-brand-purple text-3xl font-extrabold flex items-center justify-center">{(partner?.full_name || '?').slice(0, 1).toUpperCase()}</span>}
+            <p className="mt-3 text-lg font-extrabold tracking-tight text-brand-navy">Say hi to {(partner?.full_name || 'them').split(' ')[0]}</p>
+            <p className="text-sm text-gray-500 mt-1">{partner?.role ? `${partner.role} at your school.` : 'Start the conversation.'}</p>
+            {!isBlocked ? (
+              <div className="flex flex-wrap justify-center gap-2 mt-4">
+                {['👋 Hi!', 'How are you?', 'Good day!'].map((w) => (
+                  <button key={w} onClick={() => sendQuick(w)} className="text-sm text-brand-purple bg-brand-light rounded-full px-4 py-2">{w}</button>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {messages.map((m, i) => {
-          const showDay = i === 0 || !sameDay(new Date(messages[i - 1].created_at), new Date(m.created_at))
+          const prev = messages[i - 1]
+          const next = messages[i + 1]
+          const showDay = i === 0 || !sameDay(new Date(prev.created_at), new Date(m.created_at))
+          const close = (a, b) => !!a && !!b && a.sender_id === b.sender_id && sameDay(new Date(a.created_at), new Date(b.created_at)) && new Date(b.created_at) - new Date(a.created_at) < 5 * 60 * 1000
+          const groupedWithPrev = !showDay && m.id !== dividerId && close(prev, m)
+          const last = !close(m, next)
           return (
-            <div key={m.id} ref={(el) => (messageRefs.current[m.id] = el)} className="flex flex-col gap-3">
+            <div
+              key={m.id}
+              ref={(el) => (messageRefs.current[m.id] = el)}
+              className="flex flex-col gap-3"
+              style={groupedWithPrev ? { marginTop: 'calc(var(--chat-gap, 0.75rem) * -0.7)' } : undefined}
+            >
               {showDay ? (
-                <span className="self-center text-[11px] text-gray-500 bg-white/80 border border-gray-100 rounded-full px-3 py-0.5">{dayLabel(m.created_at)}</span>
+                <span className="self-center text-[11px] font-medium text-gray-500 bg-white/90 border border-gray-100 rounded-full px-3 py-1 shadow-sm">{dayLabel(m.created_at)}</span>
               ) : null}
-              <MessageBubble m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} currentUserId={user.id} onReact={handleReact} onRemoveReaction={handleRemoveReaction} onReply={setReplyTo} onStar={handleStar} onForward={setForwarding} onDelete={handleDeleteMessage} onEdit={startEdit} onJumpTo={jumpTo} onOpenImage={setLightboxUrl} allMessages={messages} highlightQuery={searchQuery.trim()} isCurrentMatch={matches[matchIndex]?.id === m.id} autoDownloadMedia={profile?.auto_download_media} />
+              {m.id === dividerId ? (
+                <span className="self-center text-[11px] font-semibold text-brand-purple bg-brand-light rounded-full px-3 py-1">{unreadCount} new {unreadCount === 1 ? 'message' : 'messages'}</span>
+              ) : null}
+              <MessageBubble m={m} isMine={m.sender_id === user.id} reactions={reactions} starred={starred} currentUserId={user.id} partnerName={(partner?.full_name || 'Them').split(' ')[0]} onOpenMenu={setMenuMsg} onReply={setReplyTo} onReact={handleReact} onRemoveReaction={handleRemoveReaction} onJumpTo={jumpTo} onOpenImage={setLightboxUrl} allMessages={messages} highlightQuery={searchQuery.trim()} isCurrentMatch={matches[matchIndex]?.id === m.id} flash={flashId === m.id} autoDownloadMedia={profile?.auto_download_media} last={last} />
             </div>
           )
         })}
         {pending.map((item) => (
           <PendingBubble key={item.tempId} item={item} onRetry={retryPending} onDiscard={discardPending} />
         ))}
+        {partnerTyping ? <TypingBubble /> : null}
         <div ref={bottomRef} />
       </div>
 
@@ -995,9 +1162,14 @@ export default function ChatThread() {
       ) : null}
 
       {replyTo ? (
-        <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-t border-gray-100">
-          <p className="text-xs text-gray-500 truncate">Replying to: {previewText(replyTo)}</p>
-          <button onClick={() => setReplyTo(null)}><X size={14} className="text-gray-400" /></button>
+        <div className="flex items-center gap-3 px-4 py-2 bg-gray-50 border-t border-gray-100">
+          <span className="w-1 self-stretch rounded-full bg-brand-purple" />
+          <div className="min-w-0 flex-1">
+            <p className="text-[11px] font-bold text-brand-purple">Replying to {replyTo.sender_id === user.id ? 'yourself' : (partner?.full_name || 'them').split(' ')[0]}</p>
+            <p className="text-xs text-gray-500 truncate">{previewText(replyTo)}</p>
+          </div>
+          {replyTo.media_type === 'image' && replyTo.media_url ? <img src={replyTo.media_url} alt="" className="w-10 h-10 rounded-lg object-cover" /> : null}
+          <button onClick={() => setReplyTo(null)} aria-label="Cancel reply"><X size={16} className="text-gray-400" /></button>
         </div>
       ) : null}
 
@@ -1033,40 +1205,49 @@ export default function ChatThread() {
         </>
       ) : null}
 
-      <div className="flex items-center gap-2 px-4 py-3 border-t border-gray-100">
+      <div className="flex items-end gap-2 px-3 py-2.5 border-t border-gray-100 bg-white">
         {recording ? (
           <>
-            <button onClick={cancelRecording} aria-label="Cancel recording" className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><Trash2 size={16} className="text-red-400" /></button>
-            <div className="flex-1 flex items-center gap-2 border border-red-200 bg-red-50 rounded-full px-4 py-2.5 text-sm text-red-500">
+            <button onClick={cancelRecording} aria-label="Cancel recording" className="w-11 h-11 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><Trash2 size={18} className="text-red-400" /></button>
+            <div className="flex-1 h-11 flex items-center gap-2 border border-red-200 bg-red-50 rounded-full px-4 text-sm text-red-500">
               <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
               Recording {formatSeconds(recordSeconds)}
             </div>
-            <button onClick={stopRecording} aria-label="Send voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0"><Send size={16} className="text-white" /></button>
+            <button onClick={stopRecording} aria-label="Send voice message" className="w-11 h-11 rounded-full bg-brand-purple flex items-center justify-center shrink-0"><Send size={17} className="text-white" /></button>
           </>
         ) : (
           <>
-            <button onClick={() => setShowEmojis((s) => !s)} aria-label="Emoji"><Smile size={18} className={showEmojis ? 'text-brand-purple' : 'text-gray-500'} /></button>
-            <input
-              value={text}
-              onChange={(e) => updateText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && profile?.chat_enter_to_send !== false && handleSend()}
-              placeholder={isBlocked ? 'Unblock to send a message' : editing ? 'Edit your message…' : 'Message…'}
-              disabled={isBlocked}
-              className="flex-1 min-w-0 border border-gray-200 rounded-full px-4 py-2.5 text-sm outline-brand-purple disabled:opacity-60"
-            />
-            {!text.trim() && !editing ? (
-              <>
-                <button onClick={() => setShowAttach((v) => !v)} disabled={isBlocked} aria-label="Attach" className="shrink-0 disabled:opacity-40"><Paperclip size={19} className={showAttach ? 'text-brand-purple' : 'text-gray-500'} /></button>
-                <button onClick={() => cameraInputRef.current?.click()} disabled={isBlocked} aria-label="Camera" className="shrink-0 disabled:opacity-40"><Camera size={19} className="text-gray-500" /></button>
-              </>
-            ) : null}
+            <div className="flex-1 min-w-0 flex items-end border border-gray-200 rounded-3xl bg-white pl-1 pr-1">
+              <button onClick={() => setShowEmojis((s) => !s)} aria-label="Emoji" className="w-10 h-11 flex items-center justify-center shrink-0"><Smile size={21} className={showEmojis ? 'text-brand-purple' : 'text-gray-400'} /></button>
+              <textarea
+                ref={inputRef}
+                rows={1}
+                value={text}
+                onChange={(e) => updateText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing && profile?.chat_enter_to_send !== false) {
+                    e.preventDefault()
+                    handleSend()
+                  }
+                }}
+                placeholder={isBlocked ? 'Unblock to send a message' : editing ? 'Edit your message…' : 'Message'}
+                disabled={isBlocked}
+                className="flex-1 min-w-0 bg-transparent outline-none resize-none py-3 text-[15px] leading-snug max-h-[120px] disabled:opacity-60"
+              />
+              {!text.trim() && !editing ? (
+                <>
+                  <button onClick={() => setShowAttach((v) => !v)} disabled={isBlocked} aria-label="Attach" className="w-10 h-11 flex items-center justify-center shrink-0 disabled:opacity-40"><Paperclip size={20} className={showAttach ? 'text-brand-purple' : 'text-gray-400'} /></button>
+                  <button onClick={() => cameraInputRef.current?.click()} disabled={isBlocked} aria-label="Camera" className="w-10 h-11 flex items-center justify-center shrink-0 disabled:opacity-40"><Camera size={20} className="text-gray-400" /></button>
+                </>
+              ) : null}
+            </div>
             {text.trim() || editing ? (
-              <button onClick={handleSend} disabled={sending || isBlocked} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60">
-                {editing ? <Check size={18} className="text-white" /> : <Send size={16} className="text-white" />}
+              <button onClick={handleSend} disabled={sending || isBlocked} aria-label={editing ? 'Save change' : 'Send'} className="w-11 h-11 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60 active:scale-95 transition-transform">
+                {editing ? <Check size={20} className="text-white" /> : <Send size={18} className="text-white" />}
               </button>
             ) : (
-              <button onClick={startRecording} disabled={isBlocked} aria-label="Record voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60">
-                <Mic size={18} className="text-white" />
+              <button onClick={startRecording} disabled={isBlocked} aria-label="Record voice message" className="w-11 h-11 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-60 active:scale-95 transition-transform">
+                <Mic size={20} className="text-white" />
               </button>
             )}
           </>
@@ -1083,12 +1264,27 @@ export default function ChatThread() {
         </div>
       ) : null}
 
+      {menuMsg ? (
+        <MessageSheet
+          m={menuMsg}
+          isMine={menuMsg.sender_id === user.id}
+          isStarred={starred.has(menuMsg.id)}
+          reactions={reactions}
+          currentUserId={user.id}
+          onClose={() => setMenuMsg(null)}
+          onReact={handleReact}
+          onRemoveReaction={handleRemoveReaction}
+          onReply={(msg) => { setEditing(null); setReplyTo(msg); setTimeout(() => inputRef.current?.focus(), 50) }}
+          onStar={handleStar}
+          onForward={setForwarding}
+          onEdit={startEdit}
+          onDelete={handleDeleteMessage}
+        />
+      ) : null}
+
       {previewItems ? <MediaPreview items={previewItems} onSend={confirmPreview} onCancel={cancelPreview} /> : null}
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
     </div>
   )
-              }
-    
-
-  
+            }
