@@ -10,7 +10,7 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// The official EcoCash logo: put the file at public/ecocash-logo.png. Until it is there a plain phone icon shows.
+// The EcoCash wordmark, from public/ecocash-logo.png. Until that file is uploaded, a phone icon shows instead.
 function EcoCashLogo({ height = 30 }) {
   const [missing, setMissing] = useState(false)
   if (missing) {
@@ -27,16 +27,6 @@ function EcoCashLogo({ height = 30 }) {
       onError={() => setMissing(true)}
       className="object-contain shrink-0"
       style={{ height, width: 'auto' }}
-    />
-  )
-              }
-  return (
-    <img
-      src={`${import.meta.env.BASE_URL}ecocash-logo.png`}
-      alt="EcoCash"
-      onError={() => setMissing(true)}
-      className="rounded-xl object-contain bg-white border border-gray-100 shrink-0"
-      style={{ width: size, height: size }}
     />
   )
 }
@@ -256,4 +246,4 @@ export default function SchoolPlus() {
       </div>
     </div>
   )
-           }
+        }
