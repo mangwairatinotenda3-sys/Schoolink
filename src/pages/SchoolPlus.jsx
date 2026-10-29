@@ -11,15 +11,25 @@ function fmtDate(iso) {
 }
 
 // The official EcoCash logo: put the file at public/ecocash-logo.png. Until it is there a plain phone icon shows.
-function EcoCashLogo({ size = 44 }) {
+function EcoCashLogo({ height = 30 }) {
   const [missing, setMissing] = useState(false)
   if (missing) {
     return (
-      <span className="rounded-xl flex items-center justify-center text-white shrink-0" style={{ width: size, height: size, background: '#0072CE' }}>
-        <Smartphone size={size * 0.5} />
+      <span className="rounded-xl flex items-center justify-center text-white shrink-0" style={{ width: height + 8, height: height + 8, background: '#0072CE' }}>
+        <Smartphone size={height * 0.6} />
       </span>
     )
   }
+  return (
+    <img
+      src={`${import.meta.env.BASE_URL}ecocash-logo.png`}
+      alt="EcoCash"
+      onError={() => setMissing(true)}
+      className="object-contain shrink-0"
+      style={{ height, width: 'auto' }}
+    />
+  )
+              }
   return (
     <img
       src={`${import.meta.env.BASE_URL}ecocash-logo.png`}
