@@ -10,7 +10,7 @@ function fmtDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
-// The EcoCash wordmark, from public/ecocash-logo.png. Until that file is uploaded, a phone icon shows instead.
+// The EcoCash wordmark from public/ecocash-logo.png. Until that file is uploaded, a phone icon shows instead.
 function EcoCashLogo({ height = 30 }) {
   const [missing, setMissing] = useState(false)
   if (missing) {
@@ -42,7 +42,7 @@ export default function SchoolPlus() {
   const [msg, setMsg] = useState('')
   const [phone, setPhone] = useState('')
   const [watchId, setWatchId] = useState(null)
-  const [pnNote, setPnNote] = useState('')
+  const [note, setNote] = useState('')
   const checking = useRef(false)
 
   async function load() {
@@ -54,7 +54,7 @@ export default function SchoolPlus() {
 
   useEffect(() => { if (schoolId) load() }, [schoolId])
 
-  // Keep watching an EcoCash payment that is still waiting for the PIN
+  // Keep checking an EcoCash payment that is still waiting for the PIN (also after the app was closed)
   useEffect(() => {
     if (!data || watchId) return
     const waiting = (data.payments || []).find((p) => p.method === 'paynow' && p.status === 'pending' && Date.now() - new Date(p.created_at).getTime() < 30 * 60 * 1000)
@@ -72,12 +72,12 @@ export default function SchoolPlus() {
       if (stopped || !res) return
       if (res.state === 'paid') {
         setWatchId(null)
-        setPnNote('')
+        setNote('')
         setMsg('Payment received. School Plus is now on. Thank you!')
         load()
       } else if (res.state === 'failed') {
         setWatchId(null)
-        setPnNote('')
+        setNote('')
         setMsg(res.error || 'The payment was cancelled. You were not charged.')
         load()
       }
@@ -86,7 +86,7 @@ export default function SchoolPlus() {
     const t = setInterval(tick, 4000)
     const onVis = () => { if (document.visibilityState === 'visible') tick() }
     document.addEventListener('visibilitychange', onVis)
-    const stopTimer = setTimeout(() => { setWatchId(null); setPnNote('') }, 10 * 60 * 1000)
+    const stopTimer = setTimeout(() => { setWatchId(null); setNote('') }, 10 * 60 * 1000)
     return () => { stopped = true; clearInterval(t); clearTimeout(stopTimer); document.removeEventListener('visibilitychange', onVis) }
   }, [watchId])
 
@@ -110,19 +110,17 @@ export default function SchoolPlus() {
     )
   }
 
-  const s = data.settings || {}
   const price = Number(data.price || 2.99)
   const total = (price * months).toFixed(2)
   const sub = data.subscription
   const active = !!sub && new Date(sub.expires_at) > new Date()
   const daysLeft = active ? Math.max(1, Math.ceil((new Date(sub.expires_at) - Date.now()) / 86400000)) : 0
-  const pending = (data.payments || []).filter((p) => p.status === 'pending' && p.method !== 'paynow')
-  const open = s.paynow_enabled === 'yes'
+  const pending = (data.payments || []).filter((p) => p.status === 'pending')
   const people = data.counts?.total ?? 0
 
   async function payWithEcoCash() {
     setMsg('')
-    setPnNote('')
+    setNote('')
     if (!/^(\+?263|0)?7[1-9]\d{7}$/.test(phone.replace(/\s/g, ''))) {
       setMsg('Enter your EcoCash number, e.g. 0771234567.')
       return
@@ -131,9 +129,13 @@ export default function SchoolPlus() {
     const returnUrl = `${window.location.origin}${window.location.pathname}#/school-settings/verification`
     const { data: res, error: e } = await supabase.functions.invoke('paynow', { body: { action: 'start', months, phone, returnUrl } })
     setBusy(false)
-    if (e || !res?.ok) { setMsg(res?.error || 'Could not start the payment. Please try again.'); return }
+    if (!res?.ok) {
+      // Show the real reason. "Could not reach" only means the server did not answer at all.
+      setMsg(res?.error || (e ? 'Could not reach the EcoCash service. Check your internet connection and try again.' : 'Could not start the EcoCash payment. Please try again.'))
+      return
+    }
     setWatchId(res.paymentId)
-    setPnNote(res.instructions || 'Check your phone. Enter your EcoCash PIN on the prompt to finish the payment.')
+    setNote(res.instructions || 'Check your phone. Enter your EcoCash PIN on the prompt to finish the payment.')
   }
 
   return (
@@ -193,36 +195,29 @@ export default function SchoolPlus() {
         </div>
         <p className="text-center text-sm text-gray-500 mt-2">Total <span className="font-bold text-brand-navy">${total}</span> USD</p>
 
-        {!open ? (
-          <div className="mt-5 rounded-2xl bg-gray-50 p-4 flex items-center gap-3">
+        <div className="mt-4 rounded-2xl border border-gray-100 p-4 space-y-3">
+          <div className="flex items-center gap-3">
             <EcoCashLogo />
-            <p className="text-sm text-gray-500">EcoCash payments are not open yet. Please check back soon.</p>
+            <span className="flex-1">
+              <span className="block text-sm font-semibold">Pay with EcoCash</span>
+              <span className="block text-xs text-gray-500">Enter your number, then approve with your PIN</span>
+            </span>
           </div>
-        ) : (
-          <div className="mt-4 rounded-2xl border border-gray-100 p-4 space-y-3">
-            <div className="flex items-center gap-3">
-              <EcoCashLogo />
-              <span className="flex-1">
-                <span className="block text-sm font-semibold">Pay with EcoCash</span>
-                <span className="block text-xs text-gray-500">Enter your number, then approve with your PIN</span>
-              </span>
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
-              <span className="text-sm text-gray-500">Amount to pay</span>
-              <span className="text-xl font-extrabold text-brand-navy">${total}</span>
-            </div>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="EcoCash number, e.g. 0771234567" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple" />
-            <p className="text-xs text-gray-500">A prompt will pop up on this phone. Enter your EcoCash PIN there to finish.</p>
-            <button onClick={payWithEcoCash} disabled={busy || !!watchId} className="w-full bg-brand-purple text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
-              {busy || watchId ? <Loader2 size={18} className="animate-spin" /> : null}
-              {watchId ? 'Waiting for payment…' : `Pay $${total}`}
-            </button>
-            {pnNote ? <p className="text-sm text-brand-purple text-center">{pnNote}</p> : null}
-            <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1"><Lock size={11} /> Your PIN is only ever entered on your own phone.</p>
+          <div className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3">
+            <span className="text-sm text-gray-500">Amount to pay</span>
+            <span className="text-xl font-extrabold text-brand-navy">${total}</span>
           </div>
-        )}
+          <input value={phone} onChange={(e) => setPhone(e.target.value)} inputMode="tel" placeholder="EcoCash number, e.g. 0771234567" disabled={!!watchId} className="w-full border border-gray-200 rounded-xl px-4 py-3 text-[15px] outline-none focus:border-brand-purple disabled:opacity-60" />
+          <p className="text-xs text-gray-500">A prompt will pop up on this phone. Enter your EcoCash PIN there to finish.</p>
+          <button onClick={payWithEcoCash} disabled={busy || !!watchId} className="w-full bg-brand-purple text-white font-semibold py-3.5 rounded-xl disabled:opacity-50 flex items-center justify-center gap-2">
+            {busy || watchId ? <Loader2 size={18} className="animate-spin" /> : null}
+            {watchId ? 'Waiting for your PIN…' : `Pay $${total}`}
+          </button>
+          {note ? <p className="text-sm text-brand-purple text-center">{note}</p> : null}
+          <p className="text-[11px] text-gray-400 text-center flex items-center justify-center gap-1"><Lock size={11} /> Your PIN is only ever entered on your own phone.</p>
+        </div>
 
-        {msg ? <p className="text-sm text-center mt-3 text-brand-purple">{msg}</p> : null}
+        {msg ? <p className="text-sm text-center mt-3 text-red-500">{msg}</p> : null}
 
         {(data.payments || []).length ? (
           <>
@@ -232,7 +227,7 @@ export default function SchoolPlus() {
                 <div key={p.id} className="flex items-center gap-3 px-4 py-3">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium">${Number(p.amount).toFixed(2)} · {p.months} month{p.months > 1 ? 's' : ''}</p>
-                    <p className="text-xs text-gray-400 truncate">{fmtDate(p.created_at)} · {p.method === 'paynow' ? 'EcoCash' : p.method} · {p.reference}</p>
+                    <p className="text-xs text-gray-400 truncate">{fmtDate(p.created_at)} · EcoCash · {p.reference}</p>
                     {p.status === 'rejected' && p.reject_reason ? <p className="text-xs text-red-500 mt-0.5">{p.reject_reason}</p> : null}
                   </div>
                   <span className={`text-[11px] font-bold rounded-full px-2.5 py-1 ${p.status === 'approved' ? 'bg-green-50 text-green-600' : p.status === 'rejected' ? 'bg-red-50 text-red-500' : 'bg-amber-50 text-amber-600'}`}>
@@ -246,4 +241,4 @@ export default function SchoolPlus() {
       </div>
     </div>
   )
-        }
+                                          }
