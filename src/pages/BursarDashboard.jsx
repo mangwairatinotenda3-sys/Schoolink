@@ -247,7 +247,7 @@ export default function BursarDashboard() {
         </div>
         <Field label="Term"><input value={form.term} onChange={(e) => updateForm('term', e.target.value)} placeholder="Term 1 2026" className={INPUT} /></Field>
         <Field label="Notes (optional)"><input value={form.notes} onChange={(e) => updateForm('notes', e.target.value)} placeholder="Part payment, uniform, trip…" className={INPUT} /></Field>
-        <Field label="Payment link (optional)" hint="A Stripe, PayPal or Paynow link parents can open."><input value={form.payment_link} onChange={(e) => updateForm('payment_link', e.target.value)} placeholder="https://" className={INPUT} /></Field>
+        <Field label="Payment link (optional)" hint="A Stripe or PayPal link parents can open."><input value={form.payment_link} onChange={(e) => updateForm('payment_link', e.target.value)} placeholder="https://" className={INPUT} /></Field>
       </Sheet>
 
       <Sheet
