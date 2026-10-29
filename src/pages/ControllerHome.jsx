@@ -1,224 +1,254 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight, GraduationCap, Crown, User, Plus, Bug, Scale, Wallet } from 'lucide-react'
-import ControllerShell, { ctl } from '../components/ControllerShell.jsx'
+import {
+  ShieldCheck, Flag, MessageSquare, Search, UserCog, BarChart3, LogOut, ChevronRight,
+  Crown, RefreshCw, BadgeCheck, Megaphone, GraduationCap,
+} from 'lucide-react'
+import ControllerShell, { ctl, CtlBlock, CtlSkeletonRows } from '../components/ControllerShell.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { ROLE_LABELS } from '../lib/team.js'
 
-const tiles = [
-  { to: '/controller/verification', label: 'Verification Queue', sub: 'IDs and school documents', icon: ShieldCheck, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'pending_verifications' },
-  { to: '/controller/reports', label: 'User Reports', sub: 'Posts, comments and profiles', icon: Flag, color: '#2563EB', roles: ['owner', 'moderator'], count: 'pending_reports' },
-  { to: '/controller/appeals', label: 'Ban Appeals', sub: 'People asking to be unbanned', icon: Scale, color: '#E11D48', roles: ['owner', 'moderator'], count: 'pending_appeals' },
-  { to: '/controller/complaints', label: 'Complaints', sub: 'Help and feedback messages', icon: MessageSquare, color: '#10B981', roles: ['owner', 'support', 'moderator'], count: 'open_feedback' },
-  { to: '/controller/users', label: 'Find a User', sub: 'Verify or ban accounts', icon: Search, color: '#F59E0B', roles: ['owner', 'verifier', 'moderator', 'support'] },
-  { to: '/controller/team', label: 'Team Members', sub: 'Invite and manage the team', icon: UserCog, color: '#EC4899', roles: ['owner'] },
-  { to: '/controller/activity', label: 'Site Activity', sub: 'Numbers across Schoolink', icon: BarChart3, color: '#14B8A6', roles: ['owner'] },
-  { to: '/controller/app-health', label: 'App Health', sub: 'Crashes and screen usage', icon: Bug, color: '#EF4444', roles: ['owner'] },
-   { to: '/controller/payments', label: 'School Payments', sub: 'Confirm School Plus payments', icon: Wallet, color: '#D97706', roles: ['owner'] },
+const OVERVIEW = [
+  { key: 'pending_verifications', label: 'To verify', roles: ['owner', 'verifier'], color: '#7C3AED' },
+  { key: 'pending_reports', label: 'Reports', roles: ['owner', 'moderator'], color: '#2563EB' },
+  { key: 'open_feedback', label: 'Open messages', roles: ['owner', 'support', 'moderator'], color: '#10B981' },
 ]
+
+const SECTIONS = [
+  {
+    title: 'Review',
+    items: [
+      { to: '/controller/verification', label: 'Verification queue', sub: 'IDs and school documents', icon: ShieldCheck, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'pending_verifications' },
+      { to: '/controller/reports', label: 'User reports', sub: 'Posts, comments and profiles', icon: Flag, color: '#2563EB', roles: ['owner', 'moderator'], count: 'pending_reports' },
+      { to: '/controller/complaints', label: 'Complaints', sub: 'Help and feedback messages', icon: MessageSquare, color: '#10B981', roles: ['owner', 'support', 'moderator'], count: 'open_feedback' },
+    ],
+  },
+  {
+    title: 'Manage',
+    items: [
+      { to: '/controller/users', label: 'Find a user', sub: 'Verify or ban accounts', icon: Search, color: '#F59E0B', roles: ['owner', 'verifier', 'moderator', 'support'] },
+      { to: '/controller/verify-school', label: 'Verify a school', sub: 'Search any school and tick it', icon: BadgeCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
+    ],
+  },
+  {
+    title: 'Team',
+    items: [
+      { to: '/controller/team', label: 'Team members', sub: 'Invite and manage the team', icon: UserCog, color: '#EC4899', roles: ['owner'] },
+      { to: '/controller/activity', label: 'Site activity', sub: 'Numbers across Schoolink', icon: BarChart3, color: '#14B8A6', roles: ['owner'] },
+      { to: '/controller/announce', label: 'Post an update', sub: 'Announce to everyone on Schoolink', icon: Megaphone, color: '#6366F1', roles: ['owner'] },
+    ],
+  },
+]
+
+const sectionLabel = {
+  fontSize: 11, fontWeight: 600, letterSpacing: 0.8, textTransform: 'uppercase', color: ctl.faint, margin: '24px 4px 8px',
+}
+
+function initials(name) {
+  return String(name || '?').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase()
+}
+
+function IconBtn({ label, onClick, children }) {
+  return (
+    <button
+      aria-label={label}
+      onClick={onClick}
+      style={{
+        width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        background: ctl.card, border: `1px solid ${ctl.border}`, color: ctl.muted, flexShrink: 0,
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+// Full-page placeholder shown on first load and on every refresh
+function HomeSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading Control Center">
+      <div className="flex items-center gap-3">
+        <CtlBlock style={{ width: 40, height: 40, borderRadius: 12, flexShrink: 0 }} />
+        <div className="flex-1">
+          <CtlBlock style={{ height: 14, width: '40%' }} />
+          <CtlBlock style={{ height: 10, width: '28%', marginTop: 8 }} />
+        </div>
+      </div>
+      <CtlBlock style={{ height: 72, borderRadius: 16, marginTop: 20 }} />
+      <CtlBlock style={{ height: 10, width: 70, marginTop: 24 }} />
+      <div className="grid grid-cols-3 gap-2 mt-2">
+        {[0, 1, 2].map((i) => <CtlBlock key={i} style={{ height: 74, borderRadius: 14 }} />)}
+      </div>
+      <CtlBlock style={{ height: 10, width: 60, marginTop: 24 }} />
+      <div className="mt-2"><CtlSkeletonRows rows={3} /></div>
+      <CtlBlock style={{ height: 10, width: 60, marginTop: 24 }} />
+      <div className="mt-2"><CtlSkeletonRows rows={2} /></div>
+    </div>
+  )
+}
 
 export default function ControllerHome() {
   const navigate = useNavigate()
   const { user, profile, teamRole, signOut } = useAuth()
   const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [failed, setFailed] = useState(false)
 
-  useEffect(() => {
-    supabase.rpc('site_stats').then(({ data }) => setStats((prev) => ({ ...(data || {}), ...(prev || {}) })))
-    supabase.rpc('list_appeals', { p_status: 'pending' }).then(({ data }) => {
-      if (data?.ok) setStats((prev) => ({ ...(prev || {}), pending_appeals: data.items?.length ?? 0 }))
-    })
-  }, [])
+  async function load() {
+    setLoading(true)
+    setFailed(false)
+    const { data, error } = await supabase.rpc('site_stats')
+    if (error) setFailed(true)
+    setStats(data || null)
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [])
 
   async function handleSignOut() {
     await signOut()
     navigate('/', { replace: true })
   }
 
-  const plusButton = teamRole === 'owner' ? (
-    <button
-      onClick={() => navigate('/controller/announce')}
-      aria-label="Post an update"
-      style={{
-        width: 84, height: 84, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        background: 'radial-gradient(circle, rgba(124,58,237,0.35), rgba(124,58,237,0) 70%)',
-        border: '1px solid rgba(167,139,250,0.55)',
-      }}
-    >
-      <span
-        style={{
-          width: 62, height: 62, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'linear-gradient(135deg, #6366F1, #7C3AED)', color: '#fff',
-          boxShadow: '0 0 24px rgba(124,58,237,0.8)',
-        }}
-      >
-        <Plus size={32} />
-      </span>
-    </button>
-  ) : null
+  const name = profile?.full_name || user?.email || 'Team member'
+  const count = (key) => Number(stats?.[key] || 0)
+  const overview = OVERVIEW.filter((o) => o.roles.includes(teamRole))
+  const sections = SECTIONS
+    .map((s) => ({ ...s, items: s.items.filter((i) => i.roles.includes(teamRole)) }))
+    .filter((s) => s.items.length)
 
   return (
-    <ControllerShell title="Control Center" back={false} header={false} floating={plusButton}>
-      <div style={{ position: 'relative' }}>
-        {/* soft glow in the top-right corner */}
-        <div
-          style={{
-            position: 'absolute', top: -60, right: -70, width: 300, height: 260, pointerEvents: 'none',
-            background: 'radial-gradient(circle at 60% 40%, rgba(99,102,241,0.45), rgba(99,102,241,0) 65%)',
-          }}
-        />
-
-        <div style={{ position: 'relative' }}>
-          {/* top bar */}
+    <ControllerShell title="Control Center" back={false} header={false}>
+      {loading ? (
+        <HomeSkeleton />
+      ) : (
+        <>
+          {/* header */}
           <div className="flex items-center gap-3">
             <span
               style={{
-                width: 48, height: 48, borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', color: '#fff', flexShrink: 0,
+                width: 40, height: 40, borderRadius: 12, background: ctl.accent, color: '#fff',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
               }}
             >
-              <GraduationCap size={26} />
+              <GraduationCap size={22} />
             </span>
             <div className="flex-1 min-w-0">
-              <p style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1, color: '#fff' }}>Schoolink</p>
-              <p style={{ fontSize: 12, color: ctl.muted }}>Connect &nbsp;•&nbsp; Manage &nbsp;•&nbsp; Grow</p>
+              <p style={{ fontSize: 17, fontWeight: 700, color: ctl.text, lineHeight: 1.2 }}>Control Center</p>
+              <p style={{ fontSize: 12, color: ctl.muted, marginTop: 2 }}>Schoolink team</p>
             </div>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center gap-1.5"
-              style={{ border: '1px solid rgba(129,140,248,0.6)', borderRadius: 999, padding: '8px 12px', fontSize: 12, color: '#fff', background: 'rgba(99,102,241,0.15)' }}
-            >
-              <LogOut size={15} /> Sign out
-            </button>
+            <IconBtn label="Refresh" onClick={load}><RefreshCw size={17} /></IconBtn>
+            <IconBtn label="Sign out" onClick={handleSignOut}><LogOut size={17} /></IconBtn>
           </div>
 
-          {/* title */}
-          <div className="flex items-stretch gap-3 mt-5">
-            <span style={{ width: 4, borderRadius: 4, background: '#7C3AED', flexShrink: 0 }} />
-            <div>
-              <h1 style={{ fontSize: 26, fontWeight: 700, color: '#fff', lineHeight: 1.15 }}>Control Center</h1>
-              <p style={{ fontSize: 12.5, color: '#CBD5E1', marginTop: 4 }}>
-                Access your school tools and manage your platform from one place.
-              </p>
-            </div>
-          </div>
-
-                              {/* signed-in card: tap to open your profile */}
+          {/* profile card */}
           <button
             onClick={() => navigate('/controller/profile')}
-            className="flex items-center gap-3 mt-5 w-full text-left"
-            style={{
-              borderRadius: 18, padding: 14,
-              background: 'linear-gradient(135deg, rgba(79,70,229,0.55), rgba(30,27,107,0.75))',
-              border: '1px solid rgba(129,140,248,0.55)',
-            }}
+            className="mt-5 flex w-full items-center gap-3 text-left"
+            style={{ background: ctl.card, border: `1px solid ${ctl.border}`, borderRadius: 16, padding: 14 }}
           >
             {profile?.avatar_url ? (
-              <img
-                src={profile.avatar_url}
-                alt=""
-                style={{ width: 56, height: 56, borderRadius: 999, objectFit: 'cover', flexShrink: 0 }}
-              />
+              <img src={profile.avatar_url} alt="" style={{ width: 48, height: 48, borderRadius: 999, objectFit: 'cover', flexShrink: 0 }} />
             ) : (
               <span
                 style={{
-                  width: 56, height: 56, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', color: '#fff', flexShrink: 0,
+                  width: 48, height: 48, borderRadius: 999, background: ctl.raised, color: ctl.accentText,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, fontWeight: 700, flexShrink: 0,
                 }}
               >
-                <User size={28} />
+                {initials(name)}
               </span>
             )}
             <span className="flex-1 min-w-0">
-              <span style={{ display: 'block', fontSize: 10.5, letterSpacing: 0.6, color: '#C7D2FE' }}>SIGNED IN AS</span>
-              <span className="truncate" style={{ display: 'block', fontSize: 17, fontWeight: 700, color: '#fff' }}>{user?.email}</span>
+              <span className="block truncate" style={{ fontSize: 15, fontWeight: 600, color: ctl.text }}>{name}</span>
+              <span className="block truncate" style={{ fontSize: 12, color: ctl.muted, marginTop: 2 }}>{user?.email}</span>
               <span
                 className="inline-flex items-center gap-1"
-                style={{ marginTop: 6, padding: '3px 10px', borderRadius: 999, fontSize: 11.5, background: '#5B4BFF', color: '#fff' }}
+                style={{
+                  marginTop: 8, padding: '3px 9px', borderRadius: 999, fontSize: 11, fontWeight: 600,
+                  background: ctl.accentSoft, color: ctl.accentText,
+                }}
               >
-                {teamRole === 'owner' ? <Crown size={12} /> : <ShieldCheck size={12} />}
+                {teamRole === 'owner' ? <Crown size={11} /> : <ShieldCheck size={11} />}
                 {ROLE_LABELS[teamRole] || teamRole}
               </span>
             </span>
-            <ChevronRight size={20} style={{ color: '#C7D2FE' }} />
+            <ChevronRight size={18} style={{ color: ctl.faint, flexShrink: 0 }} />
           </button>
 
-          {/* tiles */}
-          <div className="grid grid-cols-2 gap-3 mt-4">
-            {tiles.filter((t) => t.roles.includes(teamRole)).map((t) => {
-              const Icon = t.icon
-              const n = t.count && stats ? Number(stats[t.count] || 0) : 0
-              return (
-                <button
-                  key={t.to}
-                  onClick={() => navigate(t.to)}
-                  className="flex items-center gap-2 text-left"
-                  style={{
-                    position: 'relative', padding: '14px 8px 14px 12px', borderRadius: 16, minHeight: 92,
-                    background: 'linear-gradient(135deg, rgba(30,41,99,0.8), rgba(12,18,52,0.9))',
-                    border: `1px solid ${ctl.border}`, borderLeft: `4px solid ${t.color}`,
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: t.color, color: '#fff', flexShrink: 0,
-                    }}
-                  >
-                    <Icon size={22} />
-                  </span>
-                  <span className="flex-1 min-w-0">
-                    <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1.2 }}>{t.label}</span>
-                    <span style={{ display: 'block', fontSize: 11, color: ctl.muted, marginTop: 3, lineHeight: 1.25 }}>{t.sub}</span>
-                  </span>
-                  <ChevronRight size={16} style={{ color: '#C7D2FE', flexShrink: 0 }} />
-                  {n > 0 ? (
-                    <span
-                      style={{
-                        position: 'absolute', top: -7, right: -5, minWidth: 20, height: 20, padding: '0 6px', borderRadius: 999,
-                        fontSize: 11, fontWeight: 700, color: '#fff', background: ctl.bad,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      }}
-                    >
-                      {n > 99 ? '99+' : n}
-                    </span>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
+          {/* overview counts */}
+          {overview.length ? (
+            <>
+              <p style={sectionLabel}>Overview</p>
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${overview.length}, minmax(0, 1fr))` }}>
+                {overview.map((o) => (
+                  <div key={o.key} style={{ background: ctl.card, border: `1px solid ${ctl.border}`, borderRadius: 14, padding: '12px 12px 11px' }}>
+                    <p style={{ fontSize: 22, fontWeight: 700, color: ctl.text, lineHeight: 1 }}>
+                      {count(o.key) > 999 ? '999+' : count(o.key)}
+                    </p>
+                    <p className="flex items-center gap-1.5" style={{ fontSize: 11.5, color: ctl.muted, marginTop: 7 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: 999, background: o.color, flexShrink: 0 }} />
+                      {o.label}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : null}
 
-          {/* banner */}
-          <div
-            className="flex items-center gap-3 mt-4"
-            style={{
-              position: 'relative', overflow: 'hidden', borderRadius: 16, padding: '16px 14px',
-              background: 'linear-gradient(90deg, #1E2A8A, #2B35D8)', border: '1px solid rgba(129,140,248,0.4)',
-            }}
-          >
-            <span style={{ color: '#A5B4FC', flexShrink: 0, position: 'relative' }}>
-              <GraduationCap size={36} />
-            </span>
-            <div style={{ position: 'relative', maxWidth: '62%' }}>
-              <p style={{ fontSize: 15, fontWeight: 700, color: '#fff', lineHeight: 1.25 }}>Better Schools. Stronger Communities.</p>
-              <p style={{ fontSize: 11.5, color: '#C7D2FE', marginTop: 4 }}>Everything you need, all in one place.</p>
+          {/* sections */}
+          {sections.map((sec) => (
+            <div key={sec.title}>
+              <p style={sectionLabel}>{sec.title}</p>
+              <div style={{ background: ctl.card, border: `1px solid ${ctl.border}`, borderRadius: 16, overflow: 'hidden' }}>
+                {sec.items.map((item, i) => {
+                  const Icon = item.icon
+                  const n = item.count ? count(item.count) : 0
+                  return (
+                    <button
+                      key={item.to}
+                      onClick={() => navigate(item.to)}
+                      className="flex w-full items-center gap-3 px-4 py-3.5 text-left"
+                      style={{ borderTop: i ? `1px solid ${ctl.border}` : 'none' }}
+                    >
+                      <span
+                        style={{
+                          width: 36, height: 36, borderRadius: 10, background: `${item.color}22`, color: item.color,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                        }}
+                      >
+                        <Icon size={18} />
+                      </span>
+                      <span className="flex-1 min-w-0">
+                        <span className="block truncate" style={{ fontSize: 14.5, fontWeight: 600, color: ctl.text }}>{item.label}</span>
+                        <span className="block truncate" style={{ fontSize: 12, color: ctl.muted, marginTop: 2 }}>{item.sub}</span>
+                      </span>
+                      {n > 0 ? (
+                        <span
+                          style={{
+                            minWidth: 22, height: 22, padding: '0 7px', borderRadius: 999, background: ctl.bad, color: '#fff',
+                            fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          }}
+                        >
+                          {n > 99 ? '99+' : n}
+                        </span>
+                      ) : null}
+                      <ChevronRight size={16} style={{ color: ctl.faint, flexShrink: 0 }} />
+                    </button>
+                  )
+                })}
+              </div>
             </div>
-            <svg
-              width="120" height="70" viewBox="0 0 120 70" aria-hidden="true"
-              style={{ position: 'absolute', right: 0, bottom: 0, opacity: 0.3 }}
-            >
-              <rect x="10" y="30" width="100" height="40" fill="#818CF8" />
-              <rect x="40" y="14" width="40" height="56" fill="#A5B4FC" />
-              <polygon points="60,0 40,14 80,14" fill="#A5B4FC" />
-              <rect x="54" y="48" width="12" height="22" fill="#1E2A8A" />
-              <rect x="18" y="40" width="10" height="10" fill="#1E2A8A" />
-              <rect x="92" y="40" width="10" height="10" fill="#1E2A8A" />
-              <rect x="46" y="26" width="8" height="8" fill="#1E2A8A" />
-              <rect x="66" y="26" width="8" height="8" fill="#1E2A8A" />
-            </svg>
-          </div>
-        </div>
-      </div>
+          ))}
+
+          {failed ? (
+            <p style={{ fontSize: 12, color: ctl.warn, marginTop: 18, textAlign: 'center' }}>
+              Could not load the counts. Tap refresh.
+            </p>
+          ) : null}
+        </>
+      )}
     </ControllerShell>
   )
-                                                           }
+  }
