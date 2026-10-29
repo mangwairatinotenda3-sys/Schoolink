@@ -1,113 +1,68 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
-import BackHeader from '../components/BackHeader.jsx'
-import FormPicker from '../components/FormPicker.jsx'
+import { Check } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 import { previewInvite, redeemInvite } from '../lib/invites.js'
-import { supabase } from '../lib/supabaseClient.js'
+import { AuthPage, CodeInput, PrimaryButton, Notice } from '../components/AuthKit.jsx'
 
-// Students type their school's join code, then say which form they are in.
-// The school decides whether an admin approves them first.
+// Students type their school's join code. The school may need to approve them first.
 export default function JoinAsStudent() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
   const [code, setCode] = useState('')
-  const [step, setStep] = useState(1)
-  const [school, setSchool] = useState(null)
-  const [form, setForm] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
 
-  async function checkCode() {
-    if (code.trim().length < 4 || busy) return
+  const ready = code.trim().length >= 4
+
+  function enterApp(res) {
+    if (res.reload) { window.location.hash = '#/home'; window.location.reload(); return }
+    navigate('/home', { replace: true })
+  }
+
+  async function handleJoin(e) {
+    e.preventDefault()
+    if (!ready || busy) return
     setBusy(true)
     setError('')
     const peek = await previewInvite(code)
-    setBusy(false)
-    if (!peek.ok) { setError(peek.error); return }
-    if (peek.kind !== 'student') { setError('That is a staff code. Go back and choose "Join as staff".'); return }
-    setSchool(peek)
-    setStep(2)
-  }
-
-  function finish(res) {
-    if (res.status === 'active') {
-      if (res.reload) { window.location.hash = '#/home'; window.location.reload(); return }
-      navigate('/home', { replace: true })
+    if (!peek.ok) { setError(peek.error); setBusy(false); return }
+    if (peek.kind !== 'student') {
+      setError('That is a staff code. Go back and choose "I have a staff invite code".')
+      setBusy(false)
       return
     }
-    setDone(res)
-  }
-
-  async function handleJoin() {
-    if (busy) return
-    if (!form.trim()) { setError('Choose the form you are in.'); return }
-    setBusy(true)
-    setError('')
     const res = await redeemInvite(code, saveProfileDetails)
-    if (!res.ok) { setBusy(false); setError(res.error); return }
-    await supabase.rpc('set_my_form', { p_form: form.trim() })
-    await saveProfileDetails?.({ class_name: form.trim() })
     setBusy(false)
-    finish(res)
+    if (!res.ok) { setError(res.error); return }
+    if (res.status === 'active') { enterApp(res); return }
+    setDone(res)
   }
 
   if (done) {
     return (
-      <div className="flex-1 flex flex-col">
-        <BackHeader title="Join as a student" />
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-2">
-          <p className="text-lg font-semibold">Request sent!</p>
-          <p className="text-gray-500">{done.school_name} needs to approve your request before you get full access.</p>
-          <button onClick={() => { if (done.reload) { window.location.hash = '#/home'; window.location.reload() } else navigate('/home', { replace: true }) }} className="mt-4 bg-brand-purple text-white font-medium py-3 px-6 rounded-xl">
-            Continue to Schoolink
-          </button>
+      <AuthPage title="Request sent" back={false}>
+        <span className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
+          <Check size={26} />
+        </span>
+        <p className="mt-5 text-[15px] leading-relaxed text-gray-600">
+          <span className="font-semibold text-brand-navy">{done.school_name}</span> needs to approve your request before you get full access.
+        </p>
+        <div className="mt-8">
+          <PrimaryButton type="button" onClick={() => enterApp(done)}>Continue to Schoolink</PrimaryButton>
         </div>
-      </div>
-    )
-  }
-
-  if (step === 2) {
-    return (
-      <div className="flex-1 flex flex-col">
-        <BackHeader title="Which form are you in?" />
-        <div className="flex-1 overflow-y-auto px-6 pt-2">
-          <p className="text-gray-500 mb-5">
-            Joining <span className="font-semibold text-brand-navy">{school?.school_name || school?.name || 'your school'}</span>. Your teachers use this to put you in the right class.
-          </p>
-          <FormPicker value={form} onChange={setForm} schoolType={school?.school_type} />
-          {error ? <p className="text-red-500 text-sm mt-3">{error}</p> : null}
-        </div>
-        <div className="px-6 pb-6 pt-3 flex gap-2">
-          <button onClick={() => { setStep(1); setError('') }} className="px-5 rounded-xl border border-gray-200 font-medium">Back</button>
-          <button onClick={handleJoin} disabled={busy || !form.trim()} className="flex-1 bg-brand-purple text-white font-medium py-3.5 rounded-xl disabled:opacity-60 flex items-center justify-center">
-            {busy ? <Loader2 size={18} className="animate-spin" /> : 'Join school'}
-          </button>
-        </div>
-      </div>
+      </AuthPage>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader title="Join as a student" />
-      <div className="flex-1 flex flex-col px-6 pt-4">
-        <p className="text-gray-500">Enter your school's student join code.</p>
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.toUpperCase().replace(/\s/g, ''))}
-          placeholder="e.g. AB12CD34"
-          autoCapitalize="characters"
-          className="mt-4 border border-gray-200 rounded-xl px-4 py-3.5 outline-brand-purple tracking-widest text-center font-mono"
-        />
-        {error ? <p className="text-red-500 text-sm mt-3">{error}</p> : null}
-        <div className="flex-1" />
-        <button onClick={checkCode} disabled={busy || code.trim().length < 4} className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl mb-6 disabled:opacity-60 flex items-center justify-center">
-          {busy ? <Loader2 size={18} className="animate-spin" /> : 'Continue'}
-        </button>
-      </div>
-    </div>
+    <AuthPage title="Join as a student" subtitle="Enter the student join code from your school.">
+      <form onSubmit={handleJoin} noValidate className="space-y-5">
+        <CodeInput id="student-code" value={code} onChange={setCode} placeholder="AB12CD34" aria-label="Student join code" />
+        {error ? <Notice tone="error">{error}</Notice> : null}
+        <PrimaryButton type="submit" disabled={!ready} busy={busy} busyLabel="Checking code…">Join</PrimaryButton>
+      </form>
+    </AuthPage>
   )
-    }
+         }
