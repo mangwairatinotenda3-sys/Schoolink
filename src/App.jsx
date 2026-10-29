@@ -190,6 +190,7 @@ const ControllerTeam = lazyPage(() => import('./pages/ControllerTeam.jsx'))
 const ControllerReports = lazyPage(() => import('./pages/ControllerReports.jsx'))
 const ControllerComplaints = lazyPage(() => import('./pages/ControllerComplaints.jsx'))
 const ControllerUsers = lazyPage(() => import('./pages/ControllerUsers.jsx'))
+const ControllerVerifySchool = lazyPage(() => import('./pages/ControllerVerifySchool.jsx'))
 const ControllerActivity = lazyPage(() => import('./pages/ControllerActivity.jsx'))
 const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx'))
 const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
@@ -369,6 +370,7 @@ export default function App() {
         <Route path="/controller/reports" element={<RequireAuth><ControllerReports /></RequireAuth>} />
         <Route path="/controller/complaints" element={<RequireAuth><ControllerComplaints /></RequireAuth>} />
         <Route path="/controller/users" element={<RequireAuth><ControllerUsers /></RequireAuth>} />
+        <Route path="/controller/verify-school" element={<RequireAuth><ControllerVerifySchool /></RequireAuth>} />
         <Route path="/controller/team" element={<RequireAuth><ControllerTeam /></RequireAuth>} />
         <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
         <Route path="/controller/announce" element={<RequireAuth><ControllerAnnounce /></RequireAuth>} />
