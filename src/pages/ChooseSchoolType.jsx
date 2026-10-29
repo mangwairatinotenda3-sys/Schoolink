@@ -1,51 +1,54 @@
 import { useState } from 'react'
+import { School, Building2, Landmark, University, Wrench } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import BackHeader from '../components/BackHeader.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
+import { AuthPage, PrimaryButton } from '../components/AuthKit.jsx'
 
-const types = ['Primary School', 'Junior School', 'High School', 'College', 'University', 'Other']
+const TYPES = [
+  { label: 'Primary School', icon: School },
+  { label: 'Junior School', icon: Building2 },
+  { label: 'High School', icon: Landmark },
+  { label: 'College', icon: University },
+  { label: 'University', icon: University },
+  { label: 'Other', icon: Wrench },
+]
 
 export default function ChooseSchoolType() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
   const [selected, setSelected] = useState('High School')
+  const [busy, setBusy] = useState(false)
 
   async function handleContinue() {
+    setBusy(true)
     await saveProfileDetails({ school_type: selected })
     navigate('/onboarding/role')
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader />
-      <div className="flex-1 flex flex-col px-6 pt-2">
-        <h2 className="text-2xl font-bold">Choose Your School Type</h2>
-        <p className="text-gray-500 mt-1">Select the type of school you belong to.</p>
-
-        <div className="grid grid-cols-2 gap-3 mt-8">
-          {types.map((t) => (
+    <AuthPage title="Your school type" subtitle="This helps us show the right tools for your school.">
+      <div className="grid grid-cols-2 gap-3">
+        {TYPES.map(({ label, icon: Icon }) => {
+          const on = selected === label
+          return (
             <button
-              key={t}
-              onClick={() => setSelected(t)}
-              className={`py-6 rounded-xl border text-sm font-medium ${
-                selected === t
-                  ? 'border-brand-purple text-brand-purple bg-brand-light'
-                  : 'border-gray-200 text-gray-700'
+              key={label}
+              type="button"
+              onClick={() => setSelected(label)}
+              className={`flex flex-col items-start gap-3 rounded-2xl border bg-white p-4 text-left ${
+                on ? 'border-brand-purple ring-4 ring-brand-purple/10' : 'border-gray-200'
               }`}
             >
-              {t}
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center ${on ? 'bg-brand-purple text-white' : 'bg-brand-light text-brand-purple'}`}>
+                <Icon size={18} />
+              </span>
+              <span className="text-[14px] font-semibold text-brand-navy">{label}</span>
             </button>
-          ))}
-        </div>
-
-        <div className="flex-1" />
-        <button
-          onClick={handleContinue}
-          className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl mb-6"
-        >
-          Continue
-        </button>
+          )
+        })}
       </div>
-    </div>
+
+      <PrimaryButton className="mt-8" onClick={handleContinue} busy={busy} busyLabel="Saving…">Continue</PrimaryButton>
+    </AuthPage>
   )
   }
