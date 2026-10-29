@@ -1,17 +1,17 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { School, Building2, Landmark, University, Wrench, MoreHorizontal } from 'lucide-react'
-import BackHeader from '../components/BackHeader.jsx'
+import { School, Building2, Landmark, University, Wrench, MapPin } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { AuthPage, AuthField, PrimaryButton, Notice } from '../components/AuthKit.jsx'
 
-const types = [
-  { label: 'Primary School', icon: School, color: 'bg-blue-500' },
-  { label: 'Junior School', icon: Building2, color: 'bg-green-500' },
-  { label: 'High School', icon: Landmark, color: 'bg-purple-500' },
-  { label: 'College', icon: University, color: 'bg-orange-500' },
-  { label: 'University', icon: University, color: 'bg-rose-500' },
-  { label: 'Other', icon: Wrench, color: 'bg-gray-500' },
+const TYPES = [
+  { label: 'Primary School', icon: School },
+  { label: 'Junior School', icon: Building2 },
+  { label: 'High School', icon: Landmark },
+  { label: 'College', icon: University },
+  { label: 'University', icon: University },
+  { label: 'Other', icon: Wrench },
 ]
 
 export default function CreateSchool() {
@@ -22,83 +22,89 @@ export default function CreateSchool() {
   const [location, setLocation] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [touched, setTouched] = useState(false)
 
-  async function handleCreate() {
-    if (!name.trim()) return
+  const nameOk = name.trim().length >= 3
+
+  async function handleCreate(e) {
+    e.preventDefault()
+    setTouched(true)
+    if (!nameOk) return
     setBusy(true)
     setError('')
 
     const { data: school, error: schoolError } = await supabase
       .from('schools')
-      .insert({ name, school_type: type, location, created_by: user.id })
+      .insert({ name: name.trim(), school_type: type, location: location.trim(), created_by: user.id })
       .select()
       .maybeSingle()
 
-    if (schoolError) {
-      setError(schoolError.message)
+    if (schoolError || !school) {
+      setError(schoolError?.message || 'Could not create the school. Please try again.')
       setBusy(false)
       return
     }
 
-    await saveProfileDetails({
-      school_id: school.id,
-      role: 'Headteacher',
-      account_type: 'school_member',
-    })
-
+    await saveProfileDetails({ school_id: school.id, role: 'Headteacher', account_type: 'school_member' })
     setBusy(false)
-    navigate('/home')
+    navigate('/home', { replace: true })
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader title="Create Your School" />
-      <div className="flex-1 flex flex-col px-6 pt-2">
-        <label className="text-sm font-medium mt-4 mb-2">School Name</label>
-        <input
+    <AuthPage
+      title="Create your school"
+      subtitle="You will be the headteacher. You can invite staff and approve students after this."
+    >
+      <form onSubmit={handleCreate} noValidate className="space-y-5">
+        <AuthField
+          id="school-name"
+          label="School name"
+          icon={School}
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Springfield High School"
-          className="border border-gray-200 rounded-xl px-4 py-3.5 outline-brand-purple"
+          placeholder="Full official name"
+          autoComplete="organization"
+          error={touched && !nameOk ? 'Enter the school name, at least 3 letters.' : null}
         />
 
-        <label className="text-sm font-medium mt-4 mb-2">School Type</label>
-        <div className="grid grid-cols-2 gap-3">
-          {types.map((t) => (
-            <button
-              key={t.label}
-              onClick={() => setType(t.label)}
-              className={`flex items-center gap-2 py-3 px-3 rounded-xl border ${
-                type === t.label ? 'border-brand-purple bg-brand-light' : 'border-gray-200'
-              }`}
-            >
-              <span className={`w-8 h-8 rounded-full ${t.color} flex items-center justify-center shrink-0`}>
-                <t.icon size={15} className="text-white" />
-              </span>
-              <span className="text-sm font-medium text-left">{t.label}</span>
-            </button>
-          ))}
+        <div>
+          <p className="text-[13px] font-semibold text-brand-navy mb-2">School type</p>
+          <div className="grid grid-cols-2 gap-2">
+            {TYPES.map(({ label, icon: Icon }) => {
+              const on = type === label
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => setType(label)}
+                  className={`flex items-center gap-2.5 rounded-2xl border bg-white px-3 py-3 text-left ${
+                    on ? 'border-brand-purple ring-4 ring-brand-purple/10' : 'border-gray-200'
+                  }`}
+                >
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${on ? 'bg-brand-purple text-white' : 'bg-brand-light text-brand-purple'}`}>
+                    <Icon size={15} />
+                  </span>
+                  <span className="text-[13px] font-semibold text-brand-navy leading-tight">{label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
 
-        <label className="text-sm font-medium mt-4 mb-2">Location</label>
-        <input
+        <AuthField
+          id="school-location"
+          label="Location"
+          icon={MapPin}
           value={location}
           onChange={(e) => setLocation(e.target.value)}
-          placeholder="Harare, Zimbabwe"
-          className="border border-gray-200 rounded-xl px-4 py-3.5 outline-brand-purple"
+          placeholder="City and country"
+          hint="Optional. Helps parents find your school."
         />
 
-        {error ? <p className="text-red-500 text-sm mt-3">{error}</p> : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
 
-        <div className="flex-1" />
-        <button
-          onClick={handleCreate}
-          disabled={busy}
-          className="w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl mb-6 disabled:opacity-60"
-        >
-          {busy ? 'Creating…' : 'Create School — I am the Headteacher'}
-        </button>
-      </div>
-    </div>
+        <PrimaryButton type="submit" busy={busy} busyLabel="Creating school…">Create school</PrimaryButton>
+      </form>
+    </AuthPage>
   )
-    }
+}
