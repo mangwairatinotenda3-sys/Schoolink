@@ -1,64 +1,66 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import BackHeader from '../components/BackHeader.jsx'
+import { Users, TrendingUp, GraduationCap, BookOpen, KeyRound, Building2 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
+import { AuthPage, OptionCard, Notice } from '../components/AuthKit.jsx'
 
-const options = [
-  { label: 'Parent / Guardian', value: 'parent' },
-  { label: 'Investor', value: 'investor' },
-  { label: 'Alumni', value: 'alumni' },
-  { label: 'Join as a Student', value: 'join-student' },
-  { label: 'I have a Staff Invite Code', value: 'join' },
-  { label: 'Create a School Account', value: 'create' },
+const OPTIONS = [
+  { value: 'parent', label: 'Parent or guardian', sub: "Follow your child's school, timetable and results.", icon: Users },
+  { value: 'investor', label: 'Investor', sub: 'Discover schools and follow their growth.', icon: TrendingUp },
+  { value: 'alumni', label: 'Alumni', sub: 'Stay connected with the school you attended.', icon: GraduationCap },
+  { value: 'join-student', label: 'Join as a student', sub: 'Use the student code from your school.', icon: BookOpen },
+  { value: 'join', label: 'I have a staff invite code', sub: 'For teachers and staff joining a school.', icon: KeyRound },
+  { value: 'create', label: 'Create a school account', sub: 'Set up your school as its headteacher.', icon: Building2 },
 ]
+
+const ROUTES = {
+  join: '/onboarding/join-school',
+  'join-student': '/onboarding/join-student',
+  create: '/onboarding/create-school',
+  alumni: '/onboarding/select-alumni-school',
+}
 
 export default function AccountType() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
   const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
 
-  async function handleChoice(value) {
+  async function choose(value) {
+    setError('')
+    if (ROUTES[value]) {
+      navigate(ROUTES[value])
+      return
+    }
     setBusy(true)
-    if (value === 'join') {
-      navigate('/onboarding/join-school')
-      return
+    try {
+      await saveProfileDetails({ account_type: value })
+      navigate('/home', { replace: true })
+    } catch {
+      setBusy(false)
+      setError('Could not save your choice. Please try again.')
     }
-    if (value === 'join-student') {
-      navigate('/onboarding/join-student')
-      return
-    }
-    if (value === 'create') {
-      navigate('/onboarding/create-school')
-      return
-    }
-    if (value === 'alumni') {
-      navigate('/onboarding/select-alumni-school')
-      return
-    }
-    await saveProfileDetails({ account_type: value })
-    navigate('/home')
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader />
-      <div className="flex-1 flex flex-col px-6 pt-2">
-        <h2 className="text-2xl font-bold">Welcome to Schoolink</h2>
-        <p className="text-gray-500 mt-1">How would you like to continue?</p>
-
-        <div className="mt-8 space-y-3">
-          {options.map((o) => (
-            <button
-              key={o.value}
-              disabled={busy}
-              onClick={() => handleChoice(o.value)}
-              className="w-full text-left border border-gray-200 rounded-xl px-4 py-4 font-medium disabled:opacity-50"
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+    <AuthPage
+      title="Welcome to Schoolink"
+      subtitle="How will you use Schoolink? You can change this later in your profile."
+      back={false}
+    >
+      {error ? <div className="mb-4"><Notice tone="error">{error}</Notice></div> : null}
+      <div className="space-y-3">
+        {OPTIONS.map((o) => (
+          <OptionCard
+            key={o.value}
+            icon={o.icon}
+            title={o.label}
+            sub={o.sub}
+            disabled={busy}
+            onClick={() => choose(o.value)}
+          />
+        ))}
       </div>
-    </div>
+    </AuthPage>
   )
-              }
+    }
