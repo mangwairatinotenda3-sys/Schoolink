@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Mail } from 'lucide-react'
-import BackHeader from '../components/BackHeader.jsx'
+import { Mail, Check, Mail as MailIcon } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient.js'
+import { AuthPage, AuthField, PrimaryButton, Notice, EMAIL_RE } from '../components/AuthKit.jsx'
 
 export default function ForgotPassword() {
   const navigate = useNavigate()
@@ -11,16 +11,19 @@ export default function ForgotPassword() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [sent, setSent] = useState(false)
+  const [touched, setTouched] = useState(false)
+
+  const clean = email.trim()
+  const emailOk = EMAIL_RE.test(clean)
 
   async function handleSubmit(e) {
     e.preventDefault()
-    if (!email) return
+    setTouched(true)
+    if (!emailOk) return
     setBusy(true)
     setError('')
-
     const redirectTo = window.location.href.split('#')[0] + '#/reset-password'
-    const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
-
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(clean, { redirectTo })
     setBusy(false)
     if (resetError) {
       setError(resetError.message)
@@ -31,47 +34,53 @@ export default function ForgotPassword() {
 
   if (sent) {
     return (
-      <div className="flex-1 flex flex-col">
-        <BackHeader title="Check Your Email" />
-        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center gap-3">
-          <Mail size={40} className="text-brand-purple" />
-          <p className="font-semibold">Reset link sent!</p>
-          <p className="text-gray-500 text-sm">
-            We've sent a password reset link to <b>{email}</b>. Open it on this device to set a new password.
+      <AuthPage title="Check your email" back={false}>
+        <div className="flex flex-col items-start">
+          <span className="w-14 h-14 rounded-2xl bg-green-50 text-green-600 flex items-center justify-center">
+            <Check size={26} />
+          </span>
+          <p className="mt-5 text-[15px] leading-relaxed text-gray-600">
+            We sent a reset link to <span className="font-semibold text-brand-navy">{clean}</span>. Open it on this device to choose a new password.
           </p>
-          <button onClick={() => navigate('/')} className="text-brand-purple font-medium mt-2">Back to Sign In</button>
+          <p className="mt-3 text-sm text-gray-400">Nothing in your inbox? Check your spam folder.</p>
         </div>
-      </div>
+        <div className="mt-8 space-y-3">
+          <PrimaryButton type="button" onClick={() => navigate('/', { replace: true })}>Back to log in</PrimaryButton>
+          <button type="button" onClick={() => setSent(false)} className="w-full h-12 text-sm font-semibold text-brand-purple">
+            Use a different email
+          </button>
+        </div>
+      </AuthPage>
     )
   }
 
   return (
-    <div className="flex-1 flex flex-col">
-      <BackHeader title="Reset Password" />
-      <form onSubmit={handleSubmit} className="flex-1 flex flex-col px-6 pt-6">
-        <div className="flex justify-center mb-6">
-          <span className="w-16 h-16 rounded-2xl bg-brand-light flex items-center justify-center">
-            <Mail className="text-brand-purple" size={28} />
-          </span>
-        </div>
-        <h2 className="text-center font-semibold text-lg">Enter your email and we'll send you a reset link.</h2>
-
-        <label className="text-sm font-medium mt-8 mb-2">Email Address</label>
-        <input
+    <AuthPage
+      title="Reset your password"
+      subtitle="Enter the email you signed up with and we'll send you a link to choose a new password."
+    >
+      <form onSubmit={handleSubmit} noValidate className="space-y-5">
+        <AuthField
+          id="reset-email"
+          label="Email address"
+          icon={Mail}
           type="email"
-          required
+          inputMode="email"
+          autoComplete="email"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck={false}
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          placeholder="you@school.com"
-          className="border border-gray-200 rounded-xl px-4 py-3.5 outline-brand-purple"
+          error={touched && !emailOk ? 'Enter a valid email address, for example name@example.com.' : null}
         />
 
-        {error ? <p className="text-red-500 text-sm mt-3">{error}</p> : null}
+        {error ? <Notice tone="error">{error}</Notice> : null}
 
-        <button type="submit" disabled={busy} className="mt-8 w-full bg-brand-purple text-white font-medium py-3.5 rounded-xl disabled:opacity-60">
-          {busy ? 'Sending…' : 'Send Reset Link'}
-        </button>
+        <PrimaryButton type="submit" busy={busy} busyLabel="Sending…">
+          <MailIcon size={18} /> Send reset link
+        </PrimaryButton>
       </form>
-    </div>
+    </AuthPage>
   )
-}
+        }
