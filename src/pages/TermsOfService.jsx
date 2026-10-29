@@ -19,17 +19,10 @@ const sections = [
     ],
   },
   {
-    title: 'Age and who can use Schoolink',
-    short: 'Age',
-    lead: 'You must be at least 13 to use Schoolink. When you sign up we ask for your birth date to check this.',
-    points: [
-      'If you are under 18, you confirm that a parent, guardian or your school has given you access.',
-      'Accounts of people under 13 are removed.',
-      'You can delete your own account at any time in Settings → Account → Delete account.',
-    ],
-  },
-  {
     title: 'Roles, schools and verification',
+    short: 'Roles',
+    lead: 'The person who creates a school becomes its Headteacher. They invite staff with invite codes and approve students who join with the school code. Roles such as Deputy Head, Bursar, Coach, ICT Administrator, Librarian and Teacher unlock the tools that fit that role.',
+    after: 'We do not independently check that someone creating a school is allowed to represent it. School leaders are responsible for who they invite and approve. A blue verified badge means the Schoolink team has checked that person or school.',
   },
   {
     title: 'Parents and family links',
@@ -118,7 +111,7 @@ const sections = [
   {
     title: 'Payments',
     short: 'Payments',
-    lead: 'If a Bursar shares a payment link for school fees, the payment is handled entirely by the provider they choose, such as Stripe, PayPal or Paynow. Schoolink does not process or store your card details. Payment problems should go to that provider and your school.',
+    lead: 'If a Bursar shares a payment link for school fees, the payment is handled entirely by the provider they choose, such as Stripe or PayPal. Schoolink does not process or store your card details. Payment problems should go to that provider and your school.',
   },
   {
     title: 'Other services we rely on',
@@ -168,4 +161,4 @@ export default function TermsOfService() {
       other={{ label: 'Read the Privacy Policy', to: '/privacy' }}
     />
   )
-    }
+      }
