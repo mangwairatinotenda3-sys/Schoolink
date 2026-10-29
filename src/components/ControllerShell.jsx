@@ -2,19 +2,44 @@ import { Navigate, useNavigate } from 'react-router-dom'
 import { ChevronLeft } from 'lucide-react'
 import { useAuth } from '../context/AuthContext.jsx'
 
-// Colours for the whole control center. Inline styles are used on purpose:
-// they stay the same whatever theme a normal user has picked.
+// Colours for the whole control center. Inline styles keep them the same whatever theme a normal user has picked.
 export const ctl = {
   bg: '#0B1020',
-  gradient: 'linear-gradient(180deg, #0A0E2A 0%, #10124A 55%, #0B1020 100%)',
-  card: '#151B2E',
-  border: '#243049',
-  text: '#E5E7EB',
-  muted: '#94A3B8',
-  accent: '#6366F1',
+  gradient: '#0B1020', // kept so older screens still work; the background is flat now
+  card: '#131A2C',
+  raised: '#1B2338',
+  border: '#222D45',
+  text: '#E6E9F2',
+  muted: '#8C97AD',
+  faint: '#5B667E',
+  accent: '#5B5BD6',
+  accentSoft: 'rgba(91,91,214,0.16)',
+  accentText: '#A5B4FC',
   good: '#22C55E',
   bad: '#EF4444',
   warn: '#F59E0B',
+}
+
+// Static placeholder block for skeleton screens (no animation)
+export function CtlBlock({ className = '', style }) {
+  return <div className={className} style={{ background: ctl.raised, borderRadius: 10, ...style }} />
+}
+
+// Static placeholder card with rows, used while a list loads
+export function CtlSkeletonRows({ rows = 3 }) {
+  return (
+    <div style={{ background: ctl.card, border: `1px solid ${ctl.border}`, borderRadius: 16, overflow: 'hidden' }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-3 px-4 py-3.5" style={{ borderTop: i ? `1px solid ${ctl.border}` : 'none' }}>
+          <CtlBlock style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }} />
+          <div className="flex-1 min-w-0">
+            <CtlBlock style={{ height: 12, width: '55%' }} />
+            <CtlBlock style={{ height: 10, width: '75%', marginTop: 8 }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // Page frame for every control-center screen. It also keeps normal users out:
@@ -28,8 +53,10 @@ export default function ControllerShell({ title, allow, back = true, right = nul
   if (!user) return <Navigate to="/" replace />
   if (teamLoading) {
     return (
-      <div className="app-shell flex items-center justify-center" style={{ background: ctl.gradient, color: ctl.muted }}>
-        Loading…
+      <div className="app-shell" style={{ background: ctl.bg }}>
+        <div className="screen-scroll px-4 py-4" aria-busy="true">
+          <CtlSkeletonRows rows={4} />
+        </div>
       </div>
     )
   }
@@ -38,11 +65,15 @@ export default function ControllerShell({ title, allow, back = true, right = nul
   const denied = allow && !allow.includes(teamRole)
 
   return (
-    <div className="app-shell" style={{ background: ctl.gradient, color: ctl.text }}>
+    <div className="app-shell" style={{ background: ctl.bg, color: ctl.text }}>
       {header ? (
         <div className="flex items-center gap-2 px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${ctl.border}` }}>
           {back ? (
-            <button onClick={() => navigate('/controller')} style={{ color: ctl.muted }}>
+            <button
+              onClick={() => navigate('/controller')}
+              aria-label="Back"
+              style={{ color: ctl.muted, width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+            >
               <ChevronLeft size={22} />
             </button>
           ) : null}
@@ -64,4 +95,4 @@ export default function ControllerShell({ title, allow, back = true, right = nul
       ) : null}
     </div>
   )
-    }
+  }
