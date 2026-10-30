@@ -5,7 +5,8 @@ import {
   BarChart3, DollarSign, Trophy, Laptop, HeartHandshake, Briefcase,
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
-import { PlusSeal, useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
+import { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
+import VerifiedBadge, { useIsVerifiedSchool } from '../components/VerifiedBadge.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, canManageFees, canManageSports, canManageDevices, isStaffMember } from '../lib/permissions.js'
@@ -41,6 +42,7 @@ export default function SchoolSettings() {
   const { profile } = useAuth()
   const schoolId = profile?.school_id
   const plus = useIsPlusSchool(schoolId)
+  const schoolVerified = useIsVerifiedSchool(schoolId)
   const isHead = canManageStaff(profile)
   const [school, setSchool] = useState(null)
   const [counts, setCounts] = useState(null)
@@ -91,7 +93,7 @@ export default function SchoolSettings() {
           <span className="absolute -right-4 -top-4 w-24 h-24 rounded-full border border-white/10" />
           <p className="text-[11px] uppercase tracking-[0.14em] text-white/50">Managing</p>
           <p className="text-xl font-extrabold tracking-tight mt-1 flex items-center gap-2 flex-wrap">
-            {school?.name || 'Your school'} {plus ? <PlusSeal size={20} /> : null}
+            {school?.name || 'Your school'} <VerifiedBadge schoolId={schoolId} size={20} />
           </p>
           {isHead ? (
             <div className="mt-4">
@@ -129,7 +131,7 @@ export default function SchoolSettings() {
 
         {isHead ? (
           <Group label="Verification">
-            <Row icon={Sparkles} tint="#D97706" title="School Plus" sub={plus ? 'Active · gold badge on your profile' : '$2.99 a month · gold verified badge'} onClick={() => navigate('/school-settings/verification')} />
+            <Row icon={Sparkles} tint="#1877F2" title="Verification" sub={schoolVerified ? 'Verified · blue badge on your school' : 'Get the blue badge · $2.99 a month'} onClick={() => navigate('/school-settings/verification')} />
           </Group>
         ) : null}
       </div>
