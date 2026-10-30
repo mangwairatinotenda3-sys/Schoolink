@@ -4,7 +4,7 @@ import {
   Camera, MapPin, Phone, Mail, MessageSquare, Plus, FileText, ExternalLink, Bell, BellRing, Video,
   Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2,
 } from 'lucide-react'
-import VerifiedBadge from '../components/VerifiedBadge.jsx'
+import VerifiedBadge, { refreshVerifiedIds } from '../components/VerifiedBadge.jsx'
 import SchoolPlusBadge, { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
 import FormPicker from '../components/FormPicker.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
@@ -135,6 +135,8 @@ export default function SchoolProfile() {
     const t = setTimeout(() => setToast(''), 2000)
     return () => clearTimeout(t)
   }, [toast])
+  
+  useEffect(() => { refreshVerifiedIds(true) }, [school?.id])
 
   async function refreshMembers(schoolId) {
     const { data: members } = await supabase.from('profiles').select('id, role').eq('school_id', schoolId).eq('status', 'active')
