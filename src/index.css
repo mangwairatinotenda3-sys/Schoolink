@@ -102,6 +102,20 @@ body {
 .app-shell.dark-mode .text-gray-400,
 .app-shell.dark-mode .text-gray-300 { color: var(--text-muted) !important; }
 
+/* Tablets and laptops: a wider centred column instead of a phone strip */
+@media (min-width: 768px) {
+  .app-shell {
+    max-width: 760px;
+    box-shadow: 0 0 40px rgba(20, 10, 60, 0.12);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell {
+    max-width: 1040px;
+  }
+}
+
 /* Every border/divider variant used across the app, forced dark.
    Includes both the plain border-* utilities and Tailwind's
    divide-y/divide-x utilities (which use a different selector shape). */
