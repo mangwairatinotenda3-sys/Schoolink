@@ -2,10 +2,21 @@ name: Build signed Android release
 
 on:
   workflow_dispatch:
+    inputs:
+      version_name:
+        description: 'Version users see, for example 5.0'
+        required: true
+        default: '5.0'
+
+permissions:
+  contents: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    env:
+      APP_VERSION_NAME: ${{ inputs.version_name }}
+      APP_VERSION_CODE: ${{ github.run_number }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,8 +48,20 @@ jobs:
           mkdir -p assets
           cat > make-android-icons.mjs <<'EOF'
           import sharp from 'sharp'
-          const BG = '#6C4CE0'
-          const GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          import fs from 'node:fs'
+          // Colours and shape come from public/icon.svg, so changing that file changes the app icon.
+          let BG = '#6C4CE0'
+          let GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          try {
+            const svg = fs.readFileSync('public/icon.svg', 'utf8')
+            const bg = svg.match(/<rect[^>]*fill="([^"]+)"/)
+            const d = svg.match(/<path[^>]*\sd="([^"]+)"/)
+            if (bg) BG = bg[1]
+            if (d) GLYPH = d[1]
+            console.log('Using public/icon.svg', BG)
+          } catch (e) {
+            console.log('public/icon.svg not found, using the built-in logo')
+          }
           function art(scale, background, rx) {
             const t = `translate(${256 - 256 * scale} ${256 - 256 * scale}) scale(${scale})`
             const bg = background ? `<rect width="512" height="512" rx="${rx}" fill="${BG}"/>` : ''
@@ -86,19 +109,120 @@ jobs:
               '''
               s = s.replace('</activity>', link + '\n        </activity>', 1)
               open(p, 'w').write(s)
+              print("Added intent-filter")
+          else:
+              print("intent-filter already exists")
           PY
 
-      - name: Set up signing and the version number
+      - name: Turn on push notifications
+        env:
+          GOOGLE_SERVICES_JSON: ${{ secrets.GOOGLE_SERVICES_JSON }}
+        run: |
+          if [ -n "$GOOGLE_SERVICES_JSON" ]; then
+            printf '%s' "$GOOGLE_SERVICES_JSON" > android/app/google-services.json
+            echo "google-services.json added"
+          else
+            echo "No GOOGLE_SERVICES_JSON secret, building without push notifications"
+          fi
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perm = 'android.permission.POST_NOTIFICATIONS'
+          if perm not in s:
+              s = s.replace('<application', '<uses-permission android:name="' + perm + '" />\n    <application', 1)
+              open(p, 'w').write(s)
+              print("Added notification permission")
+          PY
+
+      - name: Ask the phone for the permissions the app needs
+        run: |
+          python3 - <<'PY'
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          perms = [
+              '<uses-permission android:name="android.permission.RECORD_AUDIO" />',
+              '<uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />',
+              '<uses-permission android:name="android.permission.CAMERA" />',
+              '<uses-permission android:name="android.permission.VIBRATE" />',
+              '<uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
+              '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
+              '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />',
+              '<uses-feature android:name="android.hardware.camera" android:required="false" />',
+              '<uses-feature android:name="android.hardware.microphone" android:required="false" />',
+          ]
+          added = 0
+          for line in perms:
+              key = line.split('android:name="')[1].split('"')[0]
+              if key not in s:
+                  s = s.replace('<application', line + '\n    <application', 1)
+                  added += 1
+          open(p, 'w').write(s)
+          print("Added", added, "permissions")
+          PY
+
+      - name: Match the website look and sharpen the opening screen
+        run: |
+          python3 - <<'PY'
+          import os, re
+          res = 'android/app/src/main/res'
+          styles_path = res + '/values/styles.xml'
+          styles = open(styles_path).read() if os.path.exists(styles_path) else ''
+
+          if styles and 'statusBarColor' not in styles:
+              pattern = r'(<style name="AppTheme.NoActionBar"[^>]*>)'
+              if re.search(pattern, styles):
+                  add = '\\1\n        <item name="android:statusBarColor">#241B4E</item>\n        <item name="android:forceDarkAllowed">false</item>'
+                  styles = re.sub(pattern, add, styles, count=1)
+                  open(styles_path, 'w').write(styles)
+                  print("Status bar colour set")
+
+          bg, glyph = '#6C4CE0', 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
+          if os.path.exists('public/icon.svg'):
+              svg = open('public/icon.svg').read()
+              m1 = re.search(r'<rect[^>]*fill="([^"]+)"', svg)
+              m2 = re.search(r'<path[^>]*\sd="([^"]+)"', svg)
+              if m1: bg = m1.group(1)
+              if m2: glyph = m2.group(1)
+          if 'AppTheme.NoActionBarLaunch' in styles and 'AppTheme.NoActionBar"' in styles:
+              os.makedirs(res + '/drawable', exist_ok=True)
+              os.makedirs(res + '/values-v31', exist_ok=True)
+              open(res + '/drawable/splash_logo.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+                  '    android:width="288dp" android:height="288dp"\n'
+                  '    android:viewportWidth="512" android:viewportHeight="512">\n'
+                  '  <group android:scaleX="0.85" android:scaleY="0.85" android:pivotX="256" android:pivotY="256">\n'
+                  '    <path android:fillColor="' + bg + '" android:pathData="' + glyph + '"/>\n'
+                  '  </group>\n'
+                  '</vector>\n')
+              open(res + '/values-v31/splash_v31.xml', 'w').write(
+                  '<?xml version="1.0" encoding="utf-8"?>\n'
+                  '<resources>\n'
+                  '    <style name="AppTheme.NoActionBarLaunch" parent="AppTheme.NoActionBar">\n'
+                  '        <item name="android:windowSplashScreenBackground">#FFFFFF</item>\n'
+                  '        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_logo</item>\n'
+                  '    </style>\n'
+                  '</resources>\n')
+              print("Sharp opening screen added")
+          else:
+              print("Launch theme not found, skipped the sharp opening screen")
+          PY
+
+      - run: npx cap sync android
+
+      - name: Set up signing, version name and version code
         env:
           KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-          RUN_NUMBER: ${{ github.run_number }}
         run: |
           echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/schoolink.jks"
           python3 - <<'PY'
           import os, re
           p = 'android/app/build.gradle'
           s = open(p).read()
-          s = re.sub(r'versionCode \d+', 'versionCode ' + os.environ['RUN_NUMBER'], s, count=1)
+          s = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ['APP_VERSION_CODE'], s, count=1)
+          s = re.sub(r'versionName\s+"[^"]*"', 'versionName "' + os.environ['APP_VERSION_NAME'] + '"', s, count=1)
           i = s.index('buildTypes')
           j = s.index('release {', i)
           s = s[:j] + 'release {\n            signingConfig signingConfigs.release' + s[j + len('release {'):]
@@ -113,11 +237,10 @@ jobs:
               '''
           s = re.sub(r'^(\s*)buildTypes \{', lambda m: m.group(1) + signing + m.group(1) + 'buildTypes {', s, count=1, flags=re.M)
           open(p, 'w').write(s)
+          print("Version", os.environ['APP_VERSION_NAME'], "build", os.environ['APP_VERSION_CODE'])
           PY
 
-      - run: npx cap sync android
-
-      - name: Build the signed release
+      - name: Build the signed APK and app bundle
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/schoolink.jks
           KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -128,9 +251,35 @@ jobs:
           chmod +x gradlew
           ./gradlew bundleRelease assembleRelease
 
+      - name: Name the files for download
+        run: |
+          mkdir -p "$RUNNER_TEMP/download"
+          cp android/app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/download/Schoolink.apk"
+          cp android/app/build/outputs/bundle/release/app-release.aab "$RUNNER_TEMP/download/Schoolink.aab"
+
+      - name: Publish the APK on a GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v${APP_VERSION_NAME}-build${APP_VERSION_CODE}"
+          gh release create "$TAG" \
+            "$RUNNER_TEMP/download/Schoolink.apk" \
+            "$RUNNER_TEMP/download/Schoolink.aab" \
+            --target "$GITHUB_SHA" \
+            --title "Schoolink ${APP_VERSION_NAME} (build ${APP_VERSION_CODE})" \
+            --notes "Signed Android build ${APP_VERSION_NAME}. Download Schoolink.apk from this release." \
+            --latest
+          {
+            echo "### Android release ready"
+            echo "Version ${APP_VERSION_NAME} (build ${APP_VERSION_CODE})"
+            echo ""
+            echo "Direct APK link (same address for every build):"
+            echo "https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/Schoolink.apk"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - uses: actions/upload-artifact@v4
         with:
           name: schoolink-android-release
           path: |
-            android/app/build/outputs/bundle/release/app-release.aab
-            android/app/build/outputs/apk/release/app-release.apk
+            ${{ runner.temp }}/download/Schoolink.apk
+            ${{ runner.temp }}/download/Schoolink.aab
