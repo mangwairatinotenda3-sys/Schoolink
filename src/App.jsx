@@ -102,7 +102,6 @@ function RootRoute() {
 
 const SchoolSettings = lazyPage(() => import('./pages/SchoolSettings.jsx'))
 const SchoolLearners = lazyPage(() => import('./pages/SchoolLearners.jsx'))
-const SchoolPlus = lazyPage(() => import('./pages/SchoolPlus.jsx'))
 const ControllerPayments = lazyPage(() => import('./pages/ControllerPayments.jsx'))
 const JoinByLink = lazyPage(() => import('./pages/JoinByLink.jsx'))
 const ForgotPassword = lazyPage(() => import('./pages/ForgotPassword.jsx'))
@@ -270,7 +269,6 @@ export default function App() {
         <Route path="/appeal" element={<AppealPage />} />
         <Route path="/appeals" element={<RequireAuth><AppealsReview /></RequireAuth>} />
         <Route path="/settings/safety" element={<RequireAuth><SafetyData /></RequireAuth>} />
-
         <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
         <Route path="/onboarding/join-school" element={<RequireAuth><JoinSchool /></RequireAuth>} />
@@ -284,7 +282,13 @@ export default function App() {
         <Route path="/school-profile/verification" element={<RequireAuth><GetSchoolVerified /></RequireAuth>} />
         <Route path="/school-settings" element={<RequireAuth><SchoolSettings /></RequireAuth>} />
         <Route path="/school-settings/learners" element={<RequireAuth><SchoolLearners /></RequireAuth>} />
-        <Route path="/school-settings/verification" element={<RequireAuth><SchoolPlus /></RequireAuth>} />
+
+
+        
+                                                                                
+
+
+                                                                            
         <Route path="/controller/payments" element={<RequireAuth><ControllerPayments /></RequireAuth>} />
         <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
         <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
