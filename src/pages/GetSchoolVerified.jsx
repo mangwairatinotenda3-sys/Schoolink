@@ -85,7 +85,6 @@ export default function GetSchoolVerified() {
 
   const docByType = Object.fromEntries((s?.documents || []).map((d) => [d.type, d]))
   const uploadedCount = DOCS.filter((d) => docByType[d.type]).length
-  const docsComplete = uploadedCount === DOCS.length
   const price = Number(s?.price || 2.99)
 
   async function load() {
@@ -424,8 +423,7 @@ export default function GetSchoolVerified() {
               </div>
             ) : null}
 
-            {/* WAITING FOR PIN */}
-            {view === 'waiting' ? (
+                        {view === 'waiting' ? (
               <div className="mt-4 rounded-3xl border border-gray-200 bg-white p-5">
                 <div className="flex items-center justify-between">
                   <span className="flex items-center gap-1.5 text-sm font-semibold text-brand-navy"><Smartphone size={16} /> EcoCash</span>
@@ -479,4 +477,5 @@ export default function GetSchoolVerified() {
       </div>
     </div>
   )
-        }
+                      }
+
