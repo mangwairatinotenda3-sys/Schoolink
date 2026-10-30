@@ -144,9 +144,9 @@ export default function ControllerSchoolReviews() {
                     {[item.location, item.school_type].filter(Boolean).join(' · ') || 'No location'} · Sent {when(item.submitted_at)}
                   </p>
 
-                  <div className="mt-3 divide-y" style={{ borderColor: C.border }}>
+                  <div className="mt-3">
                     {docs.map((d) => (
-                      <div key={d.type} className="flex items-center justify-between py-2.5">
+                      <div key={d.type} className="flex items-center justify-between py-2.5" style={{ borderTop: `1px solid ${C.border}` }}>
                         <span className="flex min-w-0 items-center gap-2 text-sm">
                           <FileText size={15} style={{ color: C.muted }} />
                           <span className="truncate">{DOC_LABELS[d.type] || d.type}</span>
@@ -227,4 +227,4 @@ export default function ControllerSchoolReviews() {
       </div>
     </div>
   )
-}
+  }
