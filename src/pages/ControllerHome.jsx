@@ -20,6 +20,7 @@ const SECTIONS = [
     title: 'Review',
     items: [
       { to: '/controller/verification', label: 'Verification queue', sub: 'IDs and school documents', icon: ShieldCheck, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'pending_verifications' },
+      { to: '/controller/school-reviews', label: 'School reviews', sub: 'Check school documents before payment', icon: ShieldCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
       { to: '/controller/reports', label: 'User reports', sub: 'Posts, comments and profiles', icon: Flag, color: '#2563EB', roles: ['owner', 'moderator'], count: 'pending_reports' },
       { to: '/controller/complaints', label: 'Complaints', sub: 'Help and feedback messages', icon: MessageSquare, color: '#10B981', roles: ['owner', 'support', 'moderator'], count: 'open_feedback' },
     ],
@@ -29,7 +30,6 @@ const SECTIONS = [
     items: [
       { to: '/controller/users', label: 'Find a user', sub: 'Verify or ban accounts', icon: Search, color: '#F59E0B', roles: ['owner', 'verifier', 'moderator', 'support'] },
       { to: '/controller/verify-school', label: 'Verify a school', sub: 'Search any school and tick it', icon: BadgeCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
-      { to: '/controller/school-reviews', label: 'School reviews', sub: 'Check school documents before payment', icon: ShieldCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
     ],
   },
   {
