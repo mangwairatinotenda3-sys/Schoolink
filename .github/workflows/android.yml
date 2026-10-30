@@ -3,11 +3,9 @@ name: Build Android app
 on:
   workflow_dispatch:
 
-# Change these two lines every time you make changes and want a new build.
-# The number must go up each time (2, 3, 4...). The name is what people see.
 env:
   APP_VERSION_CODE: 5
-  APP_VERSION_NAME: "5.0"
+  APP_VERSION_NAME: '5.0'
 
 jobs:
   apk:
@@ -37,20 +35,6 @@ jobs:
             npx cap add android
           fi
 
-      - name: Set the app version
-        run: |
-          python3 - <<'PY'
-          import os, re
-          p = 'android/app/build.gradle'
-          s = open(p).read()
-          code = os.environ['APP_VERSION_CODE']
-          name = os.environ['APP_VERSION_NAME']
-          s, n1 = re.subn(r'versionCode\s+\d+', 'versionCode ' + code, s, count=1)
-          s, n2 = re.subn(r'versionName\s+"[^"]*"', 'versionName "' + name + '"', s, count=1)
-          open(p, 'w').write(s)
-          print('Version set to', name, '(' + code + ')', 'code ok' if n1 else 'CODE NOT FOUND', 'name ok' if n2 else 'NAME NOT FOUND')
-          PY
-
       - name: Use the Schoolink logo as the app icon and opening screen
         run: |
           npm install --no-save sharp @capacitor/assets
@@ -58,7 +42,7 @@ jobs:
           cat > make-android-icons.mjs <<'EOF'
           import sharp from 'sharp'
           import fs from 'node:fs'
-          // Colours and shape come from your own public/icon.svg, so changing that file changes the app icon.
+          // Colours and shape come from public/icon.svg, so changing that file changes the app icon.
           let BG = '#6C4CE0'
           let GLYPH = 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
           try {
@@ -79,7 +63,6 @@ jobs:
             )
           }
           const glyph = `<path fill="#fff" d="${GLYPH}"/>`
-          // Opening screen: white page, the logo in the middle, "Schoolink" under it.
           const splash = Buffer.from(
             `<svg xmlns="http://www.w3.org/2000/svg" width="2732" height="2732" viewBox="0 0 2732 2732">` +
               `<rect width="2732" height="2732" fill="#FFFFFF"/>` +
@@ -106,7 +89,6 @@ jobs:
       - name: Let the app catch the Google sign-in link
         run: |
           python3 - <<'PY'
-          import os
           p = 'android/app/src/main/AndroidManifest.xml'
           s = open(p).read()
           if 'com.schoolink.app' not in s:
@@ -181,7 +163,6 @@ jobs:
           styles_path = res + '/values/styles.xml'
           styles = open(styles_path).read() if os.path.exists(styles_path) else ''
 
-          # Same colours as the website: status bar matches the website's theme colour.
           if styles and 'statusBarColor' not in styles:
               pattern = r'(<style name="AppTheme.NoActionBar"[^>]*>)'
               if re.search(pattern, styles):
@@ -190,7 +171,6 @@ jobs:
                   open(styles_path, 'w').write(styles)
                   print("Status bar colour set")
 
-          # Crisp opening screen on Android 12 and newer: a vector logo that stays sharp at any size.
           bg, glyph = '#6C4CE0', 'M256 140 96 200l160 60 130-49v70h20V200zm-95 100v70c0 30 42 55 95 55s95-25 95-55v-70l-95 36z'
           if os.path.exists('public/icon.svg'):
               svg = open('public/icon.svg').read()
@@ -221,6 +201,18 @@ jobs:
               print("Sharp opening screen added")
           else:
               print("Launch theme not found, skipped the sharp opening screen")
+          PY
+
+      - name: Set the version number
+        run: |
+          python3 - <<'PY'
+          import os, re
+          p = 'android/app/build.gradle'
+          s = open(p).read()
+          s = re.sub(r'versionCode\s+\d+', 'versionCode ' + os.environ['APP_VERSION_CODE'], s, count=1)
+          s = re.sub(r'versionName\s+"[^"]*"', 'versionName "' + os.environ['APP_VERSION_NAME'] + '"', s, count=1)
+          open(p, 'w').write(s)
+          print("Version", os.environ['APP_VERSION_NAME'], "code", os.environ['APP_VERSION_CODE'])
           PY
 
       - name: Keep the same app signature so updates keep you signed in
