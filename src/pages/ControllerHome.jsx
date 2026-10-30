@@ -29,6 +29,7 @@ const SECTIONS = [
     items: [
       { to: '/controller/users', label: 'Find a user', sub: 'Verify or ban accounts', icon: Search, color: '#F59E0B', roles: ['owner', 'verifier', 'moderator', 'support'] },
       { to: '/controller/verify-school', label: 'Verify a school', sub: 'Search any school and tick it', icon: BadgeCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
+      { to: '/controller/school-reviews', label: 'School reviews', sub: 'Check school documents before payment', icon: ShieldCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
     ],
   },
   {
