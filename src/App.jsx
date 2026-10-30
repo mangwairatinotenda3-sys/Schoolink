@@ -52,7 +52,7 @@ function lazyPage(loader) {
       })
   )
 }
-  
+
 function PageLoading() {
   return <div className="app-shell flex items-center justify-center text-gray-400">Loading…</div>
 }
@@ -269,6 +269,7 @@ export default function App() {
         <Route path="/appeal" element={<AppealPage />} />
         <Route path="/appeals" element={<RequireAuth><AppealsReview /></RequireAuth>} />
         <Route path="/settings/safety" element={<RequireAuth><SafetyData /></RequireAuth>} />
+
         <Route path="/onboarding/account-type" element={<RequireAuth><AccountType /></RequireAuth>} />
         <Route path="/onboarding/create-school" element={<RequireAuth><CreateSchool /></RequireAuth>} />
         <Route path="/onboarding/join-school" element={<RequireAuth><JoinSchool /></RequireAuth>} />
@@ -282,13 +283,7 @@ export default function App() {
         <Route path="/school-profile/verification" element={<RequireAuth><GetSchoolVerified /></RequireAuth>} />
         <Route path="/school-settings" element={<RequireAuth><SchoolSettings /></RequireAuth>} />
         <Route path="/school-settings/learners" element={<RequireAuth><SchoolLearners /></RequireAuth>} />
-
-
-        
-                                                                                
-
-
-                                                                            
+        <Route path="/school-settings/verification" element={<RequireAuth><GetSchoolVerified /></RequireAuth>} />
         <Route path="/controller/payments" element={<RequireAuth><ControllerPayments /></RequireAuth>} />
         <Route path="/schools" element={<RequireAuth><BrowseSchools /></RequireAuth>} />
         <Route path="/schools/:schoolId" element={<RequireAuth><SchoolProfile /></RequireAuth>} />
@@ -357,10 +352,10 @@ export default function App() {
         <Route path="/family" element={<RequireAuth><Family /></RequireAuth>} />
         <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
-        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+                <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileRoute /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
-         <Route path="/settings/delete-account" element={<RequireAuth><DeleteAccount /></RequireAuth>} />
+        <Route path="/settings/delete-account" element={<RequireAuth><DeleteAccount /></RequireAuth>} />
         <Route path="/settings/data-sharing" element={<RequireAuth><DataSharingSettings /></RequireAuth>} />
         <Route path="/controller/app-health" element={<RequireAuth><ControllerAppHealth /></RequireAuth>} />
         <Route path="/saved" element={<RequireAuth><Saved /></RequireAuth>} />
@@ -376,18 +371,18 @@ export default function App() {
         <Route path="/controller/complaints" element={<RequireAuth><ControllerComplaints /></RequireAuth>} />
         <Route path="/controller/users" element={<RequireAuth><ControllerUsers /></RequireAuth>} />
         <Route path="/controller/verify-school" element={<RequireAuth><ControllerVerifySchool /></RequireAuth>} />
+        <Route path="/controller/school-reviews" element={<RequireAuth><ControllerSchoolReviews /></RequireAuth>} />
         <Route path="/controller/team" element={<RequireAuth><ControllerTeam /></RequireAuth>} />
         <Route path="/controller/activity" element={<RequireAuth><ControllerActivity /></RequireAuth>} />
         <Route path="/controller/announce" element={<RequireAuth><ControllerAnnounce /></RequireAuth>} />
         <Route path="/controller/profile" element={<RequireAuth><ControllerProfile /></RequireAuth>} />
         <Route path="/appeals" element={<Navigate to="/controller/appeals" replace />} />
         <Route path="/controller/appeals" element={<RequireAuth><ControllerAppeals /></RequireAuth>} />
-        <Route path="/controller/school-reviews" element={<ControllerSchoolReviews />} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       </Suspense>
-      </PageTransition>  
+      </PageTransition>
     </div>
   )
-        }
+          }
