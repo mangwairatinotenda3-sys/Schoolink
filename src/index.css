@@ -298,3 +298,17 @@ input:focus-visible, textarea:focus-visible, select:focus-visible { outline-offs
 
 /* Selects look like the rest of the app. */
 select { -webkit-appearance: none; appearance: none; background-image: none; }
+
+/* Tablets and laptops: a wider centred column instead of a phone strip */
+@media (min-width: 768px) {
+  .app-shell {
+    max-width: 760px;
+    box-shadow: 0 0 40px rgba(20, 10, 60, 0.12);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell {
+    max-width: 1040px;
+  }
+          }
