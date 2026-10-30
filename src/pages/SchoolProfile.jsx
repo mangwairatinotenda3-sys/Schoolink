@@ -608,15 +608,10 @@ export default function SchoolProfile() {
           <h1 className="mt-3 text-[23px] leading-[1.15] font-extrabold tracking-tight text-brand-navy flex items-center gap-1.5 flex-wrap">
             {school.name}
             <VerifiedBadge schoolId={school.id} size={20} />
-            <SchoolPlusBadge schoolId={school.id} size={21} />
           </h1>
           <p className="text-[13px] text-gray-400 mt-0.5">
             {handle}{school.school_type ? ` · ${school.school_type}` : ''}{isOnline ? <span className="text-green-500 font-medium"> · Online</span> : null}
           </p>
-
-          {plusActive ? (
-            <p className="inline-flex items-center gap-1 mt-2 text-[11px] font-bold tracking-wide uppercase text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2.5 py-1">School Plus · Verified school</p>
-          ) : null}
 
           {school.location ? (
             <a href={mapsUrl()} target="_blank" rel="noreferrer" className="mt-2 flex items-center gap-1.5 text-sm text-gray-600">
