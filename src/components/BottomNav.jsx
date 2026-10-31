@@ -8,10 +8,79 @@ import { canPost } from '../lib/permissions.js'
 import OnboardingTour from './OnboardingTour.jsx'
 import CreateSheet from './CreateSheet.jsx'
 
-// Dark bottom bar with a raised round "+" button in the middle.
-// Colours are inline so the bar looks the same in every theme.
+// Phones in portrait use the dark bar at the bottom. Tablets and landscape
+// screens show the same tabs as a side bar (the nav-side rules are in index.css).
 const BAR = '#150F45'
 const IDLE = '#8E8BC8'
+
+function Tab({ to, label, icon: Icon, showBadge, unread, vertical = false }) {
+  return (
+    <NavLink
+      to={to}
+      style={{
+        flex: vertical ? undefined : 1,
+        width: vertical ? '100%' : undefined,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: 3,
+      }}
+    >
+      {({ isActive }) => (
+        <>
+          <span
+            style={{
+              position: 'relative', width: 44, height: 34, borderRadius: 14,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: isActive ? 'linear-gradient(135deg, #6D4DFF, #8B5CF6)' : 'transparent',
+              boxShadow: isActive ? '0 0 16px rgba(124,92,255,0.7)' : 'none',
+            }}
+          >
+            <Icon size={22} color={isActive ? '#fff' : IDLE} />
+            {showBadge && unread > 0 ? (
+              <span
+                style={{
+                  position: 'absolute', top: -2, right: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
+                  background: '#EF4444', color: '#fff', fontSize: 9, fontWeight: 700,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {unread > 9 ? '9+' : unread}
+              </span>
+            ) : null}
+          </span>
+          <span style={{ fontSize: 11, fontWeight: isActive ? 600 : 400, color: isActive ? '#fff' : IDLE }}>{label}</span>
+        </>
+      )}
+    </NavLink>
+  )
+}
+
+function PostButton({ label, onClick, big = true }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      style={{
+        width: big ? 62 : 56,
+        height: big ? 62 : 56,
+        marginTop: big ? -34 : 0,
+        borderRadius: 999,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #6D4DFF, #8B5CF6)',
+        color: '#fff',
+        border: `5px solid ${BAR}`,
+        boxShadow: '0 0 20px rgba(124,92,255,0.8)',
+      }}
+    >
+      <Plus size={big ? 32 : 28} strokeWidth={2.75} color="#fff" />
+    </button>
+  )
+}
 
 export default function BottomNav() {
   const unread = useUnreadCount()
@@ -29,77 +98,37 @@ export default function BottomNav() {
     { to: '/profile', label: t('profile'), icon: User },
   ]
 
-  function Tab({ to, label, icon: Icon, showBadge }) {
-    return (
-      <NavLink
-        key={to}
-        to={to}
-        style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}
-      >
-        {({ isActive }) => (
-          <>
-            <span
-              style={{
-                position: 'relative', width: 44, height: 34, borderRadius: 14,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: isActive ? 'linear-gradient(135deg, #6D4DFF, #8B5CF6)' : 'transparent',
-                boxShadow: isActive ? '0 0 16px rgba(124,92,255,0.7)' : 'none',
-              }}
-            >
-              <Icon size={22} color={isActive ? '#fff' : IDLE} />
-              {showBadge && unread > 0 ? (
-                <span
-                  style={{
-                    position: 'absolute', top: -2, right: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
-                    background: '#EF4444', color: '#fff', fontSize: 9, fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  {unread > 9 ? '9+' : unread}
-                </span>
-              ) : null}
-            </span>
-            <span style={{ fontSize: 11, fontWeight: isActive ? 600 : 400, color: isActive ? '#fff' : IDLE }}>{label}</span>
-          </>
-        )}
-      </NavLink>
-    )
-  }
-
   return (
     <>
-    <nav style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30 }}>
-      <div
-        style={{
-          position: 'relative', height: 70, display: 'flex', alignItems: 'center', padding: '0 8px',
-          background: `linear-gradient(180deg, ${BAR}, #0F0B38)`,
-          borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(139,92,246,0.35)',
-          boxShadow: '0 -6px 24px rgba(21,15,69,0.35)',
-        }}
-      >
-        {left.map((item) => <Tab key={item.to} {...item} />)}
-        {showPost ? (
-          <div style={{ width: 84, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              aria-label={t('post')}
-              style={{
-                width: 62, height: 62, marginTop: -34, borderRadius: 999, flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #6D4DFF, #8B5CF6)', color: '#fff',
-                border: `5px solid ${BAR}`, boxShadow: '0 0 20px rgba(124,92,255,0.8)',
-              }}
-            >
-              <Plus size={32} strokeWidth={2.75} color="#fff" />
-            </button>
-          </div>
-        ) : null}
-        {right.map((item) => <Tab key={item.to} {...item} />)}
-      </div>
-    </nav>
-    <CreateSheet open={createOpen} onClose={() => setCreateOpen(false)} />
-    <OnboardingTour />
+      {/* Phone, portrait: bar along the bottom */}
+      <nav className="nav-bottom" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30 }}>
+        <div
+          style={{
+            position: 'relative', height: 70, display: 'flex', alignItems: 'center', padding: '0 8px',
+            background: `linear-gradient(180deg, ${BAR}, #0F0B38)`,
+            borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(139,92,246,0.35)',
+            boxShadow: '0 -6px 24px rgba(21,15,69,0.35)',
+          }}
+        >
+          {left.map((item) => <Tab key={item.to} {...item} unread={unread} />)}
+          {showPost ? (
+            <div style={{ width: 84, flexShrink: 0, display: 'flex', justifyContent: 'center' }}>
+              <PostButton label={t('post')} onClick={() => setCreateOpen(true)} big />
+            </div>
+          ) : null}
+          {right.map((item) => <Tab key={item.to} {...item} unread={unread} />)}
+        </div>
+      </nav>
+
+      {/* Tablet and landscape: side bar on the left */}
+      <nav className="nav-side" aria-label="Main">
+        {left.map((item) => <Tab key={item.to} {...item} unread={unread} vertical />)}
+        {showPost ? <PostButton label={t('post')} onClick={() => setCreateOpen(true)} big={false} /> : null}
+        {right.map((item) => <Tab key={item.to} {...item} unread={unread} vertical />)}
+      </nav>
+
+      <CreateSheet open={createOpen} onClose={() => setCreateOpen(false)} />
+      <OnboardingTour />
     </>
   )
     }
