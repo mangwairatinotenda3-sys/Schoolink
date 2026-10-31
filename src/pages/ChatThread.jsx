@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2, Info } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import { CallButtons } from '../components/CallOverlay.jsx'
 import VoicePlayer from '../components/VoicePlayer.jsx'
 import MediaPreview from '../components/MediaPreview.jsx'
 import ZoomImage from '../components/ZoomImage.jsx'
@@ -1079,6 +1080,7 @@ export default function ChatThread() {
               <p className="font-semibold text-[15px] truncate flex items-center gap-1"><span className="truncate">{partner?.full_name || 'Schoolink member'}</span><VerifiedBadge userId={partnerId} size={14} /></p>
               <p className={`text-xs truncate ${partnerTyping ? 'text-brand-purple font-medium' : isOnline ? 'text-green-600' : 'text-gray-400'}`}>{partnerTyping ? 'typing…' : isOnline ? 'Online' : partner?.role || ''}</p>
             </button>
+            <CallButtons partnerId={partnerId} partnerName={partner?.full_name} partnerAvatar={partner?.avatar_url} />
             <button onClick={() => setSearchOpen(true)}><Search size={18} className="text-gray-400" /></button>
             <button onClick={() => navigate(`/chats/${partnerId}/options`)}><MoreVertical size={18} className="text-gray-400" /></button>
           </>
