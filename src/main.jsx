@@ -3,6 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { HashRouter } from 'react-router-dom'
 import App from './App.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
+import { CallProvider } from './context/CallContext.jsx'
+import CallOverlay from './components/CallOverlay.jsx'
 import ThemeProvider from './lib/ThemeProvider.jsx'
 import OAuthErrorBanner, { OAUTH_ERROR_KEY } from './components/OAuthErrorBanner.jsx'
 import ErrorBoundary from './components/ErrorBoundary.jsx'
@@ -54,7 +56,10 @@ function start() {
           <ThemeProvider>
             <OAuthErrorBanner />
             <ErrorBoundary>
-              <App />
+              <CallProvider>
+                <App />
+                <CallOverlay />
+              </CallProvider>
             </ErrorBoundary>
           </ThemeProvider>
         </AuthProvider>
