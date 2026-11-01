@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, MessageSquarePlus, Pin, PinOff, Archive, ArchiveRestore, Users, Search, X, BellOff, Bell, Check, CheckCheck, ChevronLeft, MessageCircle, Info } from 'lucide-react'
+import { Camera, MessageSquarePlus, Pin, PinOff, Archive, ArchiveRestore, Users, Search, X, BellOff, Bell, Check, CheckCheck, ChevronLeft, MessageCircle, Info, Phone } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
@@ -274,7 +274,10 @@ export default function ChatList() {
         ) : (
           <h1 className="font-bold text-[28px] leading-none">Chats</h1>
         )}
-        <button onClick={() => navigate('/statuses/create')} aria-label="Add status" className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center active:opacity-70"><Camera size={20} /></button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => navigate('/calls')} aria-label="Calls" className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center active:opacity-70"><Phone size={20} /></button>
+          <button onClick={() => navigate('/statuses/create')} aria-label="Add status" className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center active:opacity-70"><Camera size={20} /></button>
+        </div>
       </div>
 
       <div className="px-4 pb-2 shrink-0">
