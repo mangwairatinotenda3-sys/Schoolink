@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Send, Paperclip, Users, MoreVertical, Image as ImageIcon, FileText, Copy, Forward, Pin, PinOff,
-  Trash2, ShieldCheck, Info, Inbox, Lock, Loader2, X, Check, Reply, Star, Pencil, Phone, Search, BellOff, Bell, ChevronDown,
+  Trash2, ShieldCheck, Info, Inbox, Lock, Loader2, X, Check, Reply, Star, Pencil, Phone, Search, BellOff, Bell, ChevronDown, Mic, Plus, Smile,
 } from 'lucide-react'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
 import { ConfirmSheet } from '../components/FamilySheets.jsx'
@@ -12,13 +12,19 @@ import CommunityReviewSheet from '../components/CommunityReviewSheet.jsx'
 import CommunityCallSheet from '../components/CommunityCallSheet.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
+import useVoiceRecorder from '../lib/useVoiceRecorder.js'
+import EmojiPicker from '../components/EmojiPicker.jsx'
 import { supabase } from '../lib/supabaseClient.js'
-import { loadCommunityMembers } from '../lib/communityMembers.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 const EDIT_WINDOW_MS = 15 * 60 * 1000
 const FOREVER = '2099-12-31T00:00:00Z'
+
+function clock(total) {
+  const s = Math.max(0, Math.floor(total || 0))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 const MUTE_MS = { '8h': 8 * 3600 * 1000, '1w': 7 * 24 * 3600 * 1000 }
 
 const byTime = (a, b) => new Date(a.created_at) - new Date(b.created_at)
@@ -105,7 +111,14 @@ export default function CommunityDetail() {
   const [search, setSearch] = useState(null)
   const [starredOnly, setStarredOnly] = useState(false)
   const [showDown, setShowDown] = useState(false)
+  const [composerEmoji, setComposerEmoji] = useState(false)
+  const [reactPicker, setReactPicker] = useState(null)
   const [toast, setToast] = useState('')
+
+  const voice = useVoiceRecorder({
+    onRecorded: (file) => sendVoice(file),
+    onError: (msg) => setToast(msg),
+  })
 
   const mode = community?.posting_mode || 'everyone'
   const isMember = !!myRole
@@ -135,14 +148,10 @@ export default function CommunityDetail() {
   // ---------- Loading ----------
   async function loadAll(first = false) {
     if (first) setLoading(true)
-        const [{ data: comm }, mem] = await Promise.all([
+    const [{ data: comm }, { data: rows }] = await Promise.all([
       supabase.from('communities').select('*').eq('id', communityId).maybeSingle(),
-      loadCommunityMembers(communityId),
-    ])
-    if (mem.error) setToast(mem.error.message || 'Could not load members.')
-    const rows = mem.rows
       supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId),
-    
+    ])
     setCommunity(comm)
     setMembers(rows ?? [])
     const role = (rows ?? []).find((r) => r.user_id === user.id)?.role ?? null
@@ -259,7 +268,7 @@ export default function CommunityDetail() {
     setShowDown(!near)
   }
 
-  // ---------- Derived ----------
+    // ---------- Derived ----------
   const pinned = useMemo(
     () => messages.filter((m) => m.pinned_at && !m.removed_at && !m.deleted_at).sort((a, b) => new Date(b.pinned_at) - new Date(a.pinned_at)),
     [messages]
@@ -294,7 +303,8 @@ export default function CommunityDetail() {
   const sheetLive = !!sheetMsg && !sheetMsg.removed_at && !sheetMsg.deleted_at && sheetMsg.kind !== 'system'
   const canEditMsg = (m) => !!m && m.sender_id === user.id && !m.removed_at && !m.deleted_at && !m.media_url && m.kind === 'user'
     && Date.now() - Date.parse(m.created_at) < EDIT_WINDOW_MS
-    // ---------- Sending ----------
+
+  // ---------- Sending ----------
   async function sendMessage(fields) {
     const status = mode === 'approval' && !isAdmin ? 'pending' : 'approved'
     const { data, error } = await supabase
@@ -359,6 +369,17 @@ export default function CommunityDetail() {
     inputRef.current?.focus()
   }
 
+  function insertEmoji(e) {
+    const el = inputRef.current
+    const start = el?.selectionStart ?? text.length
+    const end = el?.selectionEnd ?? text.length
+    onType(text.slice(0, start) + e + text.slice(end))
+    requestAnimationFrame(() => {
+      el?.focus()
+      el?.setSelectionRange(start + e.length, start + e.length)
+    })
+  }
+
   function startReply(m) {
     setActionMsg(null)
     setEditing(null)
@@ -398,6 +419,20 @@ export default function CommunityDetail() {
 
   const pickPhoto = (e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f, 'media') }
   const pickFile = (e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f, 'file') }
+
+  async function sendVoice(file) {
+    if (!file || !canPost) return
+    setUploading(true)
+    const ext = (file.name.split('.').pop() || 'webm').toLowerCase()
+    const path = `${communityId}/${user.id}/${Date.now()}-voice.${ext}`
+    const { error: upErr } = await supabase.storage.from('community-media').upload(path, file, { contentType: file.type })
+    if (upErr) { setUploading(false); setToast('Could not send the voice message.'); return }
+    const { data } = supabase.storage.from('community-media').getPublicUrl(path)
+    const reply = replyTo
+    setReplyTo(null)
+    await sendMessage({ media_url: data.publicUrl, media_type: 'audio', ...(reply ? { reply_to: reply.id } : {}) })
+    setUploading(false)
+  }
 
   // ---------- Message actions ----------
   const patch = (id, fields) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...fields } : m)))
@@ -537,12 +572,12 @@ export default function CommunityDetail() {
       if (error) setToast('Could not send the request.')
       else setRequested(true)
     } else {
-      const { data, error } = await supabase.rpc('community_join', { p_community: String(communityId) })
-      if (error || !data?.ok) setToast(error?.message || data?.error || 'Could not join. Try again.')
+      const { error } = await supabase.from('community_members').upsert({ community_id: communityId, user_id: user.id, role: 'member' }, { onConflict: 'community_id,user_id' })
+      if (error) setToast('Could not join. Try again.')
       else await loadAll()
     }
     setJoining(false)
-  }
+                          }
 
   // ---------- Screens ----------
   if (loading || !community) {
@@ -716,9 +751,25 @@ export default function CommunityDetail() {
               </div>
             ) : null}
 
+            {composerEmoji && !voice.recording ? (
+              <div className="mx-3 mt-2 rounded-xl border border-gray-100 bg-white">
+                <EmojiPicker onPick={insertEmoji} height={230} />
+              </div>
+            ) : null}
+
+            {voice.recording ? (
+              <div className="flex items-center gap-3 px-3 pt-2">
+                <button onClick={voice.cancel} aria-label="Cancel recording" className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center shrink-0"><Trash2 size={18} className="text-red-400" /></button>
+                <span className="flex-1 flex items-center gap-2 text-sm font-medium text-red-500"><span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />Recording {clock(voice.seconds)}</span>
+                <button onClick={voice.stop} aria-label="Send voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0"><Send size={17} className="text-white" /></button>
+              </div>
+            ) : (
             <div className="flex items-end gap-2 px-3 pt-2">
               <button onClick={() => setAttachOpen(true)} disabled={uploading || !!editing} aria-label="Attach" className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-gray-500 active:bg-gray-100 disabled:opacity-40">
                 {uploading ? <Loader2 size={20} className="animate-spin" /> : <Paperclip size={21} />}
+              </button>
+              <button onClick={() => setComposerEmoji((v) => !v)} aria-label={composerEmoji ? 'Close emojis' : 'Emojis'} aria-pressed={composerEmoji} className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:bg-gray-100 ${composerEmoji ? 'text-brand-purple' : 'text-gray-500'}`}>
+                <Smile size={21} />
               </button>
               <input ref={photoInputRef} type="file" accept="image/*,video/*" onChange={pickPhoto} className="hidden" />
               <input ref={fileInputRef} type="file" onChange={pickFile} className="hidden" />
@@ -731,10 +782,17 @@ export default function CommunityDetail() {
                 maxLength={4000}
                 className="flex-1 min-w-0 bg-gray-100 rounded-full px-4 py-2.5 text-[15px] outline-none"
               />
-              <button onClick={handleSend} disabled={sending || !text.trim()} aria-label={editing ? 'Save edit' : 'Send'} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40">
-                {editing ? <Check size={18} className="text-white" /> : <Send size={17} className="text-white" />}
-              </button>
+              {text.trim() || editing ? (
+                <button onClick={handleSend} disabled={sending || !text.trim()} aria-label={editing ? 'Save edit' : 'Send'} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40">
+                  {editing ? <Check size={18} className="text-white" /> : <Send size={17} className="text-white" />}
+                </button>
+              ) : (
+                <button onClick={voice.start} disabled={uploading} aria-label="Record voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-transform">
+                  <Mic size={18} className="text-white" />
+                </button>
+              )}
             </div>
+            )}
           </div>
         ) : (
           <div className="px-4 py-3.5 border-t border-gray-100 text-center text-sm text-gray-400 flex items-center justify-center gap-2 shrink-0" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
@@ -788,7 +846,7 @@ export default function CommunityDetail() {
         </BottomSheet>
       ) : null}
 
-      {/* Message actions */}
+{/* Message actions */}
       {sheetMsg ? (
         <BottomSheet onClose={() => setActionMsg(null)}>
           <div className="px-4 pb-2">
@@ -803,6 +861,7 @@ export default function CommunityDetail() {
                   <button key={e} onClick={() => react(sheetMsg, e)} aria-label={`React ${e}`} className={`w-11 h-11 rounded-full text-2xl flex items-center justify-center ${on ? 'bg-brand-light' : ''}`}>{e}</button>
                 )
               })}
+              <button onClick={() => { setActionMsg(null); setReactPicker(sheetMsg) }} aria-label="More reactions" className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 text-gray-600"><Plus size={20} /></button>
             </div>
           ) : null}
           {canPost && sheetLive && !sheetPending ? <SheetAction icon={Reply} label="Reply" onClick={() => startReply(sheetMsg)} /> : null}
@@ -826,7 +885,15 @@ export default function CommunityDetail() {
         </BottomSheet>
       ) : null}
 
-    {/* Message info: who has read it */}
+      {/* Full emoji list to react with */}
+      {reactPicker ? (
+        <BottomSheet onClose={() => setReactPicker(null)}>
+          <p className="px-4 pb-2 font-semibold">React</p>
+          <EmojiPicker height={300} selected={(reactions[reactPicker.id] ?? []).find((r) => r.user_id === user.id)?.emoji ?? null} onPick={(e) => { const target = reactPicker; setReactPicker(null); react(target, e) }} />
+        </BottomSheet>
+      ) : null}
+
+      {/* Message info: who has read it */}
       {infoMsg ? (
         <BottomSheet onClose={() => setInfoMsg(null)}>
           <div className="px-4 pb-3">
@@ -869,4 +936,4 @@ export default function CommunityDetail() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 84 }}>{toast}</div> : null}
     </div>
   )
-}
+      }
