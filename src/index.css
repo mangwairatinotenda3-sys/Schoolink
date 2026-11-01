@@ -349,4 +349,13 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
     background: linear-gradient(180deg, #150F45, #0F0B38);
     border-right: 1px solid rgba(139, 92, 246, 0.35);
   }
-                                 }
+         }
+
+/* Phones: the app fills the whole screen with no drop shadow at the edges */
+@media (max-width: 480px) {
+  .app-shell {
+    max-width: 100% !important;
+    box-shadow: none !important;
+    margin: 0 !important;
+  }
+}
