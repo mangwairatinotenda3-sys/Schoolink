@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Camera, Copy, Share2, UserPlus, LogOut, Trash2, Pencil, Image as ImageIcon, MessageCircle, User, ShieldCheck, ShieldOff, UserMinus, ChevronRight, Loader2, Inbox, Search, X, Link2, FileText, Play, Lock } from 'lucide-react'
+import { ChevronLeft, Camera, Copy, Share2, UserPlus, LogOut, Trash2, Pencil, Image as ImageIcon, MessageCircle, User, ShieldCheck, ShieldOff, UserMinus, ChevronRight, Loader2, Inbox, Search, X, Link2, FileText, Play, Lock, Phone, Bell, BellOff, Timer } from 'lucide-react'
 import ZoomImage from '../components/ZoomImage.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
 import { ConfirmSheet } from '../components/FamilySheets.jsx'
 import CommunityAddPeople from '../components/CommunityAddPeople.jsx'
+import CommunityCallSheet from '../components/CommunityCallSheet.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -19,8 +20,30 @@ function ActionButton({ icon: Icon, label, onClick }) {
   )
 }
 
+// On/off switch, native style
+function Toggle({ on, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={disabled}
+      onClick={() => onChange(!on)}
+      className={`relative w-12 h-7 rounded-full shrink-0 transition-colors disabled:opacity-50 ${on ? 'bg-brand-purple' : 'bg-gray-300'}`}
+    >
+      <span className={`absolute top-0.5 left-0.5 w-6 h-6 rounded-full bg-white shadow transition-transform ${on ? 'translate-x-5' : ''}`} />
+    </button>
+  )
+}
+
 const urlRegex = /(https?:\/\/[^\s]+)/g
 const MEDIA_TABS = ['Photos', 'Videos', 'Files', 'Links']
+const EPHEMERAL = [[0, 'Off'], [86400, '24 hours'], [604800, '7 days'], [7776000, '90 days']]
+const EPHEMERAL_TEXT = { 0: 'Off', 86400: '24 hours', 604800: '7 days', 7776000: '90 days' }
+const FOREVER = '2099-12-31T00:00:00Z'
+const MUTE_OPTIONS = [['8h', '8 hours'], ['1w', '1 week'], ['always', 'Always']]
+const MUTE_MS = { '8h': 8 * 3600 * 1000, '1w': 7 * 24 * 3600 * 1000 }
+const isMutedNow = (until) => !!until && Date.parse(until) > Date.now()
 
 // Group info, laid out like WhatsApp: admins run the group, everyone sees who is in it.
 export default function CommunityGroupInfo() {
@@ -28,16 +51,20 @@ export default function CommunityGroupInfo() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const fileRef = useRef(null)
+  const searchRef = useRef(null)
 
   const [community, setCommunity] = useState(null)
   const [members, setMembers] = useState([])
   const [pendingCount, setPendingCount] = useState(0)
+  const [mutedUntil, setMutedUntil] = useState(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [busy, setBusy] = useState(false)
   const [sheet, setSheet] = useState(null)
   const [confirm, setConfirm] = useState(null)
   const [adding, setAdding] = useState(false)
+  const [callOpen, setCallOpen] = useState(false)
+  const [muteOpen, setMuteOpen] = useState(false)
   const [edit, setEdit] = useState(null)
   const [toast, setToast] = useState('')
   const [tab, setTab] = useState('Members')
@@ -46,9 +73,9 @@ export default function CommunityGroupInfo() {
   const [mediaRows, setMediaRows] = useState(null)
   const [mediaTab, setMediaTab] = useState('Photos')
   const [viewer, setViewer] = useState(null)
-  const searchRef = useRef(null)
 
   const me = members.find((m) => m.user_id === user.id)
+  const isMember = !!me
   const isAdmin = me?.role === 'admin'
   const admins = members.filter((m) => m.role === 'admin')
   const sorted = [...members].sort((a, b) => (a.user_id === user.id ? -1 : b.user_id === user.id ? 1 : a.role === b.role ? (a.profiles?.full_name || '').localeCompare(b.profiles?.full_name || '') : a.role === 'admin' ? -1 : 1))
@@ -64,6 +91,8 @@ export default function CommunityGroupInfo() {
     setCommunity(comm)
     const { data: rows } = await supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId)
     setMembers(rows ?? [])
+    const { data: rd } = await supabase.from('community_reads').select('muted_until').eq('user_id', user.id).eq('community_id', communityId).maybeSingle()
+    setMutedUntil(rd?.muted_until ?? null)
     if (comm?.is_private) {
       const { count } = await supabase.from('community_join_requests').select('*', { count: 'exact', head: true }).eq('community_id', communityId).eq('status', 'pending')
       setPendingCount(count ?? 0)
@@ -117,9 +146,44 @@ export default function CommunityGroupInfo() {
   const removeMember = (m) => run(() => supabase.rpc('community_remove_member', { p_community: String(communityId), p_user: m.user_id }), `${m.profiles?.full_name || 'Member'} removed`)
   const POSTING_TEXT = { everyone: 'Everyone can send messages', admins_only: 'Only admins can send messages', approval: 'Messages need an admin to approve them' }
   const setPosting = (mode) => run(() => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: community.name, p_description: community.description || '', p_posting: mode }), POSTING_TEXT[mode])
+
+  // Admins can change everything; members can change the name and description only when admins have not locked it
   const saveInfo = async () => {
-    const ok = await run(() => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: edit.name, p_description: edit.description, p_posting: community.posting_mode }), 'Saved')
+    const fn = isAdmin
+      ? () => supabase.rpc('community_update_info', { p_community: String(communityId), p_name: edit.name, p_description: edit.description, p_posting: community.posting_mode })
+      : () => supabase.rpc('community_member_edit_info', { p_community: String(communityId), p_name: edit.name, p_description: edit.description })
+    const ok = await run(fn, 'Saved')
     if (ok) setEdit(null)
+  }
+
+  const setPermissions = (patch) => {
+    const next = {
+      info_admin_only: community.info_admin_only,
+      add_admin_only: community.add_admin_only,
+      ...patch,
+    }
+    return run(
+      () => supabase.rpc('community_set_permissions', { p_community: String(communityId), p_info_admin_only: next.info_admin_only, p_add_admin_only: next.add_admin_only }),
+      'Permissions updated'
+    )
+  }
+
+  const setEphemeral = (seconds) => run(
+    () => supabase.rpc('community_set_ephemeral', { p_community: String(communityId), p_seconds: seconds }),
+    seconds ? `Disappearing messages on (${EPHEMERAL_TEXT[seconds]})` : 'Disappearing messages off'
+  )
+
+  // Mute is personal: it only silences this community for you
+  async function setMute(key) {
+    setMuteOpen(false)
+    const until = key === 'off' ? null : key === 'always' ? FOREVER : new Date(Date.now() + MUTE_MS[key]).toISOString()
+    const { error } = await supabase.from('community_reads').upsert(
+      { user_id: user.id, community_id: communityId, muted_until: until },
+      { onConflict: 'user_id,community_id' }
+    )
+    if (error) { setToast('Could not change that.'); return }
+    setMutedUntil(until)
+    setToast(until ? 'Notifications muted' : 'Notifications on')
   }
 
   async function leave() {
@@ -179,7 +243,7 @@ export default function CommunityGroupInfo() {
         <div className="flex-1 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin" /></div>
       </div>
     )
-  }
+         }
 
   const target = sheet?.member
   const creator = members.find((m) => m.user_id === community.created_by)
@@ -187,6 +251,11 @@ export default function CommunityGroupInfo() {
   const createdOn = community.created_at ? new Date(community.created_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : ''
   const q = query.trim().toLowerCase()
   const shown = q ? sorted.filter((m) => (m.user_id === user.id ? 'you' : m.profiles?.full_name || '').toLowerCase().includes(q)) : sorted
+  const canEditInfo = isMember && (isAdmin || !community.info_admin_only)
+  const canAdd = isMember && (isAdmin || !community.add_admin_only)
+  const canCall = isMember && members.length > 1
+  const ephemeral = community.ephemeral_seconds || 0
+  const muted = isMutedNow(mutedUntil)
 
   const rows = mediaRows ?? []
   const photos = rows.filter((m) => m.media_type === 'image' && m.media_url)
@@ -199,14 +268,14 @@ export default function CommunityGroupInfo() {
     <div className="app-shell relative">
       <div className="flex items-center justify-between px-3 shrink-0" style={{ height: 56 }}>
         <button onClick={() => navigate(-1)} aria-label="Back" className="w-10 h-10 rounded-full flex items-center justify-center"><ChevronLeft size={24} /></button>
-        {isAdmin ? <button onClick={() => setEdit({ name: community.name || '', description: community.description || '' })} aria-label="Edit community" className="w-10 h-10 rounded-full flex items-center justify-center"><Pencil size={19} /></button> : <span className="w-10" />}
+        {canEditInfo ? <button onClick={() => setEdit({ name: community.name || '', description: community.description || '' })} aria-label="Edit community" className="w-10 h-10 rounded-full flex items-center justify-center"><Pencil size={19} /></button> : <span className="w-10" />}
       </div>
 
       <div className="flex-1 overflow-y-auto" style={{ paddingBottom: 40 }}>
         <div className="flex flex-col items-center px-6 pb-5">
           <div className="relative">
             {community.avatar_url ? <img src={community.avatar_url} alt="" className="w-36 h-36 rounded-full object-cover" /> : <span className="w-36 h-36 rounded-full bg-brand-light flex items-center justify-center text-5xl">🏘️</span>}
-            {isAdmin ? (
+            {canEditInfo ? (
               <button onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Change picture" className="absolute bottom-1 right-1 w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white">
                 {uploading ? <Loader2 size={16} className="animate-spin text-white" /> : <Camera size={17} className="text-white" />}
               </button>
@@ -219,7 +288,8 @@ export default function CommunityGroupInfo() {
         </div>
 
         <div className="flex justify-center gap-3 px-4 pb-5">
-          {isAdmin ? <ActionButton icon={UserPlus} label="Add" onClick={() => setAdding(true)} /> : null}
+          {canAdd ? <ActionButton icon={UserPlus} label="Add" onClick={() => setAdding(true)} /> : null}
+          {canCall ? <ActionButton icon={Phone} label="Call" onClick={() => setCallOpen(true)} /> : null}
           <ActionButton icon={Share2} label="Share" onClick={shareInvite} />
           <ActionButton icon={Search} label="Search" onClick={openSearch} />
           <ActionButton icon={ImageIcon} label="Media" onClick={() => setTab('Media')} />
@@ -251,7 +321,7 @@ export default function CommunityGroupInfo() {
               )}
             </div>
 
-            {!q && isAdmin ? (
+            {!q && canAdd ? (
               <button onClick={() => setAdding(true)} className="w-full flex items-center gap-4 py-2.5 text-left active:bg-gray-50">
                 <span className="w-11 h-11 rounded-full bg-brand-purple flex items-center justify-center"><UserPlus size={19} className="text-white" /></span>
                 <span className="font-medium text-[16px]">Add members</span>
@@ -343,9 +413,64 @@ export default function CommunityGroupInfo() {
           </div>
         ) : null}
 
-        {tab === 'Settings' ? (
+                {tab === 'Settings' ? (
           <div className="pt-1">
-            <div className="px-4 py-4">
+            {/* Notifications: personal, only changes what you get */}
+            <button onClick={() => setMuteOpen(true)} className="w-full flex items-center gap-4 px-4 py-3.5 text-left active:bg-gray-50">
+              <span className="w-6 flex justify-center">{muted ? <BellOff size={21} className="text-gray-500" /> : <Bell size={21} className="text-gray-500" />}</span>
+              <span className="flex-1 min-w-0">
+                <span className="block text-[16px]">Notifications</span>
+                <span className="block text-[13px] text-gray-400">{muted ? 'Muted' : 'On'}</span>
+              </span>
+              <ChevronRight size={16} className="text-gray-300" />
+            </button>
+
+            {/* Who can change the group */}
+            <div className="px-4 py-4 border-t border-gray-100">
+              <p className="text-[13px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Permissions</p>
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[16px]">Edit group info</p>
+                  <p className="text-[13px] text-gray-400">{community.info_admin_only ? 'Only admins' : 'All members'}</p>
+                </div>
+                {isAdmin ? <Toggle on={!community.info_admin_only} disabled={busy} onChange={(on) => setPermissions({ info_admin_only: !on })} /> : null}
+              </div>
+              <div className="flex items-center gap-4 py-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-[16px]">Add members</p>
+                  <p className="text-[13px] text-gray-400">{community.add_admin_only ? 'Only admins' : 'All members'}</p>
+                </div>
+                {isAdmin ? <Toggle on={!community.add_admin_only} disabled={busy} onChange={(on) => setPermissions({ add_admin_only: !on })} /> : null}
+              </div>
+            </div>
+
+            {/* Disappearing messages */}
+            <div className="px-4 py-4 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <span className="w-6 flex justify-center"><Timer size={21} className="text-gray-500" /></span>
+                <div className="min-w-0">
+                  <p className="text-[16px]">Disappearing messages</p>
+                  <p className="text-[13px] text-gray-400">{EPHEMERAL_TEXT[ephemeral]}</p>
+                </div>
+              </div>
+              {isAdmin ? (
+                <div className="mt-2 ml-10 space-y-0.5">
+                  {EPHEMERAL.map(([secs, label]) => {
+                    const on = ephemeral === secs
+                    return (
+                      <button key={secs} type="button" disabled={busy} onClick={() => !on && setEphemeral(secs)} className="w-full flex items-center gap-3 py-2 text-left disabled:opacity-50">
+                        <span className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 ${on ? 'border-brand-purple' : 'border-gray-300'}`}>{on ? <span className="w-2.5 h-2.5 rounded-full bg-brand-purple" /> : null}</span>
+                        <span className="text-sm font-medium">{label}</span>
+                      </button>
+                    )
+                  })}
+                  <p className="text-xs text-gray-400 pt-1">New messages disappear after the time you choose. Messages already sent are not affected.</p>
+                </div>
+              ) : null}
+            </div>
+
+            {/* Who can send messages */}
+            <div className="px-4 py-4 border-t border-gray-100">
               <div className="flex items-center gap-4">
                 <span className="w-6 flex justify-center"><Lock size={21} className="text-gray-500" /></span>
                 <div className="min-w-0">
@@ -394,10 +519,12 @@ export default function CommunityGroupInfo() {
               <ChevronRight size={16} className="text-gray-300" />
             </button>
 
-            <div className="border-t border-gray-100 mt-1">
-              <button onClick={() => setConfirm('leave')} className="w-full flex items-center gap-4 px-4 py-4 text-red-500 text-[16px]"><span className="w-6 flex justify-center"><LogOut size={21} /></span> Exit community</button>
-              {isAdmin ? <button onClick={() => setConfirm('delete')} className="w-full flex items-center gap-4 px-4 py-4 text-red-500 text-[16px]"><span className="w-6 flex justify-center"><Trash2 size={21} /></span> Delete community</button> : null}
-            </div>
+            {isMember ? (
+              <div className="border-t border-gray-100 mt-1">
+                <button onClick={() => setConfirm('leave')} className="w-full flex items-center gap-4 px-4 py-4 text-red-500 text-[16px]"><span className="w-6 flex justify-center"><LogOut size={21} /></span> Exit community</button>
+                {isAdmin ? <button onClick={() => setConfirm('delete')} className="w-full flex items-center gap-4 px-4 py-4 text-red-500 text-[16px]"><span className="w-6 flex justify-center"><Trash2 size={21} /></span> Delete community</button> : null}
+              </div>
+            ) : null}
             <p className="px-4 pt-3 pb-2 text-[13px] text-gray-400">Created by {creatorName}{createdOn ? `, ${createdOn}` : ''}</p>
           </div>
         ) : null}
@@ -413,6 +540,14 @@ export default function CommunityGroupInfo() {
             {viewer.type === 'image' ? <ZoomImage src={viewer.url} /> : <video src={viewer.url} controls autoPlay playsInline className="max-h-full max-w-full" />}
           </div>
         </div>
+      ) : null}
+
+      {muteOpen ? (
+        <BottomSheet onClose={() => setMuteOpen(false)}>
+          <p className="px-4 pb-2 font-semibold">Mute notifications</p>
+          {MUTE_OPTIONS.map(([key, label]) => <SheetAction key={key} icon={BellOff} label={label} onClick={() => setMute(key)} />)}
+          {muted ? <SheetAction icon={Bell} label="Unmute" onClick={() => setMute('off')} /> : null}
+        </BottomSheet>
       ) : null}
 
       {sheet && target ? (
@@ -455,6 +590,8 @@ export default function CommunityGroupInfo() {
       {confirm?.remove ? (
         <ConfirmSheet title={`Remove ${confirm.remove.profiles?.full_name || 'this person'}?`} body="They will no longer be in this community." confirmLabel="Remove" danger onConfirm={() => removeMember(confirm.remove)} onClose={() => setConfirm(null)} />
       ) : null}
+
+      {callOpen ? <CommunityCallSheet members={members.filter((m) => m.user_id !== user.id)} onClose={() => setCallOpen(false)} /> : null}
 
       {adding ? (
         <CommunityAddPeople
