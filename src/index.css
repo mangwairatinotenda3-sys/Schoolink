@@ -351,11 +351,15 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
   }
          }
 
-/* Phones: the app fills the whole screen with no drop shadow at the edges */
-@media (max-width: 480px) {
+/* Phones in portrait: the app fills the whole screen, with no gaps or shadow at the edges */
+@media (max-width: 480px) and (orientation: portrait) {
   .app-shell {
-    max-width: 100% !important;
+    position: fixed;
+    inset: 0;
+    width: 100vw;
+    max-width: none;
+    height: 100dvh;
+    margin: 0;
     box-shadow: none !important;
-    margin: 0 !important;
   }
-}
+    }
