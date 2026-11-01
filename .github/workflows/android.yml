@@ -4,8 +4,8 @@ on:
   workflow_dispatch:
 
 env:
-  APP_VERSION_CODE: 5
-  APP_VERSION_NAME: '5.0'
+  APP_VERSION_CODE: 6
+  APP_VERSION_NAME: '6.0'
 
 jobs:
   apk:
