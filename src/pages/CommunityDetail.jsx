@@ -142,7 +142,7 @@ export default function CommunityDetail() {
     if (mem.error) setToast(mem.error.message || 'Could not load members.')
     const rows = mem.rows
       supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId),
-    ])
+    
     setCommunity(comm)
     setMembers(rows ?? [])
     const role = (rows ?? []).find((r) => r.user_id === user.id)?.role ?? null
