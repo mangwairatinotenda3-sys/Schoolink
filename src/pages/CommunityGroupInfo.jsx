@@ -7,6 +7,7 @@ import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
 import { ConfirmSheet } from '../components/FamilySheets.jsx'
 import CommunityAddPeople from '../components/CommunityAddPeople.jsx'
 import CommunityCallSheet from '../components/CommunityCallSheet.jsx'
+import { loadCommunityMembers } from '../lib/communityMembers.js'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -65,6 +66,7 @@ export default function CommunityGroupInfo() {
   const [adding, setAdding] = useState(false)
   const [callOpen, setCallOpen] = useState(false)
   const [muteOpen, setMuteOpen] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
   const [edit, setEdit] = useState(null)
   const [toast, setToast] = useState('')
   const [tab, setTab] = useState('Members')
@@ -86,18 +88,30 @@ export default function CommunityGroupInfo() {
     return () => clearTimeout(t)
   }, [toast])
 
+  // Always finishes loading, even if one request fails, so the page never spins forever
   async function loadAll() {
-    const { data: comm } = await supabase.from('communities').select('*').eq('id', communityId).maybeSingle()
-    setCommunity(comm)
-    const { rows } = await loadCommunityMembers(communityId)
-    setMembers(rows ?? [])
-    const { data: rd } = await supabase.from('community_reads').select('muted_until').eq('user_id', user.id).eq('community_id', communityId).maybeSingle()
-    setMutedUntil(rd?.muted_until ?? null)
-    if (comm?.is_private) {
-      const { count } = await supabase.from('community_join_requests').select('*', { count: 'exact', head: true }).eq('community_id', communityId).eq('status', 'pending')
-      setPendingCount(count ?? 0)
+    try {
+      const [{ data: comm, error: cErr }, mem] = await Promise.all([
+        supabase.from('communities').select('*').eq('id', communityId).maybeSingle(),
+        loadCommunityMembers(communityId),
+      ])
+      if (cErr) setToast(cErr.message)
+      if (mem.error) setToast(mem.error.message)
+      setCommunity(comm ?? null)
+      setMembers(mem.rows ?? [])
+
+      const { data: rd } = await supabase.from('community_reads').select('muted_until').eq('user_id', user.id).eq('community_id', communityId).maybeSingle()
+      setMutedUntil(rd?.muted_until ?? null)
+
+      if (comm?.is_private) {
+        const { count } = await supabase.from('community_join_requests').select('*', { count: 'exact', head: true }).eq('community_id', communityId).eq('status', 'pending')
+        setPendingCount(count ?? 0)
+      }
+    } catch (e) {
+      setToast(e?.message || 'Could not load this community.')
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   useEffect(() => { loadAll() }, [communityId])
@@ -224,6 +238,17 @@ export default function CommunityGroupInfo() {
     setUploading(false)
     if (error) { setToast('Could not save the picture.'); return }
     setCommunity((c) => ({ ...c, avatar_url: url }))
+    setToast('Picture updated')
+  }
+
+  async function removePhoto() {
+    setPhotoOpen(false)
+    setUploading(true)
+    const { error } = await supabase.from('communities').update({ avatar_url: null }).eq('id', communityId)
+    setUploading(false)
+    if (error) { setToast('Could not remove the picture.'); return }
+    setCommunity((c) => ({ ...c, avatar_url: null }))
+    setToast('Picture removed')
   }
 
   function inviteLink() {
@@ -239,7 +264,7 @@ export default function CommunityGroupInfo() {
     else copyInvite()
   }
 
-  if (loading || !community) {
+  if (loading) {
     return (
       <div className="app-shell">
         <div className="px-3 flex items-center" style={{ height: 56 }}>
@@ -248,9 +273,23 @@ export default function CommunityGroupInfo() {
         <div className="flex-1 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin" /></div>
       </div>
     )
-        }
+  }
 
-    const target = sheet?.member
+  if (!community) {
+    return (
+      <div className="app-shell">
+        <div className="px-3 flex items-center" style={{ height: 56 }}>
+          <button onClick={() => navigate(-1)} aria-label="Back" className="w-10 h-10 rounded-full flex items-center justify-center"><ChevronLeft size={24} /></button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center px-8 text-center gap-3">
+          <p className="font-semibold">This community could not be opened.</p>
+          <p className="text-sm text-gray-400">It may have been deleted, or you may not have access. {toast}</p>
+        </div>
+      </div>
+    )
+                 }
+
+  const target = sheet?.member
   const creator = members.find((m) => m.user_id === community.created_by)
   const creatorName = community.created_by === user.id ? 'You' : creator?.profiles?.full_name || 'a member'
   const createdOn = community.created_at ? new Date(community.created_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : ''
@@ -281,7 +320,7 @@ export default function CommunityGroupInfo() {
           <div className="relative">
             {community.avatar_url ? <img src={community.avatar_url} alt="" className="w-36 h-36 rounded-full object-cover" /> : <span className="w-36 h-36 rounded-full bg-brand-light flex items-center justify-center text-5xl">🏘️</span>}
             {canEditInfo ? (
-              <button onClick={() => fileRef.current?.click()} disabled={uploading} aria-label="Change picture" className="absolute bottom-1 right-1 w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white">
+              <button onClick={() => setPhotoOpen(true)} disabled={uploading} aria-label="Change picture" className="absolute bottom-1 right-1 w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center border-2 border-white">
                 {uploading ? <Loader2 size={16} className="animate-spin text-white" /> : <Camera size={17} className="text-white" />}
               </button>
             ) : null}
@@ -559,6 +598,14 @@ export default function CommunityGroupInfo() {
         </div>
       ) : null}
 
+      {photoOpen ? (
+        <BottomSheet onClose={() => setPhotoOpen(false)}>
+          <p className="px-4 pb-2 font-semibold">Community picture</p>
+          <SheetAction icon={Camera} label="Choose new picture" onClick={() => { setPhotoOpen(false); fileRef.current?.click() }} />
+          {community.avatar_url ? <SheetAction icon={Trash2} label="Remove picture" danger onClick={removePhoto} /> : null}
+        </BottomSheet>
+      ) : null}
+
       {muteOpen ? (
         <BottomSheet onClose={() => setMuteOpen(false)}>
           <p className="px-4 pb-2 font-semibold">Mute notifications</p>
@@ -624,5 +671,4 @@ export default function CommunityGroupInfo() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 30 }}>{toast}</div> : null}
     </div>
   )
-         }
-  
+                      }
