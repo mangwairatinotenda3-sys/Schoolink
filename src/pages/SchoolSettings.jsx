@@ -6,6 +6,7 @@ import {
 } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
+import SchoolPlusReminder from '../components/SchoolPlusReminder.jsx'
 import VerifiedBadge, { useIsVerifiedSchool } from '../components/VerifiedBadge.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -89,6 +90,7 @@ export default function SchoolSettings() {
       <BackHeader title="School dashboard" />
       <div className="screen-scroll pb-10">
         <div className="mx-4 mt-1 rounded-3xl bg-brand-navy text-white p-5 relative overflow-hidden">
+         <SchoolPlusReminder schoolId={schoolId} />
           <span className="absolute -right-10 -top-10 w-40 h-40 rounded-full border border-white/10" />
           <span className="absolute -right-4 -top-4 w-24 h-24 rounded-full border border-white/10" />
           <p className="text-[11px] uppercase tracking-[0.14em] text-white/50">Managing</p>
