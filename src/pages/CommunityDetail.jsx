@@ -572,13 +572,13 @@ export default function CommunityDetail() {
       if (error) setToast('Could not send the request.')
       else setRequested(true)
     } else {
-      const { error } = await supabase.from('community_members').upsert({ community_id: communityId, user_id: user.id, role: 'member' }, { onConflict: 'community_id,user_id' })
-      if (error) setToast('Could not join. Try again.')
-      else await loadAll()
+      
     }
     setJoining(false)
                           }
-
+      const { data, error } = await supabase.rpc('community_join', { p_community: String(communityId) })
+      if (error || !data?.ok) setToast(error?.message || data?.error || 'Could not join. Try again.')
+      else await loadAll()
   // ---------- Screens ----------
   if (loading || !community) {
     return (
