@@ -6,6 +6,7 @@ export function previewOf(m) {
   if (m.removed_at) return 'Message removed'
   if (m.media_type === 'image') return m.content ? `Photo · ${m.content}` : 'Photo'
   if (m.media_type === 'video') return 'Video'
+  if (m.media_type === 'audio') return 'Voice message'
   if (m.media_type === 'file') return `File · ${m.content || 'document'}`
   return m.content || ''
 }
