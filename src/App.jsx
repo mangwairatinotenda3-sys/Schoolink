@@ -126,6 +126,7 @@ const ChatList = lazyPage(() => import('./pages/ChatList.jsx'))
 const ChatThread = lazyPage(() => import('./pages/ChatThread.jsx'))
 const ChatOptions = lazyPage(() => import('./pages/ChatOptions.jsx'))
 const NewChatPicker = lazyPage(() => import('./pages/NewChatPicker.jsx'))
+const CallHistory = lazyPage(() => import('./pages/CallHistory.jsx'))
 const CreateGroupFromChat = lazyPage(() => import('./pages/CreateGroupFromChat.jsx'))
 const Communities = lazyPage(() => import('./pages/Communities.jsx'))
 const CreateCommunity = lazyPage(() => import('./pages/CreateCommunity.jsx'))
@@ -295,6 +296,8 @@ export default function App() {
 
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
         <Route path="/chats/new" element={<RequireAuth><NewChatPicker /></RequireAuth>} />
+              
+        <Route path="/calls" element={<RequireAuth><CallHistory /></RequireAuth>} />
         <Route path="/chats/:userId" element={<RequireAuth><ChatThread /></RequireAuth>} />
         <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
         <Route path="/chats/:userId/create-group" element={<RequireAuth><CreateGroupFromChat /></RequireAuth>} />
@@ -352,7 +355,7 @@ export default function App() {
         <Route path="/family" element={<RequireAuth><Family /></RequireAuth>} />
         <Route path="/users/:userId" element={<RequireAuth><PublicProfile /></RequireAuth>} />
 
-                <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
+        <Route path="/home" element={<RequireAuth><Home /></RequireAuth>} />
         <Route path="/profile" element={<RequireAuth><ProfileRoute /></RequireAuth>} />
         <Route path="/settings" element={<RequireAuth><Settings /></RequireAuth>} />
         <Route path="/settings/delete-account" element={<RequireAuth><DeleteAccount /></RequireAuth>} />
