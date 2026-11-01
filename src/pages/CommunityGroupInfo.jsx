@@ -89,7 +89,7 @@ export default function CommunityGroupInfo() {
   async function loadAll() {
     const { data: comm } = await supabase.from('communities').select('*').eq('id', communityId).maybeSingle()
     setCommunity(comm)
-    const { data: rows } = await supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId)
+    const { rows } = await loadCommunityMembers(communityId)
     setMembers(rows ?? [])
     const { data: rd } = await supabase.from('community_reads').select('muted_until').eq('user_id', user.id).eq('community_id', communityId).maybeSingle()
     setMutedUntil(rd?.muted_until ?? null)
