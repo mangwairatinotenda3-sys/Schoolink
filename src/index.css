@@ -363,3 +363,13 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
     box-shadow: none !important;
   }
     }
+
+/* Community picture fallback, like WhatsApp's grey group icon */
+:root {
+  --avatar-fallback-bg: #DFE5E7;
+  --avatar-fallback-fg: #FFFFFF;
+}
+.app-shell.dark-mode {
+  --avatar-fallback-bg: #3B4A54;
+  --avatar-fallback-fg: #AEBAC1;
+}
