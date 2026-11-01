@@ -532,12 +532,12 @@ export default function CommunityDetail() {
       if (error) setToast('Could not send the request.')
       else setRequested(true)
     } else {
-      const { error } = await supabase.from('community_members').upsert({ community_id: communityId, user_id: user.id, role: 'member' }, { onConflict: 'community_id,user_id' })
-      if (error) setToast('Could not join. Try again.')
+      const { data, error } = await supabase.rpc('community_join', { p_community: String(communityId) })
+      if (error || !data?.ok) setToast(error?.message || data?.error || 'Could not join. Try again.')
       else await loadAll()
     }
     setJoining(false)
-                       }
+  }
 
   // ---------- Screens ----------
   if (loading || !community) {
@@ -821,7 +821,7 @@ export default function CommunityDetail() {
         </BottomSheet>
       ) : null}
 
-      {/* Message info: who has read it */}
+    {/* Message info: who has read it */}
       {infoMsg ? (
         <BottomSheet onClose={() => setInfoMsg(null)}>
           <div className="px-4 pb-3">
@@ -865,8 +865,3 @@ export default function CommunityDetail() {
     </div>
   )
 }
-
-
-        
-
-  
