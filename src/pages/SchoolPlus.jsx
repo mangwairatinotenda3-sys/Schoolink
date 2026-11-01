@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Gift, Clock, Smartphone, BadgeCheck, Lock, RefreshCw, X } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { PlusSeal, refreshPlusSchools } from '../components/SchoolPlusBadge.jsx'
+import SchoolPlusReminder from '../components/SchoolPlusReminder.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff } from '../lib/permissions.js'
@@ -273,8 +274,7 @@ export default function SchoolPlus() {
   }
 
   const showPanel = panel === 'waiting' || panel === 'timeout'
-
-  return (
+    return (
     <div className="app-shell">
       <BackHeader title="School Plus" />
       <div className="screen-scroll pb-12 px-4">
@@ -306,6 +306,8 @@ export default function SchoolPlus() {
             ) : null}
           </div>
         </div>
+
+        <SchoolPlusReminder schoolId={schoolId} />
 
         {/* Notice */}
         {notice ? (
@@ -352,7 +354,7 @@ export default function SchoolPlus() {
         ) : null}
 
         {/* Plan */}
-        <p className="mb-2 mt-6 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
+        <p id="school-plus-plans" className="mb-2 mt-6 px-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-gray-400">
           {active ? 'Add more time' : 'Choose a plan'}
         </p>
         <div className="grid grid-cols-4 gap-2">
@@ -395,7 +397,7 @@ export default function SchoolPlus() {
                 : 'If you approved the prompt, it can take a moment. Check again below.'}
             </p>
 
-            <ol className="mt-4 space-y-2.5 text-sm text-gray-600">
+                        <ol className="mt-4 space-y-2.5 text-sm text-gray-600">
               <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-light text-[11px] font-semibold text-brand-navy">1</span>Look for the EcoCash prompt on your phone.</li>
               <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-light text-[11px] font-semibold text-brand-navy">2</span>Enter your EcoCash PIN and confirm.</li>
               <li className="flex gap-3"><span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-brand-light text-[11px] font-semibold text-brand-navy">3</span>School Plus turns on here once it is confirmed.</li>
@@ -484,4 +486,4 @@ export default function SchoolPlus() {
       </div>
     </div>
   )
-}
+        }
