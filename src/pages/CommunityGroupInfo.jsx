@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, Camera, Copy, Share2, UserPlus, LogOut, Trash2, Pencil, Image as ImageIcon, MessageCircle, User, ShieldCheck, ShieldOff, UserMinus, ChevronRight, Loader2, Inbox, Search, X, Link2, FileText, Play, Lock, Phone, Bell, BellOff, Timer } from 'lucide-react'
+import { ChevronLeft, Camera, Copy, Share2, UserPlus, LogOut, Trash2, Pencil, Image as ImageIcon, MessageCircle, User, ShieldCheck, ShieldOff, UserMinus, ChevronRight, Loader2, Inbox, Search, X, Link2, FileText, Play, Lock, Phone, Bell, BellOff, Timer, Globe } from 'lucide-react'
 import ZoomImage from '../components/ZoomImage.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
@@ -173,6 +173,11 @@ export default function CommunityGroupInfo() {
     seconds ? `Disappearing messages on (${EPHEMERAL_TEXT[seconds]})` : 'Disappearing messages off'
   )
 
+  const setPrivacy = (isPrivate) => run(
+    () => supabase.rpc('community_set_privacy', { p_community: String(communityId), p_private: isPrivate }),
+    isPrivate ? 'Community is private' : 'Community is public'
+  )
+
   // Mute is personal: it only silences this community for you
   async function setMute(key) {
     setMuteOpen(false)
@@ -243,9 +248,9 @@ export default function CommunityGroupInfo() {
         <div className="flex-1 flex items-center justify-center text-gray-400"><Loader2 className="animate-spin" /></div>
       </div>
     )
-         }
+        }
 
-  const target = sheet?.member
+    const target = sheet?.member
   const creator = members.find((m) => m.user_id === community.created_by)
   const creatorName = community.created_by === user.id ? 'You' : creator?.profiles?.full_name || 'a member'
   const createdOn = community.created_at ? new Date(community.created_at).toLocaleDateString([], { day: 'numeric', month: 'short', year: 'numeric' }) : ''
@@ -424,6 +429,18 @@ export default function CommunityGroupInfo() {
               </span>
               <ChevronRight size={16} className="text-gray-300" />
             </button>
+
+            {/* Who can join */}
+            <div className="px-4 py-4 border-t border-gray-100">
+              <div className="flex items-center gap-4">
+                <span className="w-6 flex justify-center"><Globe size={21} className="text-gray-500" /></span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-[16px]">Who can join</p>
+                  <p className="text-[13px] text-gray-400">{community.is_private ? 'Private: admins approve new members' : 'Public: anyone can join'}</p>
+                </div>
+                {isAdmin ? <Toggle on={!community.is_private} disabled={busy} onChange={(on) => setPrivacy(!on)} /> : null}
+              </div>
+            </div>
 
             {/* Who can change the group */}
             <div className="px-4 py-4 border-t border-gray-100">
@@ -607,4 +624,5 @@ export default function CommunityGroupInfo() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 30 }}>{toast}</div> : null}
     </div>
   )
-}
+         }
+  
