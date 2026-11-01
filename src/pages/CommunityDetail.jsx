@@ -10,6 +10,7 @@ import CommunityMessageBubble, { mentionPattern } from '../components/CommunityM
 import CommunityPinned, { previewOf } from '../components/CommunityPinned.jsx'
 import CommunityReviewSheet from '../components/CommunityReviewSheet.jsx'
 import CommunityCallSheet from '../components/CommunityCallSheet.jsx'
+import CommunityAvatar from '../components/CommunityAvatar.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import useVoiceRecorder from '../lib/useVoiceRecorder.js'
@@ -268,7 +269,7 @@ export default function CommunityDetail() {
     setShowDown(!near)
   }
 
-    // ---------- Derived ----------
+  // ---------- Derived ----------
   const pinned = useMemo(
     () => messages.filter((m) => m.pinned_at && !m.removed_at && !m.deleted_at).sort((a, b) => new Date(b.pinned_at) - new Date(a.pinned_at)),
     [messages]
@@ -434,7 +435,7 @@ export default function CommunityDetail() {
     setUploading(false)
   }
 
-  // ---------- Message actions ----------
+        // ---------- Message actions ----------
   const patch = (id, fields) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...fields } : m)))
 
   async function copyText(m) {
@@ -572,13 +573,13 @@ export default function CommunityDetail() {
       if (error) setToast('Could not send the request.')
       else setRequested(true)
     } else {
-      
-    }
-    setJoining(false)
-                          }
       const { data, error } = await supabase.rpc('community_join', { p_community: String(communityId) })
       if (error || !data?.ok) setToast(error?.message || data?.error || 'Could not join. Try again.')
       else await loadAll()
+    }
+    setJoining(false)
+}
+
   // ---------- Screens ----------
   if (loading || !community) {
     return (
@@ -619,7 +620,7 @@ export default function CommunityDetail() {
         <div className="flex items-center border-b border-gray-100 shrink-0" style={{ minHeight: 60 }}>
           <button onClick={() => navigate('/communities')} aria-label="Back" className="w-11 h-11 ml-1 rounded-full flex items-center justify-center shrink-0 active:bg-gray-100"><ArrowLeft size={22} /></button>
           <button onClick={() => navigate(`/communities/${communityId}/info`)} className="flex items-center gap-3 pr-2 py-2 text-left flex-1 min-w-0">
-            {community.avatar_url ? <img src={community.avatar_url} alt="" className="w-10 h-10 rounded-full object-cover shrink-0" /> : <span className="w-10 h-10 rounded-full bg-brand-light flex items-center justify-center shrink-0"><Users size={18} className="text-brand-purple" /></span>}
+            <CommunityAvatar url={community.avatar_url} size={40} />
             <span className="min-w-0">
               <span className="block font-semibold text-[15px] truncate">
                 {community.name}
@@ -846,7 +847,7 @@ export default function CommunityDetail() {
         </BottomSheet>
       ) : null}
 
-{/* Message actions */}
+      {/* Message actions */}
       {sheetMsg ? (
         <BottomSheet onClose={() => setActionMsg(null)}>
           <div className="px-4 pb-2">
@@ -936,4 +937,4 @@ export default function CommunityDetail() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 84 }}>{toast}</div> : null}
     </div>
   )
-      }
+}
