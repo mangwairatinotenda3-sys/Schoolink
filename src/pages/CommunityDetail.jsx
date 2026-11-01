@@ -13,6 +13,7 @@ import CommunityCallSheet from '../components/CommunityCallSheet.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import { supabase } from '../lib/supabaseClient.js'
+import { loadCommunityMembers } from '../lib/communityMembers.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
@@ -134,8 +135,12 @@ export default function CommunityDetail() {
   // ---------- Loading ----------
   async function loadAll(first = false) {
     if (first) setLoading(true)
-    const [{ data: comm }, { data: rows }] = await Promise.all([
+        const [{ data: comm }, mem] = await Promise.all([
       supabase.from('communities').select('*').eq('id', communityId).maybeSingle(),
+      loadCommunityMembers(communityId),
+    ])
+    if (mem.error) setToast(mem.error.message || 'Could not load members.')
+    const rows = mem.rows
       supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId),
     ])
     setCommunity(comm)
