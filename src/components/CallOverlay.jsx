@@ -1,15 +1,42 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Room, RoomEvent, Track } from 'livekit-client'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, RefreshCw } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, RefreshCw, UserPlus, Check, Search } from 'lucide-react'
+import BottomSheet from './BottomSheet.jsx'
+import { supabase } from '../lib/supabaseClient.js'
 import { useCalls } from '../context/CallContext.jsx'
 
-const RING_LIMIT_MS = 45 * 1000
+const ROOM_EVENTS = [
+  RoomEvent.ParticipantConnected,
+  RoomEvent.ParticipantDisconnected,
+  RoomEvent.TrackSubscribed,
+  RoomEvent.TrackUnsubscribed,
+  RoomEvent.TrackPublished,
+  RoomEvent.TrackUnpublished,
+  RoomEvent.LocalTrackPublished,
+  RoomEvent.LocalTrackUnpublished,
+  RoomEvent.TrackMuted,
+  RoomEvent.TrackUnmuted,
+  RoomEvent.ActiveSpeakersChanged,
+]
+
+function parseMeta(raw) {
+  try { return JSON.parse(raw || '{}') || {} } catch { return {} }
+}
+
+function elapsed(ms) {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const h = Math.floor(s / 3600)
+  const m = Math.floor((s % 3600) / 60)
+  const sec = s % 60
+  const pad = (n) => String(n).padStart(2, '0')
+  return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
+}
 
 function Avatar({ src, name, size }) {
-  if (src) return <img src={src} alt="" className="rounded-full object-cover" style={{ width: size, height: size }} />
+  if (src) return <img src={src} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />
   return (
     <span
-      className="rounded-full flex items-center justify-center font-bold text-white"
+      className="rounded-full flex items-center justify-center font-bold text-white shrink-0"
       style={{ width: size, height: size, background: '#6D4DFF', fontSize: size * 0.4 }}
     >
       {(name || '?').trim().charAt(0).toUpperCase()}
@@ -18,8 +45,10 @@ function Avatar({ src, name, size }) {
 }
 
 function IncomingCall({ incoming, onAccept, onDecline }) {
-  const { call, peer } = incoming
-  const video = call.kind === 'video'
+  const { caller, kind, others } = incoming
+  const video = kind === 'video'
+  const group = others.length > 0
+  const withText = others.slice(0, 2).map((o) => o.name).join(', ') + (others.length > 2 ? ` +${others.length - 2}` : '')
   return (
     <div
       className="fixed inset-0 z-[120] flex flex-col items-center justify-between py-16 px-6 text-center"
@@ -29,9 +58,12 @@ function IncomingCall({ incoming, onAccept, onDecline }) {
       aria-label="Incoming call"
     >
       <div className="flex flex-col items-center gap-4 mt-10">
-        <Avatar src={peer?.avatar} name={peer?.name} size={120} />
-        <p className="text-2xl font-semibold">{peer?.name}</p>
-        <p className="text-sm opacity-70">Incoming {video ? 'video' : 'voice'} call</p>
+        <Avatar src={caller?.avatar} name={caller?.name} size={120} />
+        <p className="text-2xl font-semibold">{caller?.name}</p>
+        <p className="text-sm opacity-70">
+          {group ? 'Group' : 'Incoming'} {video ? 'video' : 'voice'} call
+          {group ? ` · with ${withText}` : ''}
+        </p>
       </div>
       <div className="w-full max-w-sm grid grid-cols-2 gap-6">
         <div className="flex flex-col items-center gap-2">
@@ -56,7 +88,7 @@ function CtlButton({ on = true, onClick, label, children }) {
     <button
       onClick={onClick}
       aria-label={label}
-      className="w-14 h-14 rounded-full flex items-center justify-center"
+      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
       style={{ background: on ? 'rgba(255,255,255,0.18)' : '#fff', color: on ? '#fff' : '#0B0920' }}
     >
       {children}
@@ -64,41 +96,165 @@ function CtlButton({ on = true, onClick, label, children }) {
   )
 }
 
-function ActiveCall({ active, hangUp, setNotice }) {
-  const { call, token, url, role, peer, connected } = active
-  const video = call.kind === 'video'
+// One person's square in the call grid. Pending = invited, still ringing.
+function Tile({ participant, isLocal = false, pending = null, mirror = false }) {
+  const videoEl = useRef(null)
+  const audioEl = useRef(null)
+  const name = pending ? pending.name : participant?.name || participant?.identity || 'Member'
+  const avatar = pending ? pending.avatar : parseMeta(participant?.metadata).avatar
+  const camPub = participant && !pending ? participant.getTrackPublication(Track.Source.Camera) : null
+  const micPub = participant && !pending ? participant.getTrackPublication(Track.Source.Microphone) : null
+  const camTrack = camPub?.track && !camPub.isMuted ? camPub.track : null
+  const micTrack = !isLocal && micPub?.track ? micPub.track : null
+  const speaking = !pending && !!participant?.isSpeaking
+  const micOff = !pending && participant && !participant.isMicrophoneEnabled
+
+  useEffect(() => {
+    const el = videoEl.current
+    if (!camTrack || !el) return undefined
+    camTrack.attach(el)
+    return () => { camTrack.detach(el) }
+  }, [camTrack])
+
+  useEffect(() => {
+    const el = audioEl.current
+    if (!micTrack || !el) return undefined
+    micTrack.attach(el)
+    return () => { micTrack.detach(el) }
+  }, [micTrack])
+
+  return (
+    <div
+      className="relative rounded-2xl overflow-hidden flex items-center justify-center min-h-0"
+      style={{ background: '#1B1739', boxShadow: speaking ? '0 0 0 3px #22c55e' : 'none', transition: 'box-shadow 150ms' }}
+    >
+      {camTrack ? (
+        <video
+          ref={videoEl}
+          autoPlay
+          muted
+          playsInline
+          className="absolute inset-0 w-full h-full object-cover"
+          style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
+        />
+      ) : (
+        <Avatar src={avatar} name={name} size={88} />
+      )}
+      <audio ref={audioEl} autoPlay className="hidden" />
+      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5 min-w-0">
+        <span className="text-xs font-medium truncate rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)' }}>
+          {isLocal ? 'You' : name}
+        </span>
+        {micOff ? <MicOff size={14} className="shrink-0" /> : null}
+        {pending ? <span className="ml-auto text-[11px] opacity-80 shrink-0">Calling…</span> : null}
+      </div>
+    </div>
+  )
+}
+
+// Search and tick people. Used to add people mid-call and to start a group call.
+export function ContactPicker({ exclude = [], max = 11, confirmLabel = 'Start', onConfirm, header = null }) {
+  const [list, setList] = useState(null)
+  const [picked, setPicked] = useState([])
+  const [q, setQ] = useState('')
+  const [error, setError] = useState('')
+  const [busy, setBusy] = useState(false)
+
+  useEffect(() => {
+    let live = true
+    supabase.rpc('call_contacts').then(({ data, error: err }) => {
+      if (!live) return
+      if (err) setError('Could not load your school list.')
+      setList(data ?? [])
+    })
+    return () => { live = false }
+  }, [])
+
+  const shown = useMemo(() => {
+    const needle = q.trim().toLowerCase()
+    return (list ?? []).filter((c) =>
+      !exclude.includes(c.id) && (!needle || (c.full_name || '').toLowerCase().includes(needle)))
+  }, [list, exclude, q])
+
+  function toggle(id) {
+    setError('')
+    if (picked.includes(id)) { setPicked(picked.filter((x) => x !== id)); return }
+    if (picked.length >= max) { setError(`You can add up to ${max} people.`); return }
+    setPicked([...picked, id])
+  }
+
+  async function confirm() {
+    if (!picked.length || busy) return
+    setBusy(true)
+    try { await onConfirm(picked) } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="px-2">
+      {header}
+      <div className="relative mb-2">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search people"
+          aria-label="Search people"
+          className="w-full border border-gray-200 rounded-full pl-9 pr-4 py-2.5 text-sm outline-brand-purple"
+        />
+      </div>
+      {error ? <p role="alert" className="text-sm text-red-500 px-1 mb-2">{error}</p> : null}
+      <div className="max-h-[48dvh] overflow-y-auto -mx-1">
+        {list === null ? (
+          <p className="text-sm text-gray-500 px-3 py-6 text-center">Loading people…</p>
+        ) : shown.length === 0 ? (
+          <p className="text-sm text-gray-500 px-3 py-6 text-center">{q ? 'No one matches.' : 'No one else is available right now.'}</p>
+        ) : shown.map((c) => {
+          const on = picked.includes(c.id)
+          return (
+            <button key={c.id} onClick={() => toggle(c.id)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left active:bg-gray-100">
+              <Avatar src={c.avatar_url} name={c.full_name} size={40} />
+              <span className="flex-1 min-w-0 truncate font-medium">{c.full_name || 'Schoolink member'}</span>
+              <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${on ? 'bg-brand-purple border-brand-purple text-white' : 'border-gray-300'}`}>
+                {on ? <Check size={14} /> : null}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+      <button
+        onClick={confirm}
+        disabled={!picked.length || busy}
+        className="w-full mt-3 bg-brand-purple text-white font-semibold rounded-full py-3 disabled:opacity-40"
+      >
+        {busy ? 'Please wait…' : picked.length ? `${confirmLabel} (${picked.length})` : confirmLabel}
+      </button>
+    </div>
+  )
+}
+
+function ActiveCall({ active, hangUp, invite, setNotice }) {
+  const { kind, token, url, title, pending } = active
+  const video = kind === 'video'
   const [room, setRoom] = useState(null)
+  const [version, setVersion] = useState(0)
   const [mic, setMic] = useState(true)
   const [cam, setCam] = useState(video)
   const [facing, setFacing] = useState('user')
-  const [others, setOthers] = useState(0)
-  const remoteBox = useRef(null)
-  const localVideo = useRef(null)
-  const audioBox = useRef(null)
+  const [adding, setAdding] = useState(false)
+  const [connectedAt, setConnectedAt] = useState(null)
+  const [now, setNow] = useState(Date.now())
 
-  // Join the LiveKit room once, and leave it when the call screen closes
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  // Join the LiveKit room once; leave it when this screen closes
   useEffect(() => {
     const r = new Room({ adaptiveStream: true, dynacast: true })
     let cancelled = false
-    const count = () => setOthers(r.remoteParticipants.size)
-    const attachLocal = () => {
-      const pub = r.localParticipant.getTrackPublication(Track.Source.Camera)
-      if (pub?.track && localVideo.current) pub.track.attach(localVideo.current)
-    }
-
-    r.on(RoomEvent.TrackSubscribed, (track) => {
-      if (track.kind === Track.Kind.Video && remoteBox.current) {
-        const el = track.attach()
-        el.style.width = '100%'
-        el.style.height = '100%'
-        el.style.objectFit = 'cover'
-        remoteBox.current.appendChild(el)
-      }
-      if (track.kind === Track.Kind.Audio && audioBox.current) audioBox.current.appendChild(track.attach())
-    })
-    r.on(RoomEvent.TrackUnsubscribed, (track) => { track.detach().forEach((el) => el.remove()) })
-    r.on(RoomEvent.ParticipantConnected, count)
-    r.on(RoomEvent.ParticipantDisconnected, count)
+    const bump = () => setVersion((v) => v + 1)
+    ROOM_EVENTS.forEach((ev) => r.on(ev, bump))
     r.on(RoomEvent.Disconnected, () => { if (!cancelled) hangUp() })
 
     ;(async () => {
@@ -109,14 +265,13 @@ function ActiveCall({ active, hangUp, setNotice }) {
         if (video) {
           try {
             await r.localParticipant.setCameraEnabled(true)
-            attachLocal()
           } catch {
             setCam(false)
             setNotice('Camera not available. Joined with voice only.')
           }
         }
         setRoom(r)
-        count()
+        bump()
       } catch {
         if (!cancelled) {
           setNotice('Could not connect. Check the camera and microphone permissions.')
@@ -126,80 +281,76 @@ function ActiveCall({ active, hangUp, setNotice }) {
     })()
 
     return () => { cancelled = true; r.disconnect() }
-  }, [token, url])
+  }, [token, url, video, hangUp, setNotice])
 
-  // The caller stops ringing after 45 seconds
+  const local = room?.localParticipant
+  const remote = room ? Array.from(room.remoteParticipants.values()) : []
+  const everyone = room ? [local, ...remote] : []
+  const others = remote.length
+
   useEffect(() => {
-    if (connected || role !== 'caller') return undefined
-    const t = setTimeout(() => { setNotice('No answer.'); hangUp() }, RING_LIMIT_MS)
-    return () => clearTimeout(t)
-  }, [connected, role])
+    if (others > 0 && !connectedAt) setConnectedAt(Date.now())
+  }, [others, connectedAt])
 
   async function toggleMic() {
-    if (!room) return
+    if (!local) return
     const next = !mic
-    try { await room.localParticipant.setMicrophoneEnabled(next); setMic(next) } catch { setNotice('Could not change the microphone.') }
+    try { await local.setMicrophoneEnabled(next); setMic(next) } catch { setNotice('Could not change the microphone.') }
   }
 
   async function toggleCam() {
-    if (!room) return
+    if (!local) return
     const next = !cam
-    try {
-      await room.localParticipant.setCameraEnabled(next)
-      setCam(next)
-      if (next) {
-        const pub = room.localParticipant.getTrackPublication(Track.Source.Camera)
-        if (pub?.track && localVideo.current) pub.track.attach(localVideo.current)
-      }
-    } catch {
-      setNotice('Could not change the camera.')
-    }
+    try { await local.setCameraEnabled(next); setCam(next) } catch { setNotice('Could not change the camera.') }
   }
 
   async function flip() {
-    if (!room) return
-    const pub = room.localParticipant.getTrackPublication(Track.Source.Camera)
+    const pub = local?.getTrackPublication(Track.Source.Camera)
     if (!pub?.track) return
     const next = facing === 'user' ? 'environment' : 'user'
     try { await pub.track.restartTrack({ facingMode: next }); setFacing(next) } catch { setNotice('Could not switch the camera.') }
   }
 
-  const showRemoteVideo = video && others > 0
-  const status = others > 0 ? 'Connected' : connected ? 'Connecting…' : 'Ringing…'
+  const tiles = everyone.length + pending.length
+  const cols = tiles <= 1 ? 1 : tiles <= 4 ? 2 : 3
+  const inCall = [...everyone.map((p) => p.identity), ...pending.map((p) => p.id)]
+  const status = others > 0 ? `${others + 1} in call` : pending.length ? 'Calling…' : 'Connecting…'
+  const timer = connectedAt ? elapsed(now - connectedAt) : ''
 
   return (
     <div className="fixed inset-0 z-[120] overflow-hidden" style={{ background: '#0B0920', color: '#fff' }} role="dialog" aria-modal="true" aria-label="Call">
-      <div ref={remoteBox} className="absolute inset-0 flex items-center justify-center bg-black" />
-      <div ref={audioBox} className="hidden" />
+      <div
+        className="absolute left-2 right-2 grid gap-2 overflow-y-auto"
+        style={{
+          top: 72,
+          bottom: 124,
+          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+          gridAutoRows: tiles <= 4 ? 'minmax(0, 1fr)' : 'minmax(150px, 1fr)',
+        }}
+      >
+        {everyone.map((p) => (
+          <Tile
+            key={p.identity}
+            participant={p}
+            isLocal={p === local}
+            mirror={p === local && facing === 'user'}
+          />
+        ))}
+        {pending.map((p) => <Tile key={`pending-${p.id}`} pending={p} />)}
+      </div>
 
-      {!showRemoteVideo ? (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
-          <Avatar src={peer?.avatar} name={peer?.name} size={120} />
-          <p className="text-2xl font-semibold">{peer?.name}</p>
-          <p className="text-sm opacity-70">{status}</p>
+      <div className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-4" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 8 }}>
+        <div className="min-w-0">
+          <p className="font-semibold truncate">{title || (video ? 'Video call' : 'Voice call')}</p>
+          <p className="text-xs opacity-70">{status}</p>
         </div>
-      ) : (
-        <p className="absolute top-4 left-4 text-sm rounded-full px-3 py-1" style={{ background: 'rgba(0,0,0,0.45)' }}>
-          {peer?.name} · {status}
-        </p>
-      )}
+        {timer ? <span className="text-xs rounded-full px-2.5 py-1 shrink-0" style={{ background: 'rgba(0,0,0,0.45)' }}>{timer}</span> : null}
+      </div>
 
-      {video ? (
-        <video
-          ref={localVideo}
-          autoPlay
-          muted
-          playsInline
-          className="absolute top-4 right-4 w-28 h-40 rounded-2xl object-cover"
-          style={{
-            display: cam ? 'block' : 'none',
-            transform: facing === 'user' ? 'scaleX(-1)' : 'none',
-            border: '2px solid rgba(255,255,255,0.25)',
-          }}
-        />
-      ) : null}
-
-      <div className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-4 pt-4" style={{ paddingBottom: 'max(28px, env(safe-area-inset-bottom))' }}>
+      <div
+        className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-3 pt-3"
+        style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+      >
         <CtlButton on={mic} onClick={toggleMic} label={mic ? 'Mute microphone' : 'Unmute microphone'}>
           {mic ? <Mic size={22} /> : <MicOff size={22} />}
         </CtlButton>
@@ -213,17 +364,34 @@ function ActiveCall({ active, hangUp, setNotice }) {
             <RefreshCw size={22} />
           </CtlButton>
         ) : null}
-        <button onClick={hangUp} aria-label="End call" className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center">
+        <CtlButton onClick={() => setAdding(true)} label="Add people">
+          <UserPlus size={22} />
+        </CtlButton>
+        <button onClick={hangUp} aria-label="End call" className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shrink-0">
           <PhoneOff size={26} />
         </button>
       </div>
+
+      {adding ? (
+        <BottomSheet onClose={() => setAdding(false)}>
+          <ContactPicker
+            exclude={inCall}
+            max={Math.max(1, 12 - inCall.length)}
+            confirmLabel="Add to call"
+            header={<p className="font-semibold text-base mb-3">Add people to this call</p>}
+            onConfirm={async (ids) => {
+              const ok = await invite(ids)
+              if (ok) setAdding(false)
+            }}
+          />
+        </BottomSheet>
+      ) : null}
     </div>
   )
 }
 
-// Put this once in main.jsx, inside CallProvider
 export default function CallOverlay() {
-  const { incoming, active, notice, clearNotice, setNotice, accept, decline, hangUp } = useCalls()
+  const { incoming, active, notice, clearNotice, setNotice, accept, decline, hangUp, invite } = useCalls()
 
   useEffect(() => {
     if (!notice) return undefined
@@ -234,25 +402,28 @@ export default function CallOverlay() {
   return (
     <>
       {notice ? (
-        <div role="status" className="fixed top-4 left-1/2 -translate-x-1/2 z-[130] rounded-2xl px-4 py-2.5 text-sm text-white shadow-lg" style={{ background: '#1B1739' }}>
+        <div role="status" className="fixed top-4 left-1/2 -translate-x-1/2 z-[130] rounded-2xl px-4 py-2.5 text-sm text-white shadow-lg max-w-[90vw] text-center" style={{ background: '#1B1739' }}>
           {notice}
         </div>
       ) : null}
       {incoming && !active ? <IncomingCall incoming={incoming} onAccept={accept} onDecline={decline} /> : null}
-      {active ? <ActiveCall active={active} hangUp={hangUp} setNotice={setNotice} /> : null}
+      {active ? <ActiveCall active={active} hangUp={hangUp} invite={invite} setNotice={setNotice} /> : null}
     </>
   )
 }
 
-// Phone buttons for a chat header. Put <CallButtons ... /> in the header of a chat.
-export function CallButtons({ partnerId, partnerName, partnerAvatar }) {
+// Phone buttons in a chat header: a one-to-one call with this person
+export function CallButtons({ partnerId }) {
   const { startCall } = useCalls()
   if (!partnerId) return null
-  const go = (kind) => startCall(partnerId, kind, { name: partnerName || 'Schoolink member', avatar: partnerAvatar || null })
   return (
     <>
-      <button onClick={() => go('voice')} aria-label="Voice call" className="p-1.5"><Phone size={18} className="text-gray-400" /></button>
-      <button onClick={() => go('video')} aria-label="Video call" className="p-1.5"><Video size={18} className="text-gray-400" /></button>
+      <button onClick={() => startCall({ inviteeIds: [partnerId], kind: 'voice' })} aria-label="Voice call" className="p-1.5">
+        <Phone size={18} className="text-gray-400" />
+      </button>
+      <button onClick={() => startCall({ inviteeIds: [partnerId], kind: 'video' })} aria-label="Video call" className="p-1.5">
+        <Video size={18} className="text-gray-400" />
+      </button>
     </>
   )
 }
