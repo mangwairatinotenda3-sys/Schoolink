@@ -26,6 +26,10 @@ const RELATION_TEXT = {
   closed: 'Only takes calls from their school',
 }
 
+const UI_HIDE_MS = 4000
+const PIP_W = 110
+const PIP_H = 160
+
 function parseMeta(raw) {
   try { return JSON.parse(raw || '{}') || {} } catch { return {} }
 }
@@ -38,6 +42,8 @@ function elapsed(ms) {
   const pad = (n) => String(n).padStart(2, '0')
   return h ? `${h}:${pad(m)}:${pad(sec)}` : `${pad(m)}:${pad(sec)}`
 }
+
+const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), hi)
 
 function Avatar({ src, name, size }) {
   if (src) return <img src={src} alt="" className="rounded-full object-cover shrink-0" style={{ width: size, height: size }} />
@@ -119,16 +125,17 @@ function CtlButton({ on = true, onClick, label, children }) {
     <button
       onClick={onClick}
       aria-label={label}
-      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0"
-      style={{ background: on ? 'rgba(255,255,255,0.18)' : '#fff', color: on ? '#fff' : '#0B0920' }}
+      className="w-14 h-14 rounded-full flex items-center justify-center shrink-0 backdrop-blur-sm"
+      style={{ background: on ? 'rgba(255,255,255,0.2)' : '#fff', color: on ? '#fff' : '#0B0920' }}
     >
       {children}
     </button>
   )
 }
 
-// One person's square in the call grid. Pending = invited, still ringing.
-function Tile({ participant, isLocal = false, pending = null, mirror = false }) {
+// One person's picture: video when their camera is on, otherwise their avatar.
+// `fill` covers the whole area (the main picture or the small self-view).
+function Tile({ participant, isLocal = false, pending = null, mirror = false, fill = false }) {
   const videoEl = useRef(null)
   const audioEl = useRef(null)
   const name = pending ? pending.name : participant?.name || participant?.identity || 'Member'
@@ -156,8 +163,8 @@ function Tile({ participant, isLocal = false, pending = null, mirror = false }) 
 
   return (
     <div
-      className="relative rounded-2xl overflow-hidden flex items-center justify-center min-h-0"
-      style={{ background: '#1B1739', boxShadow: speaking ? '0 0 0 3px #22c55e' : 'none', transition: 'box-shadow 150ms' }}
+      className={`relative w-full h-full overflow-hidden flex items-center justify-center ${speaking ? 'ring-[3px] ring-inset ring-green-500' : ''}`}
+      style={{ background: '#1B1739' }}
     >
       {camTrack ? (
         <video
@@ -169,15 +176,15 @@ function Tile({ participant, isLocal = false, pending = null, mirror = false }) 
           style={{ transform: mirror ? 'scaleX(-1)' : 'none' }}
         />
       ) : (
-        <Avatar src={avatar} name={name} size={88} />
+        <Avatar src={avatar} name={name} size={fill ? 160 : 88} />
       )}
       <audio ref={audioEl} autoPlay className="hidden" />
-      <div className="absolute bottom-2 left-2 right-2 flex items-center gap-1.5 min-w-0">
+      <div className="absolute bottom-3 left-3 right-3 flex items-center gap-1.5 min-w-0 pointer-events-none">
         <span className="text-xs font-medium truncate rounded-full px-2 py-0.5" style={{ background: 'rgba(0,0,0,0.5)' }}>
           {isLocal ? 'You' : name}
         </span>
         {micOff ? <MicOff size={14} className="shrink-0" /> : null}
-        {pending ? <span className="ml-auto text-[11px] opacity-80 shrink-0">Calling…</span> : null}
+        {pending ? <span className="ml-auto text-[11px] opacity-80 shrink-0">Ringing…</span> : null}
       </div>
     </div>
   )
@@ -310,6 +317,10 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
   const [adding, setAdding] = useState(false)
   const [connectedAt, setConnectedAt] = useState(null)
   const [now, setNow] = useState(Date.now())
+  const [showUi, setShowUi] = useState(true)
+  const [pip, setPip] = useState(null)
+  const rootRef = useRef(null)
+  const dragRef = useRef(null)
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000)
@@ -354,10 +365,27 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
   const remote = room ? Array.from(room.remoteParticipants.values()) : []
   const everyone = room ? [local, ...remote] : []
   const others = remote.length
+  const connected = others > 0
+  const oneToOne = video && others === 1 && pending.length === 0
+  const soloLocal = video && others === 0 && pending.length === 0
+  const ringingPair = video && others === 0 && pending.length === 1
+  const showPip = !!local && (oneToOne || ringingPair)
+  const mainIsPair = oneToOne || ringingPair
+  const hideable = video && connected
+  const uiOn = !hideable || showUi
+  const timer = connectedAt ? elapsed(now - connectedAt) : ''
+  const status = timer || (pending.length ? 'Ringing…' : 'Connecting…')
 
   useEffect(() => {
     if (others > 0 && !connectedAt) setConnectedAt(Date.now())
   }, [others, connectedAt])
+
+  // On video calls the controls fade away while you watch
+  useEffect(() => {
+    if (!hideable || !showUi) return undefined
+    const t = setTimeout(() => setShowUi(false), UI_HIDE_MS)
+    return () => clearTimeout(t)
+  }, [hideable, showUi])
 
   async function toggleMic() {
     if (!local) return
@@ -378,65 +406,136 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
     try { await pub.track.restartTrack({ facingMode: next }); setFacing(next) } catch { setNotice('Could not switch the camera.') }
   }
 
-  const tiles = everyone.length + pending.length
+  // Drag the small self-view anywhere on screen
+  function onPipDown(e) {
+    const r = e.currentTarget.getBoundingClientRect()
+    dragRef.current = { dx: e.clientX - r.left, dy: e.clientY - r.top }
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    e.stopPropagation()
+  }
+
+  function onPipMove(e) {
+    const d = dragRef.current
+    const box = rootRef.current?.getBoundingClientRect()
+    if (!d || !box) return
+    setPip({
+      x: clamp(e.clientX - box.left - d.dx, 8, box.width - PIP_W - 8),
+      y: clamp(e.clientY - box.top - d.dy, 8, box.height - PIP_H - 8),
+    })
+  }
+
+  function onPipUp() { dragRef.current = null }
+
+  // Tiles for the grid (group calls, and voice calls)
+  const gridTiles = [
+    ...everyone.filter((p) => p !== local || video).map((p) => ({ key: p.identity, participant: p, isLocal: p === local })),
+    ...pending.map((p) => ({ key: `pending-${p.id}`, pending: p })),
+  ]
+  const useGrid = !mainIsPair && !soloLocal
+  const tiles = gridTiles.length
   const cols = tiles <= 1 ? 1 : tiles <= 4 ? 2 : 3
   const inCall = [...everyone.map((p) => p.identity), ...pending.map((p) => p.id)]
-  const status = others > 0 ? `${others + 1} in call` : pending.length ? 'Calling…' : 'Connecting…'
-  const timer = connectedAt ? elapsed(now - connectedAt) : ''
+  const barStyle = { opacity: uiOn ? 1 : 0, transition: 'opacity 200ms', pointerEvents: uiOn ? 'auto' : 'none' }
 
   return (
-    <div className="fixed inset-0 z-[120] overflow-hidden" style={{ background: '#0B0920', color: '#fff' }} role="dialog" aria-modal="true" aria-label="Call">
+    <div
+      ref={rootRef}
+      className="fixed inset-0 z-[120] overflow-hidden select-none"
+      style={{ background: '#0B0920', color: '#fff' }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Call"
+      onClick={() => { if (hideable) setShowUi((v) => !v) }}
+    >
+      {/* Main picture */}
+      {oneToOne ? <div className="absolute inset-0"><Tile participant={remote[0]} fill /></div> : null}
+      {ringingPair ? <div className="absolute inset-0"><Tile pending={pending[0]} fill /></div> : null}
+      {soloLocal ? <div className="absolute inset-0"><Tile participant={local} isLocal mirror={facing === 'user'} fill /></div> : null}
+
+      {/* Group and voice calls: a grid */}
+      {useGrid ? (
+        <div
+          className="absolute left-2 right-2 grid gap-2"
+          style={{
+            top: 'calc(max(14px, env(safe-area-inset-top)) + 64px)',
+            bottom: 'calc(max(24px, env(safe-area-inset-bottom)) + 96px)',
+            gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
+            gridAutoRows: tiles <= 4 ? 'minmax(0, 1fr)' : 'minmax(150px, 1fr)',
+          }}
+        >
+          {gridTiles.map((t) => (
+            <div key={t.key} className="rounded-2xl overflow-hidden min-h-0 h-full">
+              {t.pending ? <Tile pending={t.pending} /> : <Tile participant={t.participant} isLocal={t.isLocal} mirror={t.isLocal && facing === 'user'} />}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
+      {/* Self-view, WhatsApp style */}
+      {showPip ? (
+        <div
+          onPointerDown={onPipDown}
+          onPointerMove={onPipMove}
+          onPointerUp={onPipUp}
+          onPointerCancel={onPipUp}
+          className="absolute rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/20"
+          style={{
+            width: PIP_W,
+            height: PIP_H,
+            touchAction: 'none',
+            ...(pip ? { left: pip.x, top: pip.y } : { right: 12, top: 'calc(max(14px, env(safe-area-inset-top)) + 64px)' }),
+            ...barStyle,
+          }}
+        >
+          <Tile participant={local} isLocal mirror={facing === 'user'} fill />
+        </div>
+      ) : null}
+
+      {/* Top bar: name and status */}
       <div
-        className="absolute left-2 right-2 grid gap-2 overflow-y-auto"
+        className="absolute top-0 inset-x-0 text-center px-16"
         style={{
-          top: 72,
-          bottom: 124,
-          gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))`,
-          gridAutoRows: tiles <= 4 ? 'minmax(0, 1fr)' : 'minmax(150px, 1fr)',
+          paddingTop: 'max(14px, env(safe-area-inset-top))',
+          paddingBottom: 28,
+          background: 'linear-gradient(rgba(0,0,0,0.55), rgba(0,0,0,0))',
+          ...barStyle,
         }}
       >
-        {everyone.map((p) => (
-          <Tile
-            key={p.identity}
-            participant={p}
-            isLocal={p === local}
-            mirror={p === local && facing === 'user'}
-          />
-        ))}
-        {pending.map((p) => <Tile key={`pending-${p.id}`} pending={p} />)}
+        <p className="font-semibold text-[17px] truncate">{title || (video ? 'Video call' : 'Voice call')}</p>
+        <p className="text-xs opacity-80 mt-0.5">{status}</p>
       </div>
 
-      <div className="absolute top-0 inset-x-0 flex items-center justify-between gap-3 px-4" style={{ paddingTop: 'max(14px, env(safe-area-inset-top))', paddingBottom: 8 }}>
-        <div className="min-w-0">
-          <p className="font-semibold truncate">{title || (video ? 'Video call' : 'Voice call')}</p>
-          <p className="text-xs opacity-70">{status}</p>
-        </div>
-        {timer ? <span className="text-xs rounded-full px-2.5 py-1 shrink-0" style={{ background: 'rgba(0,0,0,0.45)' }}>{timer}</span> : null}
-      </div>
-
+      {/* Bottom controls */}
       <div
-        className="absolute bottom-0 inset-x-0 flex items-center justify-center gap-3 pt-3"
-        style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}
+        className="absolute bottom-0 inset-x-0"
+        style={{
+          paddingTop: 40,
+          paddingBottom: 'max(24px, env(safe-area-inset-bottom))',
+          background: 'linear-gradient(rgba(0,0,0,0), rgba(0,0,0,0.6))',
+          ...barStyle,
+        }}
       >
-        <CtlButton on={mic} onClick={toggleMic} label={mic ? 'Mute microphone' : 'Unmute microphone'}>
-          {mic ? <Mic size={22} /> : <MicOff size={22} />}
-        </CtlButton>
-        {video ? (
-          <CtlButton on={cam} onClick={toggleCam} label={cam ? 'Turn camera off' : 'Turn camera on'}>
-            {cam ? <Video size={22} /> : <VideoOff size={22} />}
+        <div className="flex items-center justify-center gap-3" onClick={(e) => e.stopPropagation()}>
+          {video ? (
+            <CtlButton on={cam} onClick={toggleCam} label={cam ? 'Turn camera off' : 'Turn camera on'}>
+              {cam ? <Video size={22} /> : <VideoOff size={22} />}
+            </CtlButton>
+          ) : null}
+          <CtlButton on={mic} onClick={toggleMic} label={mic ? 'Mute microphone' : 'Unmute microphone'}>
+            {mic ? <Mic size={22} /> : <MicOff size={22} />}
           </CtlButton>
-        ) : null}
-        {video && cam ? (
-          <CtlButton onClick={flip} label="Switch camera">
-            <RefreshCw size={22} />
+          {video && cam ? (
+            <CtlButton onClick={flip} label="Switch camera">
+              <RefreshCw size={22} />
+            </CtlButton>
+          ) : null}
+          <CtlButton onClick={() => setAdding(true)} label="Add people">
+            <UserPlus size={22} />
           </CtlButton>
-        ) : null}
-        <CtlButton onClick={() => setAdding(true)} label="Add people">
-          <UserPlus size={22} />
-        </CtlButton>
-        <button onClick={hangUp} aria-label="End call" className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shrink-0">
-          <PhoneOff size={26} />
-        </button>
+          <button onClick={hangUp} aria-label="End call" className="w-16 h-16 rounded-full bg-red-500 flex items-center justify-center shrink-0">
+            <PhoneOff size={26} />
+          </button>
+        </div>
       </div>
 
       {adding ? (
@@ -502,4 +601,4 @@ export function CallButtons({ partnerId }) {
       </button>
     </>
   )
-      }
+}
