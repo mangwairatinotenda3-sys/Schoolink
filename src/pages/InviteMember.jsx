@@ -33,7 +33,7 @@ function LinkButtons({ code, school, onToast }) {
 }
 
 export default function InviteMember() {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const allowed = canManageStaff(profile)
 
   const [loading, setLoading] = useState(true)
@@ -81,13 +81,31 @@ export default function InviteMember() {
     if (err || !data?.ok) { setApproval(!next); setToast('Could not change this') }
   }
 
+  // Makes the invite. With an email that already has an account, the invite also goes into their chat.
   async function makeStaffInvite() {
+    const mail = email.trim().toLowerCase()
     setBusy('staff')
     setError('')
-    const { data, error: err } = await supabase.rpc('create_staff_invite', { p_role: role, p_email: email.trim() || null })
+    const { data, error: err } = await supabase.rpc('create_staff_invite', { p_role: role, p_email: mail || null })
+    if (err || !data?.ok) {
+      setBusy('')
+      setError(err?.message || data?.error || 'Could not make the invite')
+      return
+    }
+
+    let sentTo = null
+    if (mail) {
+      const { data: found } = await supabase.rpc('find_user_by_email', { p_email: mail })
+      if (found?.ok && found.found) {
+        const body = `${profile?.full_name || 'The school'} invited you to join ${school || 'the school'} as ${data.role}. Tap to accept: ${joinLink(data.code)}`
+        const { error: msgErr } = await supabase.from('messages').insert({ sender_id: user.id, receiver_id: found.user_id, content: body })
+        if (msgErr) setError('The invite was made, but it could not be sent to their chat. Copy the link and send it to them.')
+        else sentTo = found.name || 'them'
+      }
+    }
+
     setBusy('')
-    if (err || !data?.ok) { setError(err?.message || data?.error || 'Could not make the invite'); return }
-    setFresh({ code: data.code, role: data.role })
+    setFresh({ code: data.code, role: data.role, sentTo, email: mail })
     setEmail('')
     load()
   }
@@ -163,9 +181,9 @@ export default function InviteMember() {
 
             <label className="block text-xs font-semibold uppercase tracking-wide text-gray-400 mt-4 mb-1.5">Their email (optional)</label>
             <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="colleague@school.com" autoCapitalize="none" className="w-full bg-gray-100 rounded-xl px-4 py-3 text-[15px] outline-none" />
-            <p className="text-xs text-gray-400 mt-1.5">If you add an email, only that account can use the invite.</p>
+            <p className="text-xs text-gray-400 mt-1.5">If they already have a Schoolink account, the invite goes to their chat. If you add an email, only that account can use the invite.</p>
 
-            {error ? <p className="text-sm text-red-500 mt-3">{error}</p> : null}
+            {error ? <p role="alert" className="text-sm text-red-500 mt-3">{error}</p> : null}
 
             <button onClick={makeStaffInvite} disabled={busy === 'staff'} className="mt-4 w-full bg-brand-purple text-white font-semibold py-3 rounded-full disabled:opacity-60 flex items-center justify-center">
               {busy === 'staff' ? <Loader2 size={18} className="animate-spin" /> : 'Make invite'}
@@ -174,7 +192,14 @@ export default function InviteMember() {
             {fresh ? (
               <div className="mt-4 bg-brand-light rounded-xl p-3 text-center">
                 <p className="text-xs text-gray-500 flex items-center justify-center gap-1"><Check size={13} className="text-green-600" /> Invite for {fresh.role}</p>
-                <p className="text-2xl font-mono font-bold tracking-widest text-brand-purple mt-1">{fresh.code}</p>
+                {fresh.sentTo ? (
+                  <p className="text-sm text-gray-700 mt-2">Sent to {fresh.sentTo}’s chat. They’ll get a notification. You can also copy the link.</p>
+                ) : fresh.email ? (
+                  <p className="text-sm text-gray-700 mt-2">No Schoolink account for {fresh.email} yet. Copy the link and send it to them.</p>
+                ) : (
+                  <p className="text-sm text-gray-700 mt-2">Copy the link and send it to them.</p>
+                )}
+                <p className="text-2xl font-mono font-bold tracking-widest text-brand-purple mt-2">{fresh.code}</p>
                 <LinkButtons code={fresh.code} school={school} onToast={setToast} />
               </div>
             ) : null}
@@ -207,4 +232,4 @@ export default function InviteMember() {
       {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg" style={{ bottom: 30 }}>{toast}</div> : null}
     </div>
   )
-      }
+        }
