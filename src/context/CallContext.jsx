@@ -9,7 +9,12 @@ const HEARTBEAT_MS = 30 * 1000
 
 export async function callApi(body) {
   const { data, error } = await supabase.functions.invoke('calls', { body })
-  if (error || !data?.ok) throw new Error(data?.error || 'Could not connect the call. Please try again.')
+  if (error || !data?.ok) {
+    const err = new Error(data?.error || 'Could not connect the call. Please try again.')
+    err.code = data?.code || null
+    err.ids = data?.ids || []
+    throw err
+  }
   return data
 }
 
@@ -30,6 +35,7 @@ export function CallProvider({ children }) {
   const [incoming, setIncoming] = useState(null) // { callId, kind, caller, others }
   const [active, setActive] = useState(null)     // the call on screen
   const [notice, setNotice] = useState('')
+  const [requests, setRequests] = useState([])   // people asking to be allowed to call me
   const activeRef = useRef(null)
   const incomingRef = useRef(null)
   const startingRef = useRef(false)
@@ -65,6 +71,27 @@ export function CallProvider({ children }) {
     setActive(null)
     callApi({ action: 'leave', callId: cur.callId }).catch(() => {})
   }, [])
+
+  // Pending call requests waiting for me, loaded when the app opens
+  useEffect(() => {
+    setRequests([])
+    if (!uid) return undefined
+    let live = true
+    ;(async () => {
+      const { data } = await supabase.from('call_requests').select('requester_id')
+        .eq('target_id', uid).eq('status', 'pending').order('created_at', { ascending: true })
+      const ids = (data ?? []).map((r) => r.requester_id)
+      if (!ids.length) return
+      const people = await fetchPeople(ids)
+      if (!live) return
+      setRequests(ids.map((id) => ({
+        requesterId: id,
+        name: people[id]?.name || 'Schoolink member',
+        avatar: people[id]?.avatar || null,
+      })))
+    })()
+    return () => { live = false }
+  }, [uid])
 
   // Live updates. RLS limits every event to calls this person is part of.
   useEffect(() => {
@@ -131,6 +158,30 @@ export function CallProvider({ children }) {
         if (activeRef.current?.callId === c.id) { setActive(null); setNotice('Call ended.') }
         if (incomingRef.current?.callId === c.id) setIncoming(null)
       })
+      // Call requests sent to me
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'call_requests', filter: `target_id=eq.${uid}` }, async (payload) => {
+        const row = payload.new
+        if (row.status !== 'pending') return
+        const people = await fetchPeople([row.requester_id])
+        const p = people[row.requester_id] || { name: 'Schoolink member', avatar: null }
+        setRequests((list) => (list.some((r) => r.requesterId === row.requester_id)
+          ? list
+          : [...list, { requesterId: row.requester_id, name: p.name, avatar: p.avatar }]))
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_requests', filter: `target_id=eq.${uid}` }, (payload) => {
+        const row = payload.new
+        if (row.status !== 'pending') setRequests((list) => list.filter((r) => r.requesterId !== row.requester_id))
+      })
+      // Requests I sent
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'call_requests', filter: `requester_id=eq.${uid}` }, async (payload) => {
+        const row = payload.new
+        if (row.status === 'pending') return
+        const people = await fetchPeople([row.target_id])
+        const name = people[row.target_id]?.name || 'They'
+        setNotice(row.status === 'accepted'
+          ? `${name} accepted your call request. You can call now.`
+          : `${name} can't take your call right now.`)
+      })
       .subscribe()
 
     return () => { supabase.removeChannel(channel) }
@@ -160,6 +211,30 @@ export function CallProvider({ children }) {
     return () => clearTimeout(t)
   }, [waiting, hangUp])
 
+  // Ask someone outside the school to let me call them. Returns 'accepted', 'pending' or null.
+  const requestCall = useCallback(async (partnerId) => {
+    try {
+      const data = await callApi({ action: 'request', targetId: partnerId })
+      if (data.status === 'accepted') setNotice('You can call now.')
+      else setNotice(`Call request sent${data.name ? ` to ${data.name}` : ''}. You can call once they accept.`)
+      return data.status
+    } catch (e) {
+      setNotice(e.message)
+      return null
+    }
+  }, [])
+
+  // Accept or decline a call request sent to me
+  const respondRequest = useCallback(async (requesterId, accept) => {
+    setRequests((list) => list.filter((r) => r.requesterId !== requesterId))
+    try {
+      await callApi({ action: 'respond', requesterId, accept })
+      if (accept) setNotice('They can call you now.')
+    } catch (e) {
+      setNotice(e.message)
+    }
+  }, [])
+
   const startCall = useCallback(async ({ inviteeIds, kind = 'video', title = '' }) => {
     if (startingRef.current) return false
     if (activeRef.current) { setNotice('Finish your current call first.'); return false }
@@ -181,12 +256,14 @@ export function CallProvider({ children }) {
       if (data.skipped?.length) setNotice(data.skipped.join(' · '))
       return true
     } catch (e) {
-      setNotice(e.message)
+      // Calling a stranger: send the request for them, they decide
+      if (e.code === 'needs_request' && inviteeIds.length === 1) await requestCall(inviteeIds[0])
+      else setNotice(e.message)
       return false
     } finally {
       startingRef.current = false
     }
-  }, [])
+  }, [requestCall])
 
   const accept = useCallback(async () => {
     const cur = incomingRef.current
@@ -238,8 +315,11 @@ export function CallProvider({ children }) {
   }, [])
 
   const value = useMemo(
-    () => ({ uid, incoming, active, notice, setNotice, clearNotice, startCall, accept, decline, hangUp, invite }),
-    [uid, incoming, active, notice, clearNotice, startCall, accept, decline, hangUp, invite]
+    () => ({
+      uid, incoming, active, notice, setNotice, clearNotice, requests,
+      startCall, accept, decline, hangUp, invite, requestCall, respondRequest,
+    }),
+    [uid, incoming, active, notice, clearNotice, requests, startCall, accept, decline, hangUp, invite, requestCall, respondRequest]
   )
 
   return <CallCtx.Provider value={value}>{children}</CallCtx.Provider>
