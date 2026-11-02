@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Search, Plus, Users, Lock, MoreVertical, Trash2 } from 'lucide-react'
+import { Search, Plus, Lock, MoreVertical, Trash2 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BackHeader from '../components/BackHeader.jsx'
 import BottomNav from '../components/BottomNav.jsx'
+import CommunityAvatar from '../components/CommunityAvatar.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -20,6 +21,7 @@ export default function Communities() {
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('All')
   const [openMenuId, setOpenMenuId] = useState(null)
+  const [error, setError] = useState('')
 
   useEffect(() => {
     loadCommunities()
@@ -51,28 +53,38 @@ export default function Communities() {
   }
 
   async function handleJoinOrRequest(community) {
+    setError('')
     if (community.is_private) {
-      await supabase.from('community_join_requests').upsert({ community_id: community.id, user_id: user.id, status: 'pending' })
+      const { error: err } = await supabase.from('community_join_requests')
+        .upsert({ community_id: community.id, user_id: user.id, status: 'pending' })
+      if (err) { setError('Could not send the request. Try again.'); return }
       setRequestedIds((prev) => new Set(prev).add(community.id))
-    } else {
-      await supabase.from('community_members').insert({ community_id: community.id, user_id: user.id })
-      setMyCommunityIds((prev) => new Set(prev).add(community.id))
+      return
     }
+    // Public: the server adds the member, so it works with the security rules
+    const { data, error: err } = await supabase.rpc('community_join', { p_community: String(community.id) })
+    if (err || !data?.ok) {
+      setError(err?.message || data?.error || 'Could not join. Try again.')
+      return
+    }
+    setMyCommunityIds((prev) => new Set(prev).add(community.id))
+    setMemberCounts((prev) => ({ ...prev, [community.id]: (prev[community.id] ?? 0) + 1 }))
   }
-async function handleDelete(communityId) {
+
+  async function handleDelete(communityId) {
     setOpenMenuId(null)
     if (!window.confirm('Delete this community for everyone? This cannot be undone.')) return
-    const { data, error } = await supabase.from('communities').delete().eq('id', communityId).select()
-    if (error) {
-      alert(`Couldn't delete: ${error.message}`)
+    const { data, error: err } = await supabase.from('communities').delete().eq('id', communityId).select()
+    if (err) {
+      alert(`Couldn't delete: ${err.message}`)
       return
     }
     if (!data || data.length === 0) {
-      alert("Delete didn't take effect — you may not have admin permission on this community, or a database permission needs to be re-applied.")
+      alert("Delete didn't take effect. You may not have admin permission on this community, or a database permission needs to be re-applied.")
       return
     }
     setCommunities((prev) => prev.filter((c) => c.id !== communityId))
-        }
+  }
 
   const filtered = communities.filter((c) => {
     const q = query.toLowerCase().trim()
@@ -96,11 +108,7 @@ async function handleDelete(communityId) {
     return (
       <div className="flex items-center gap-3 py-3.5 relative">
         <button onClick={() => isMember && navigate(`/communities/${c.id}`)} className="flex items-center gap-3 flex-1 text-left min-w-0">
-          {c.avatar_url ? (
-            <img src={c.avatar_url} alt="" className="w-12 h-12 rounded-full object-cover shrink-0" />
-          ) : (
-            <span className="w-12 h-12 rounded-full bg-brand-light flex items-center justify-center shrink-0"><Users size={18} className="text-brand-purple" /></span>
-          )}
+          <CommunityAvatar url={c.avatar_url} size={48} />
           <div className="min-w-0">
             <p className="font-medium text-sm truncate flex items-center gap-1">
               {c.name}
@@ -123,7 +131,9 @@ async function handleDelete(communityId) {
 
         {isAdmin ? (
           <div className="relative shrink-0">
-            <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)}><MoreVertical size={18} className="text-gray-400" /></button>
+            <button onClick={() => setOpenMenuId(openMenuId === c.id ? null : c.id)} aria-label="Community options">
+              <MoreVertical size={18} className="text-gray-400" />
+            </button>
             {openMenuId === c.id ? (
               <div className="absolute right-0 top-7 bg-white border border-gray-100 rounded-lg shadow-lg z-10 w-40">
                 <button onClick={() => handleDelete(c.id)} className="w-full flex items-center gap-2 px-3 py-2.5 text-sm text-red-500">
@@ -158,6 +168,8 @@ async function handleDelete(communityId) {
         <button onClick={() => navigate('/communities/create')} className="mt-3 w-full flex items-center justify-center gap-2 border border-dashed border-gray-300 rounded-xl py-3 text-sm text-gray-500">
           <Plus size={16} /> Create a Community
         </button>
+
+        {error ? <p role="alert" className="text-sm text-red-500 mt-2">{error}</p> : null}
       </div>
 
       <div className="screen-scroll px-4">
