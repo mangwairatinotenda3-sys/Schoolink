@@ -9,7 +9,7 @@ const OPTIONS = [
   { id: 'school', label: 'Only my school', sub: 'Only people in my school, or people I approved, can call me.' },
 ]
 
-// Who can call me, and the people I approved. Put this inside PrivacySettings.
+// Who can call me, and the people I approved. Shown inside Privacy settings.
 export default function CallPrivacySection() {
   const { user, profile, saveProfileDetails } = useAuth()
   const current = profile?.call_privacy === 'school' ? 'school' : 'ask'
@@ -21,7 +21,9 @@ export default function CallPrivacySection() {
     if (!user?.id) return undefined
     let live = true
     ;(async () => {
-      const { data } = await supabase.from('call_allowed').select('allowed_id').eq('allower_id', user.id)
+      const { data, error } = await supabase.from('call_allowed').select('allowed_id').eq('allower_id', user.id)
+      if (!live) return
+      if (error) { setApproved([]); setMsg('Could not load your list.'); return }
       const ids = (data ?? []).map((r) => r.allowed_id)
       let people = []
       if (ids.length) {
@@ -37,11 +39,8 @@ export default function CallPrivacySection() {
     if (id === current || saving) return
     setSaving(true)
     setMsg('')
-    try {
-      await saveProfileDetails({ call_privacy: id })
-    } catch {
-      setMsg('Could not save. Try again.')
-    }
+    const { error } = await saveProfileDetails({ call_privacy: id })
+    if (error) setMsg('Could not save. Try again.')
     setSaving(false)
   }
 
@@ -53,9 +52,9 @@ export default function CallPrivacySection() {
   }
 
   return (
-    <section className="px-4 py-4">
-      <p className="font-semibold text-[15px] mb-1">Who can call me</p>
-      <p className="text-xs text-gray-500 mb-3">Calls are always between you and the person you accept.</p>
+    <section className="py-3 border-b border-gray-100">
+      <p className="font-medium text-sm mb-1">Who can call me</p>
+      <p className="text-xs text-gray-400 mb-3">Calls are always between you and the person you accept.</p>
 
       <div className="flex flex-col gap-2">
         {OPTIONS.map((o) => (
@@ -72,7 +71,7 @@ export default function CallPrivacySection() {
         ))}
       </div>
 
-      <p className="font-semibold text-[15px] mt-5 mb-2">People who can call me</p>
+      <p className="font-medium text-sm mt-5 mb-2">People who can call me</p>
       {approved === null ? (
         <p className="text-sm text-gray-500">Loading…</p>
       ) : approved.length === 0 ? (
@@ -83,7 +82,11 @@ export default function CallPrivacySection() {
             <div key={p.id} className="flex items-center gap-3 py-2">
               <PersonAvatar p={p} size={36} />
               <span className="flex-1 min-w-0 truncate text-[15px]">{p.full_name || 'Schoolink member'}</span>
-              <button onClick={() => remove(p.id)} aria-label={`Remove ${p.full_name || 'person'}`} className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-100">
+              <button
+                onClick={() => remove(p.id)}
+                aria-label={`Remove ${p.full_name || 'person'}`}
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500 active:bg-gray-100"
+              >
                 <X size={18} />
               </button>
             </div>
@@ -93,4 +96,4 @@ export default function CallPrivacySection() {
       {msg ? <p role="alert" className="text-sm text-red-500 mt-2">{msg}</p> : null}
     </section>
   )
-}
+    }
