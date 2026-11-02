@@ -19,6 +19,13 @@ const ROOM_EVENTS = [
   RoomEvent.ActiveSpeakersChanged,
 ]
 
+const RELATION_TEXT = {
+  call: 'Can call',
+  send: 'Not connected yet',
+  pending: 'Request sent, waiting for them',
+  closed: 'Only takes calls from their school',
+}
+
 function parseMeta(raw) {
   try { return JSON.parse(raw || '{}') || {} } catch { return {} }
 }
@@ -80,6 +87,30 @@ function IncomingCall({ incoming, onAccept, onDecline }) {
         </div>
       </div>
     </div>
+  )
+}
+
+// Someone outside the school asks to call me. Accept lets them call me from now on.
+function CallRequestSheet({ request, onRespond, onLater }) {
+  return (
+    <BottomSheet onClose={onLater}>
+      <div className="px-4 pb-4 flex flex-col items-center text-center">
+        <Avatar src={request.avatar} name={request.name} size={72} />
+        <p className="font-semibold text-base mt-3">{request.name}</p>
+        <p className="text-sm text-gray-500 mt-1 max-w-xs">
+          wants to call you on Schoolink. If you accept, they can call you from now on. You can remove them any time in Privacy settings.
+        </p>
+        <div className="grid grid-cols-2 gap-3 w-full mt-5">
+          <button onClick={() => onRespond(request.requesterId, false)} className="py-3 rounded-full bg-gray-100 font-semibold text-gray-700">
+            Decline
+          </button>
+          <button onClick={() => onRespond(request.requesterId, true)} className="py-3 rounded-full bg-brand-purple text-white font-semibold">
+            Accept
+          </button>
+        </div>
+        <button onClick={onLater} className="mt-3 text-sm text-gray-500 py-2">Not now</button>
+      </div>
+    </BottomSheet>
   )
 }
 
@@ -152,35 +183,49 @@ function Tile({ participant, isLocal = false, pending = null, mirror = false }) 
   )
 }
 
-// Search and tick people. Used to add people mid-call and to start a group call.
+// Search anyone by name and tick people. Strangers show a Request button until they accept.
 export function ContactPicker({ exclude = [], max = 11, confirmLabel = 'Start', onConfirm, header = null }) {
-  const [list, setList] = useState(null)
-  const [picked, setPicked] = useState([])
+  const { requestCall } = useCalls()
   const [q, setQ] = useState('')
+  const [results, setResults] = useState(null)
+  const [loading, setLoading] = useState(false)
+  const [override, setOverride] = useState({})
+  const [picked, setPicked] = useState([])
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
+    const needle = q.trim()
+    if (needle.length < 2) { setResults(null); setLoading(false); return undefined }
     let live = true
-    supabase.rpc('call_contacts').then(({ data, error: err }) => {
+    setLoading(true)
+    const t = setTimeout(async () => {
+      const { data, error: err } = await supabase.rpc('call_search', { p_query: needle })
       if (!live) return
-      if (err) setError('Could not load your school list.')
-      setList(data ?? [])
-    })
-    return () => { live = false }
-  }, [])
+      setLoading(false)
+      if (err) { setResults([]); setError('Could not search people. Try again.'); return }
+      setError('')
+      setOverride({})
+      setResults(data ?? [])
+    }, 300)
+    return () => { live = false; clearTimeout(t) }
+  }, [q])
 
-  const shown = useMemo(() => {
-    const needle = q.trim().toLowerCase()
-    return (list ?? []).filter((c) =>
-      !exclude.includes(c.id) && (!needle || (c.full_name || '').toLowerCase().includes(needle)))
-  }, [list, exclude, q])
+  const relationOf = (c) => override[c.id] || c.relation
+  const shown = (results ?? []).filter((c) => !exclude.includes(c.id))
 
-  function toggle(id) {
+  function toggle(c) {
     setError('')
-    if (picked.includes(id)) { setPicked(picked.filter((x) => x !== id)); return }
+    if (picked.includes(c.id)) { setPicked(picked.filter((x) => x !== c.id)); return }
     if (picked.length >= max) { setError(`You can add up to ${max} people.`); return }
-    setPicked([...picked, id])
+    setPicked([...picked, c.id])
+  }
+
+  async function sendRequest(c) {
+    setError('')
+    const status = await requestCall(c.id)
+    if (status === 'accepted') setOverride((o) => ({ ...o, [c.id]: 'call' }))
+    else if (status === 'pending') setOverride((o) => ({ ...o, [c.id]: 'pending' }))
   }
 
   async function confirm() {
@@ -197,27 +242,49 @@ export function ContactPicker({ exclude = [], max = 11, confirmLabel = 'Start', 
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Search people"
+          placeholder="Search anyone by name"
           aria-label="Search people"
           className="w-full border border-gray-200 rounded-full pl-9 pr-4 py-2.5 text-sm outline-brand-purple"
         />
       </div>
       {error ? <p role="alert" className="text-sm text-red-500 px-1 mb-2">{error}</p> : null}
       <div className="max-h-[48dvh] overflow-y-auto -mx-1">
-        {list === null ? (
-          <p className="text-sm text-gray-500 px-3 py-6 text-center">Loading people…</p>
+        {q.trim().length < 2 ? (
+          <p className="text-sm text-gray-500 px-3 py-6 text-center">
+            Type at least 2 letters to find someone. You can call anyone who accepts your request.
+          </p>
+        ) : loading ? (
+          <p className="text-sm text-gray-500 px-3 py-6 text-center">Searching…</p>
         ) : shown.length === 0 ? (
-          <p className="text-sm text-gray-500 px-3 py-6 text-center">{q ? 'No one matches.' : 'No one else is available right now.'}</p>
+          <p className="text-sm text-gray-500 px-3 py-6 text-center">No one matches.</p>
         ) : shown.map((c) => {
+          const rel = relationOf(c)
+          const can = rel === 'call'
           const on = picked.includes(c.id)
           return (
-            <button key={c.id} onClick={() => toggle(c.id)} className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left active:bg-gray-100">
-              <Avatar src={c.avatar_url} name={c.full_name} size={40} />
-              <span className="flex-1 min-w-0 truncate font-medium">{c.full_name || 'Schoolink member'}</span>
-              <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${on ? 'bg-brand-purple border-brand-purple text-white' : 'border-gray-300'}`}>
-                {on ? <Check size={14} /> : null}
-              </span>
-            </button>
+            <div key={c.id} className="flex items-center gap-2 px-3 py-2 rounded-xl">
+              <button
+                onClick={() => can && toggle(c)}
+                disabled={!can}
+                className="flex-1 min-w-0 flex items-center gap-3 py-0.5 text-left disabled:cursor-default"
+              >
+                <Avatar src={c.avatar_url} name={c.full_name} size={40} />
+                <span className="flex-1 min-w-0">
+                  <span className="block truncate font-medium">{c.full_name || 'Schoolink member'}</span>
+                  <span className="block text-xs text-gray-400 truncate">{RELATION_TEXT[rel] || ''}</span>
+                </span>
+                {can ? (
+                  <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center shrink-0 ${on ? 'bg-brand-purple border-brand-purple text-white' : 'border-gray-300'}`}>
+                    {on ? <Check size={14} /> : null}
+                  </span>
+                ) : null}
+              </button>
+              {rel === 'send' ? (
+                <button onClick={() => sendRequest(c)} className="shrink-0 text-xs font-semibold text-brand-purple bg-brand-light rounded-full px-3 py-1.5">
+                  Request
+                </button>
+              ) : null}
+            </div>
           )
         })}
       </div>
@@ -391,7 +458,9 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
 }
 
 export default function CallOverlay() {
-  const { incoming, active, notice, clearNotice, setNotice, accept, decline, hangUp, invite } = useCalls()
+  const { incoming, active, notice, clearNotice, setNotice, accept, decline, hangUp, invite, requests, respondRequest } = useCalls()
+  const [later, setLater] = useState([]) // requests I chose to leave for now this session
+  const request = requests.find((r) => !later.includes(r.requesterId)) || null
 
   useEffect(() => {
     if (!notice) return undefined
@@ -407,6 +476,13 @@ export default function CallOverlay() {
         </div>
       ) : null}
       {incoming && !active ? <IncomingCall incoming={incoming} onAccept={accept} onDecline={decline} /> : null}
+      {request && !active && !incoming ? (
+        <CallRequestSheet
+          request={request}
+          onRespond={respondRequest}
+          onLater={() => setLater((l) => [...l, request.requesterId])}
+        />
+      ) : null}
       {active ? <ActiveCall active={active} hangUp={hangUp} invite={invite} setNotice={setNotice} /> : null}
     </>
   )
@@ -426,4 +502,4 @@ export function CallButtons({ partnerId }) {
       </button>
     </>
   )
-}
+      }
