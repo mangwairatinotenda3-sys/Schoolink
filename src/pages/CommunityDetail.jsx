@@ -15,6 +15,7 @@ import PersonAvatar from '../components/PersonAvatar.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import useVoiceRecorder from '../lib/useVoiceRecorder.js'
 import EmojiPicker from '../components/EmojiPicker.jsx'
+import { loadCommunityMembers } from '../lib/communityMembers.js'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
@@ -149,13 +150,23 @@ export default function CommunityDetail() {
   // ---------- Loading ----------
   async function loadAll(first = false) {
     if (first) setLoading(true)
-    const [{ data: comm }, { data: rows }] = await Promise.all([
+    const [{ data: comm }, mem] = await Promise.all([
       supabase.from('communities').select('*').eq('id', communityId).maybeSingle(),
-      supabase.from('community_members').select('user_id, role, profiles(full_name, role, avatar_url)').eq('community_id', communityId),
+      loadCommunityMembers(communityId),
     ])
+    if (mem.error) setToast(mem.error.message || 'Could not load members.')
     setCommunity(comm)
-    setMembers(rows ?? [])
-    const role = (rows ?? []).find((r) => r.user_id === user.id)?.role ?? null
+    const rows = mem.rows
+    setMembers(rows)
+
+    // Membership comes from your own row, read directly, so a failed profile lookup can't hide it
+    const { data: meRow } = await supabase
+      .from('community_members')
+      .select('role')
+      .eq('community_id', communityId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    const role = meRow?.role ?? null
     setMyRole(role)
 
     let query = supabase.from('community_messages').select('*').eq('community_id', communityId)
@@ -268,8 +279,8 @@ export default function CommunityDetail() {
     nearBottom.current = near
     setShowDown(!near)
   }
-
-  // ---------- Derived ----------
+  
+    // ---------- Derived ----------
   const pinned = useMemo(
     () => messages.filter((m) => m.pinned_at && !m.removed_at && !m.deleted_at).sort((a, b) => new Date(b.pinned_at) - new Date(a.pinned_at)),
     [messages]
@@ -433,9 +444,9 @@ export default function CommunityDetail() {
     setReplyTo(null)
     await sendMessage({ media_url: data.publicUrl, media_type: 'audio', ...(reply ? { reply_to: reply.id } : {}) })
     setUploading(false)
-  }
+}
 
-        // ---------- Message actions ----------
+  // ---------- Message actions ----------
   const patch = (id, fields) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...fields } : m)))
 
   async function copyText(m) {
@@ -578,9 +589,9 @@ export default function CommunityDetail() {
       else await loadAll()
     }
     setJoining(false)
-}
+      }
 
-  // ---------- Screens ----------
+    // ---------- Screens ----------
   if (loading || !community) {
     return (
       <div className="app-shell">
@@ -847,7 +858,7 @@ export default function CommunityDetail() {
         </BottomSheet>
       ) : null}
 
-      {/* Message actions */}
+       {/* Message actions */}
       {sheetMsg ? (
         <BottomSheet onClose={() => setActionMsg(null)}>
           <div className="px-4 pb-2">
