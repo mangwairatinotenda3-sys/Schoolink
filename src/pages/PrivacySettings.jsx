@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronRight, UserX } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
+import CallPrivacySection from '../components/CallPrivacySection.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import Toggle from '../components/Switch.jsx'
 
@@ -69,6 +70,8 @@ export default function PrivacySettings() {
           ))}
         </div>
 
+        <CallPrivacySection />
+
         <button
           onClick={() => navigate('/settings/blocked-users')}
           className="w-full flex items-center justify-between py-3.5"
@@ -82,4 +85,4 @@ export default function PrivacySettings() {
       </div>
     </div>
   )
-      }
+    }
