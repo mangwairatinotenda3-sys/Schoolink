@@ -240,12 +240,6 @@ jobs:
           print("Version", os.environ['APP_VERSION_NAME'], "build", os.environ['APP_VERSION_CODE'])
           PY
 
-      - name: TEMP show key alias
-        env:
-          KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-        run: |
-          keytool -list -keystore "$RUNNER_TEMP/schoolink.jks" -storepass "$KEYSTORE_PASSWORD" 2>&1 | grep -i PrivateKeyEntry | sed 's/,.*//' | sed 's/./& /g'
-
       - name: Build the signed APK and app bundle
         env:
           KEYSTORE_PATH: ${{ runner.temp }}/schoolink.jks
