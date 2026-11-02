@@ -6,6 +6,7 @@ const CallCtx = createContext(null)
 const NO_ANSWER_MS = 45 * 1000
 const RING_MS = 60 * 1000
 const HEARTBEAT_MS = 30 * 1000
+const RECHECK_MS = 15 * 1000
 
 export async function callApi(body) {
   const { data, error } = await supabase.functions.invoke('calls', { body })
@@ -63,6 +64,19 @@ export function CallProvider({ children }) {
       others,
     }
   }, [uid])
+
+  // Looks for a ring that arrived while the live connection was down or the app was in the background
+  const checkRinging = useCallback(async () => {
+    if (!uid || activeRef.current || incomingRef.current) return
+    const since = new Date(Date.now() - RING_MS).toISOString()
+    const { data } = await supabase.from('call_participants').select('call_id')
+      .eq('user_id', uid).eq('role', 'invitee').eq('status', 'ringing')
+      .gte('invited_at', since).order('invited_at', { ascending: false }).limit(1)
+    const callId = data?.[0]?.call_id
+    if (!callId) return
+    const info = await loadIncoming(callId)
+    if (info && !activeRef.current && !incomingRef.current) setIncoming(info)
+  }, [uid, loadIncoming])
 
   const hangUp = useCallback(() => {
     const cur = activeRef.current
@@ -182,10 +196,27 @@ export function CallProvider({ children }) {
           ? `${name} accepted your call request. You can call now.`
           : `${name} can't take your call right now.`)
       })
-      .subscribe()
+      .subscribe((status) => {
+        // Connected (or reconnected): catch any ring that was missed while disconnected
+        if (status === 'SUBSCRIBED') checkRinging()
+      })
 
     return () => { supabase.removeChannel(channel) }
-  }, [uid, loadIncoming])
+  }, [uid, loadIncoming, checkRinging])
+
+  // Look for rings when the app comes back to the front, and every few seconds while idle
+  useEffect(() => {
+    if (!uid) return undefined
+    const onFront = () => { if (document.visibilityState !== 'hidden') checkRinging() }
+    document.addEventListener('visibilitychange', onFront)
+    window.addEventListener('focus', onFront)
+    const t = setInterval(() => { if (!activeRef.current) checkRinging() }, RECHECK_MS)
+    return () => {
+      document.removeEventListener('visibilitychange', onFront)
+      window.removeEventListener('focus', onFront)
+      clearInterval(t)
+    }
+  }, [uid, checkRinging])
 
   // An incoming ring stops on its own after a minute, matching the server
   useEffect(() => {
@@ -329,4 +360,4 @@ export function useCalls() {
   const value = useContext(CallCtx)
   if (!value) throw new Error('useCalls must be used inside CallProvider')
   return value
-    }
+                                 }
