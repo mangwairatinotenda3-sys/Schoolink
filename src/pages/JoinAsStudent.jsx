@@ -5,16 +5,21 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { previewInvite, redeemInvite } from '../lib/invites.js'
 import { AuthPage, CodeInput, PrimaryButton, Notice } from '../components/AuthKit.jsx'
 
-// Students type their school's join code. The school may need to approve them first.
+const FIELD_CLASS = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-purple'
+
+// Students type their school's join code, then add their class and admission number.
+// The school may need to approve them first.
 export default function JoinAsStudent() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
   const [code, setCode] = useState('')
+  const [classRoom, setClassRoom] = useState('')
+  const [admission, setAdmission] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
 
-  const ready = code.trim().length >= 4
+  const ready = code.trim().length >= 4 && classRoom.trim().length > 0 && admission.trim().length > 0
 
   function enterApp(res) {
     if (res.reload) { window.location.hash = '#/home'; window.location.reload(); return }
@@ -33,6 +38,11 @@ export default function JoinAsStudent() {
       setBusy(false)
       return
     }
+    const { error: saveError } = await saveProfileDetails({
+      class_name: classRoom.trim(),
+      admission_no: admission.trim(),
+    })
+    if (saveError) { setError("Couldn't save your class. Try again."); setBusy(false); return }
     const res = await redeemInvite(code, saveProfileDetails)
     setBusy(false)
     if (!res.ok) { setError(res.error); return }
@@ -57,12 +67,20 @@ export default function JoinAsStudent() {
   }
 
   return (
-    <AuthPage title="Join as a student" subtitle="Enter the student join code from your school.">
+    <AuthPage title="Join as a student" subtitle="Enter the student join code from your school, then your class and admission number.">
       <form onSubmit={handleJoin} noValidate className="space-y-5">
         <CodeInput id="student-code" value={code} onChange={setCode} placeholder="AB12CD34" aria-label="Student join code" />
+        <div>
+          <label className="text-sm font-semibold block mb-1.5">Class</label>
+          <input value={classRoom} onChange={(e) => setClassRoom(e.target.value)} maxLength={20} placeholder="For example Form 3B" className={FIELD_CLASS} />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1.5">Admission number</label>
+          <input value={admission} onChange={(e) => setAdmission(e.target.value)} maxLength={20} placeholder="The number on your school report" className={FIELD_CLASS} />
+        </div>
         {error ? <Notice tone="error">{error}</Notice> : null}
         <PrimaryButton type="submit" disabled={!ready} busy={busy} busyLabel="Checking code…">Join</PrimaryButton>
       </form>
     </AuthPage>
   )
-         }
+}
