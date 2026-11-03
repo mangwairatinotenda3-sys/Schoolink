@@ -373,3 +373,41 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
   --avatar-fallback-bg: #3B4A54;
   --avatar-fallback-fg: #AEBAC1;
 }
+
+/* No blue box or highlight when a button is tapped or clicked.
+   Keyboard users still get the purple focus ring. */
+*,
+*::before,
+*::after {
+  -webkit-tap-highlight-color: transparent;
+}
+
+button,
+[role="button"],
+a,
+input[type="button"],
+input[type="submit"] {
+  outline: none;
+}
+
+button:focus-visible,
+[role="button"]:focus-visible,
+a:focus-visible,
+input[type="button"]:focus-visible,
+input[type="submit"]:focus-visible {
+  outline: 2px solid var(--brand-purple);
+  outline-offset: 2px;
+}
+
+button,
+[role="button"] {
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+button::selection,
+[role="button"]::selection,
+button *::selection,
+[role="button"] *::selection {
+  background: transparent;
+  }
