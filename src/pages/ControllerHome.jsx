@@ -20,7 +20,7 @@ const SECTIONS = [
     title: 'Review',
     items: [
       { to: '/controller/verification', label: 'Verification queue', sub: 'IDs and school documents', icon: ShieldCheck, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'pending_verifications' },
-      { to: '/admin/student-reports', label: 'Student reports', sub: 'School reports from students', icon: GraduationCap, color: '#7C3AED', roles: ['owner', 'verifier'] },
+      { to: '/admin/student-reports', label: 'Student reports', sub: 'School reports from students', icon: GraduationCap, color: '#7C3AED', roles: ['owner', 'verifier'], count: 'student_reports' },
       { to: '/controller/school-reviews', label: 'School reviews', sub: 'Check school documents before payment', icon: ShieldCheck, color: '#0EA5E9', roles: ['owner', 'verifier'] },
       { to: '/controller/reports', label: 'User reports', sub: 'Posts, comments and profiles', icon: Flag, color: '#2563EB', roles: ['owner', 'moderator'], count: 'pending_reports' },
       { to: '/controller/complaints', label: 'Complaints', sub: 'Help and feedback messages', icon: MessageSquare, color: '#10B981', roles: ['owner', 'support', 'moderator'], count: 'open_feedback' },
@@ -100,9 +100,12 @@ export default function ControllerHome() {
   async function load() {
     setLoading(true)
     setFailed(false)
-    const { data, error } = await supabase.rpc('site_stats')
+    const [{ data, error }, { count: studentCount }] = await Promise.all([
+      supabase.rpc('site_stats'),
+      supabase.from('student_report_requests').select('id', { count: 'exact', head: true }).eq('status', 'pending'),
+    ])
     if (error) setFailed(true)
-    setStats(data || null)
+    setStats({ ...(data || {}), student_reports: studentCount || 0 })
     setLoading(false)
   }
 
@@ -253,4 +256,4 @@ export default function ControllerHome() {
       )}
     </ControllerShell>
   )
-  }
+       }
