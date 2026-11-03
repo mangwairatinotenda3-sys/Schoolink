@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Camera, MapPin, Phone, Mail, MessageSquare, Plus, FileText, ExternalLink, Bell, BellRing, Video,
-  Download, Share2, Heart, Star, Trash2, X, ChevronLeft, Settings, Pencil, Loader2, Check, Upload,
+  Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2, Check, Upload,
 } from 'lucide-react'
 import VerifiedBadge, { refreshVerifiedIds } from '../components/VerifiedBadge.jsx'
 import SchoolPlusBadge, { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
