@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { Download, X } from 'lucide-react'
-import { checkForUpdate, storeLinkFor, openLink } from '../lib/updates.js'
-import { STORE_NAMES } from '../lib/appInfo.js'
+import { checkForUpdate, storeLinkFor, openLink, updateLabel, updateSubtitle } from '../lib/updates.js'
 
 const DISMISS = 'sl_update_dismissed'
 const CHECKED = 'sl_update_checked_at'
@@ -36,7 +35,6 @@ export default function UpdatePrompt() {
 
   const { latest, state } = result
   const { store, url } = storeLinkFor(latest)
-  const storeName = STORE_NAMES[store]
 
   if (state === 'available') {
     let dismissed = false
@@ -48,7 +46,7 @@ export default function UpdatePrompt() {
           <span className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0"><Download size={18} /></span>
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold">Schoolink {latest.versionName} is ready</p>
-            <p className="text-xs text-gray-300 truncate">{url ? `Update in ${storeName}` : 'Open your app store to update'}</p>
+            <p className="text-xs text-gray-300 truncate">{url ? updateSubtitle(store) : 'Open your app store to update'}</p>
           </div>
           {url ? <button onClick={() => openLink(url)} className="bg-white text-gray-900 text-sm font-semibold rounded-full px-4 py-2">Update</button> : null}
           <button
@@ -67,10 +65,10 @@ export default function UpdatePrompt() {
       <h1 className="text-2xl font-bold mt-5">Please update Schoolink</h1>
       <p className="text-sm text-gray-500 mt-2 max-w-[320px]">This version is too old to keep working. {latest.notes || ''}</p>
       {url ? (
-        <button onClick={() => openLink(url)} className="mt-6 bg-brand-purple text-white font-semibold rounded-full px-8 py-3.5">Update in {storeName}</button>
+        <button onClick={() => openLink(url)} className="mt-6 bg-brand-purple text-white font-semibold rounded-full px-8 py-3.5">{updateLabel(store)}</button>
       ) : (
         <p className="text-sm text-gray-400 mt-6">Open your app store and update Schoolink.</p>
       )}
     </div>
   )
-}
+         }
