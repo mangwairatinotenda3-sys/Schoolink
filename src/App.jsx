@@ -98,7 +98,7 @@ function RootRoute() {
   if (target) return <Navigate to={target} replace />
   if (showWelcome) return <Welcome />
   return <PageLoading />
-}
+    }
 
 const SchoolSettings = lazyPage(() => import('./pages/SchoolSettings.jsx'))
 const SchoolLearners = lazyPage(() => import('./pages/SchoolLearners.jsx'))
@@ -196,13 +196,23 @@ const ControllerAnnounce = lazyPage(() => import('./pages/ControllerAnnounce.jsx
 const ControllerProfile = lazyPage(() => import('./pages/ControllerProfile.jsx'))
 const ControllerAppeals = lazyPage(() => import('./pages/ControllerAppeals.jsx'))
 const ControllerSchoolReviews = lazyPage(() => import('./pages/ControllerSchoolReviews.jsx'))
+const StudentVerification = lazyPage(() => import('./pages/StudentVerification.jsx'))
+const ChooseSchool = lazyPage(() => import('./pages/ChooseSchool.jsx'))
+const StudentReports = lazyPage(() => import('./pages/StudentReports.jsx'))
 
 function RequireAuth({ children }) {
-  const { user, loading } = useAuth()
+  const { user, profile, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <div className="app-shell items-center justify-center flex">Loading…</div>
   if (!user) return <Navigate to="/" replace />
+  // Students who aren't verified yet can use these screens. Everything else waits for their school to approve them.
+  const unverifiedStudent = profile?.role === 'Student' && profile?.student_verified !== true
+  const open = STUDENT_OPEN_PATHS.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
+  if (unverifiedStudent && !open) return <Navigate to="/verify-student" replace />
   return children
 }
+
+const STUDENT_OPEN_PATHS = ['/verify-student', '/onboarding', '/chats', '/calls', '/settings', '/profile', '/edit-profile-details', '/notifications', '/library', '/schools', '/search']
 
 // Pages anyone can open, even a signed-in team member.
 const PUBLIC_PATHS = ['/', '/terms', '/privacy', '/forgot-password', '/reset-password']
@@ -276,7 +286,11 @@ export default function App() {
         <Route path="/onboarding/join-school" element={<RequireAuth><JoinSchool /></RequireAuth>} />
         <Route path="/onboarding/join-student" element={<RequireAuth><JoinAsStudent /></RequireAuth>} />
         <Route path="/onboarding/select-alumni-school" element={<RequireAuth><SelectAlumniSchool /></RequireAuth>} />
-        <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
+        <Route path="/onboarding/choose-school" element={<RequireAuth><ChooseSchool /></RequireAuth>} />
+        <Route path="/verify-student" element={<RequireAuth><StudentVerification /></RequireAuth>} />
+        <Route path="/admin/student-reports" element={<RequireAuth><StudentReports /></RequireAuth>} />
+
+                <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
         <Route path="/reports" element={<RequireAuth><ReportsQueue /></RequireAuth>} />
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
@@ -296,7 +310,7 @@ export default function App() {
 
         <Route path="/chats" element={<RequireAuth><ChatList /></RequireAuth>} />
         <Route path="/chats/new" element={<RequireAuth><NewChatPicker /></RequireAuth>} />
-              
+
         <Route path="/calls" element={<RequireAuth><CallHistory /></RequireAuth>} />
         <Route path="/chats/:userId" element={<RequireAuth><ChatThread /></RequireAuth>} />
         <Route path="/chats/:userId/options" element={<RequireAuth><ChatOptions /></RequireAuth>} />
