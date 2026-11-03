@@ -46,6 +46,8 @@ export default function EditProfileDetails() {
       bio: profile?.bio || '',
       location: profile?.location || '',
       links: [...existing, '', '', ''].slice(0, Math.max(3, existing.length)),
+      classRoom: profile?.class_name || '',
+      admission: profile?.admission_no || '',
     }
   }, [profile?.id])
 
@@ -53,17 +55,36 @@ export default function EditProfileDetails() {
   const [bio, setBio] = useState(initial.bio)
   const [location, setLocation] = useState(initial.location)
   const [links, setLinks] = useState(initial.links)
+  const [classRoom, setClassRoom] = useState(initial.classRoom)
+  const [admission, setAdmission] = useState(initial.admission)
+  const [schoolName, setSchoolName] = useState('')
   const [nameState, setNameState] = useState('idle') // idle | checking | free | taken | short
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [leaving, setLeaving] = useState(false)
   const checkRef = useRef(0)
 
+  // The school's name shows under the student's role
+  useEffect(() => {
+    if (!profile?.school_id) return undefined
+    let cancelled = false
+    supabase
+      .from('schools')
+      .select('name')
+      .eq('id', profile.school_id)
+      .maybeSingle()
+      .then(({ data }) => { if (!cancelled) setSchoolName(data?.name || '') })
+    return () => { cancelled = true }
+  }, [profile?.school_id])
+
   const cleanName = cleanUsername(username)
   const linkLines = links.map((l) => l.trim())
   const badLink = linkLines.findIndex((l) => !linkOk(l))
-  const changed = cleanName !== (initial.username || '') || bio.trim() !== initial.bio.trim() || location.trim() !== initial.location.trim() || linkLines.filter(Boolean).join('\n') !== initial.links.filter(Boolean).join('\n')
-  const canSave = changed && !saving && badLink === -1 && nameState !== 'taken' && nameState !== 'checking' && nameState !== 'short'
+  const isStudent = profile?.role === 'Student'
+  const classChanged = isStudent && (classRoom.trim() !== initial.classRoom.trim() || admission.trim() !== initial.admission.trim())
+  const changed = cleanName !== (initial.username || '') || bio.trim() !== initial.bio.trim() || location.trim() !== initial.location.trim() || linkLines.filter(Boolean).join('\n') !== initial.links.filter(Boolean).join('\n') || classChanged
+  const classOk = !isStudent || (classRoom.trim().length > 0 && admission.trim().length > 0)
+  const canSave = changed && classOk && !saving && badLink === -1 && nameState !== 'taken' && nameState !== 'checking' && nameState !== 'short'
 
   // Is the username free? Checked a moment after you stop typing.
   useEffect(() => {
@@ -95,6 +116,7 @@ export default function EditProfileDetails() {
       bio: bio.trim(),
       location: location.trim(),
       links: normalised.join('\n'),
+      ...(isStudent ? { class_name: classRoom.trim(), admission_no: admission.trim() } : {}),
     })
     setSaving(false)
     if (saveError) {
@@ -138,14 +160,28 @@ export default function EditProfileDetails() {
         {photos.error ? <p className="mx-4 mt-3 text-sm text-red-500">{photos.error}</p> : null}
 
         <div className="px-4 pb-6">
-          {/* Name and role come from the school */}
+          {/* Name, role and school come from the school */}
           <div className="mt-5 rounded-xl bg-gray-50 px-4 py-3 flex items-start gap-3">
             <Lock size={16} className="text-gray-400 mt-0.5 shrink-0" />
             <div className="min-w-0">
-              <p className="text-sm font-semibold truncate">{profile?.full_name || 'Schoolink member'}{profile?.role ? <span className="font-normal text-gray-400"> · {profile.role}</span> : null}</p>
-              <p className="text-xs text-gray-400 mt-0.5">Your name and role are set by your school and can't be changed here.</p>
+              <p className="text-sm font-semibold truncate">
+                {profile?.full_name || 'Schoolink member'}
+                {profile?.role ? <span className="font-normal text-gray-400"> · {profile.role}{schoolName ? ` at ${schoolName}` : ''}</span> : null}
+              </p>
+              <p className="text-xs text-gray-400 mt-0.5">Your name, role and school are set by your school and can't be changed here.</p>
             </div>
           </div>
+
+          {isStudent ? (
+            <>
+              <Field label="Class" hint="For example Form 3B. Change it when you move up a class.">
+                <input value={classRoom} onChange={(e) => setClassRoom(e.target.value)} maxLength={20} placeholder="Form 3B" className={inputClass} />
+              </Field>
+              <Field label="Admission number" hint="The number on your school report.">
+                <input value={admission} onChange={(e) => setAdmission(e.target.value)} maxLength={20} placeholder="e.g. 2041" className={inputClass} />
+              </Field>
+            </>
+          ) : null}
 
           <Field
             label="Username"
