@@ -1,4 +1,4 @@
-import { getAppInfo, guessStore } from './appInfo.js'
+import { getAppInfo, guessStore, STORE_NAMES } from './appInfo.js'
 import { SITE_URL } from './legal.js'
 
 // The newest version is described in public/app-version.json (published with the website).
@@ -15,13 +15,23 @@ export async function checkForUpdate() {
   return { state: 'latest', info, latest }
 }
 
-// The best store link for this phone, or '' when none has been filled in yet.
+// The best update link for this phone: its app store if one is filled in, otherwise the APK download.
 export function storeLinkFor(latest) {
   const stores = latest?.stores || {}
   const mine = guessStore()
   if (stores[mine]) return { store: mine, url: stores[mine] }
   for (const k of ['samsung', 'huawei', 'amazon', 'play']) if (stores[k]) return { store: k, url: stores[k] }
+  if (latest?.apkUrl) return { store: 'direct', url: latest.apkUrl }
   return { store: mine, url: '' }
+}
+
+// Button and subtitle wording for each kind of update link.
+export function updateLabel(store) {
+  return store === 'direct' ? 'Download update' : `Update in ${STORE_NAMES[store] || 'your app store'}`
+}
+
+export function updateSubtitle(store) {
+  return store === 'direct' ? 'Install it over this app. Your data stays' : `Update in ${STORE_NAMES[store] || 'your app store'}`
 }
 
 export async function openLink(url) {
