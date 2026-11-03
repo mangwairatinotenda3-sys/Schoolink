@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { RefreshCw, CheckCircle2, Download, Globe } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
-import { checkForUpdate, storeLinkFor, openLink } from '../lib/updates.js'
-import { getAppInfo, STORE_NAMES } from '../lib/appInfo.js'
+import { checkForUpdate, storeLinkFor, openLink, updateLabel } from '../lib/updates.js'
+import { getAppInfo } from '../lib/appInfo.js'
 
 export default function UpdatesSettings() {
   const [info, setInfo] = useState(null)
@@ -45,7 +45,7 @@ export default function UpdatesSettings() {
             <p className="font-semibold">Version {result.latest.versionName} is available</p>
             {result.latest.notes ? <p className="text-sm text-gray-500 mt-1.5 leading-snug">{result.latest.notes}</p> : null}
             {link?.url ? (
-              <button onClick={() => openLink(link.url)} className="mt-4 w-full bg-brand-purple text-white font-semibold rounded-full py-3">Update in {STORE_NAMES[link.store]}</button>
+              <button onClick={() => openLink(link.url)} className="mt-4 w-full bg-brand-purple text-white font-semibold rounded-full py-3">{updateLabel(link.store)}</button>
             ) : (
               <p className="text-sm text-gray-500 mt-3">Open your app store and update Schoolink.</p>
             )}
@@ -58,4 +58,4 @@ export default function UpdatesSettings() {
       </div>
     </div>
   )
-    }
+}
