@@ -1,4 +1,4 @@
-import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, AtSign, Bell, Gift, BadgeCheck } from 'lucide-react'
+import { Heart, MessageCircle, UserPlus, CheckCircle, MessageSquare, AtSign, Bell, Gift, BadgeCheck, X } from 'lucide-react'
 
 // How each kind of notification looks and which filter it belongs to.
 export const TYPE_META = {
@@ -9,6 +9,8 @@ export const TYPE_META = {
   follow: { icon: UserPlus, bg: 'bg-brand-purple', filter: 'people' },
   message: { icon: MessageSquare, bg: 'bg-sky-500', filter: 'messages' },
   approval: { icon: CheckCircle, bg: 'bg-green-500', filter: 'school' },
+  request: { icon: UserPlus, bg: 'bg-brand-purple', filter: 'school' },
+  declined: { icon: X, bg: 'bg-red-500', filter: 'school' },
   promo: { icon: Gift, bg: 'bg-amber-500', filter: 'school' },
   billing: { icon: BadgeCheck, bg: 'bg-amber-500', filter: 'school' },
 }
@@ -149,4 +151,4 @@ export function postThumb(post) {
 // Tells the bell badge (and anything else listening) that notifications changed.
 export function announceNotificationChange() {
   try { window.dispatchEvent(new Event('sl-notifications-changed')) } catch { /* ignore */ }
-}
+            }
