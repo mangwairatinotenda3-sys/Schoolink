@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
+import { Check, X, Clock, RefreshCw } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 
 const BUCKET = 'id-verification'
 
-// Schoolink team: check student school reports, then approve them or send them back with a reason.
+// Schoolink team (owners and verifiers): check student school reports,
+// then approve them or send them back with a reason.
 export default function StudentReports() {
   const [allowed, setAllowed] = useState(null)
   const [rows, setRows] = useState([])
@@ -17,7 +19,10 @@ export default function StudentReports() {
   const [message, setMessage] = useState('')
 
   useEffect(() => {
-    supabase.rpc('is_platform_admin').then(({ data }) => setAllowed(!!data))
+    // Same people who can use the verification queue: owners and verifiers.
+    supabase.rpc('team_role').then(({ data, error }) => {
+      setAllowed(!error && (data === 'owner' || data === 'verifier'))
+    })
   }, [])
 
   useEffect(() => {
@@ -42,8 +47,12 @@ export default function StudentReports() {
     const userIds = [...new Set(list.map((r) => r.user_id))]
     const schoolIds = [...new Set(list.map((r) => r.school_id).filter(Boolean))]
     const [{ data: profiles }, { data: schools }] = await Promise.all([
-      userIds.length ? supabase.from('profiles').select('id, full_name, username').in('id', userIds) : Promise.resolve({ data: [] }),
-      schoolIds.length ? supabase.from('schools').select('id, name').in('id', schoolIds) : Promise.resolve({ data: [] }),
+      userIds.length
+        ? supabase.from('profiles').select('id, full_name, username, class_name, admission_no').in('id', userIds)
+        : Promise.resolve({ data: [] }),
+      schoolIds.length
+        ? supabase.from('schools').select('id, name').in('id', schoolIds)
+        : Promise.resolve({ data: [] }),
     ])
     setPeople(Object.fromEntries((profiles ?? []).map((p) => [p.id, p])))
     setSchoolNames(Object.fromEntries((schools ?? []).map((s) => [s.id, s.name])))
@@ -79,16 +88,36 @@ export default function StudentReports() {
 
   return (
     <div className="app-shell">
-      <BackHeader title="Student reports" />
+      <BackHeader
+        title="Student reports"
+        right={
+          <button
+            type="button"
+            onClick={load}
+            aria-label="Refresh"
+            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500"
+          >
+            <RefreshCw size={18} />
+          </button>
+        }
+      />
       <div className="screen-scroll px-4 pt-3 pb-8 space-y-3">
         {allowed === null ? <p className="text-sm text-gray-400 text-center py-8">Checking access…</p> : null}
         {allowed === false ? <p className="text-sm text-gray-500 text-center py-8">This page is for the Schoolink team.</p> : null}
 
         {allowed ? (
           <>
+            {!loading && rows.length > 0 ? (
+              <p className="text-xs text-gray-400 px-1">{rows.length} waiting for review</p>
+            ) : null}
             {message ? <p className="text-sm text-brand-purple text-center">{message}</p> : null}
             {loading ? <p className="text-sm text-gray-400 text-center py-8">Loading…</p> : null}
-            {!loading && rows.length === 0 ? <p className="text-sm text-gray-400 text-center py-8">No student reports waiting.</p> : null}
+            {!loading && rows.length === 0 ? (
+              <div className="text-center py-12">
+                <span className="mx-auto w-14 h-14 rounded-full bg-brand-light flex items-center justify-center"><Clock size={24} className="text-brand-purple" /></span>
+                <p className="text-sm text-gray-400 mt-3">No student reports waiting.</p>
+              </div>
+            ) : null}
 
             {rows.map((r) => {
               const person = people[r.user_id]
@@ -97,10 +126,15 @@ export default function StudentReports() {
               return (
                 <div key={r.id} className="bg-white border border-gray-200 rounded-xl p-3">
                   <button type="button" onClick={() => toggle(r)} className="w-full text-left">
-                    <p className="font-semibold text-sm">{person?.full_name || 'Student'}{person?.username ? ` (@${person.username})` : ''}</p>
-                    <p className="text-xs text-gray-500">
-                      {schoolNames[r.school_id] || 'No school chosen'} · sent {new Date(r.created_at).toLocaleDateString()}
+                    <p className="font-semibold text-sm">
+                      {person?.full_name || 'Student'}{person?.username ? ` (@${person.username})` : ''}
                     </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {schoolNames[r.school_id] || 'No school chosen'}
+                      {person?.class_name ? ` · ${person.class_name}` : ''}
+                      {person?.admission_no ? ` · Adm ${person.admission_no}` : ''}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">Sent {new Date(r.created_at).toLocaleDateString()}</p>
                   </button>
 
                   {open ? (
@@ -118,17 +152,17 @@ export default function StudentReports() {
                           type="button"
                           disabled={busyId === r.id}
                           onClick={() => review(r, true)}
-                          className="flex-1 bg-green-600 text-white font-medium rounded-lg py-2.5 disabled:opacity-60"
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-green-600 text-white font-medium rounded-lg py-2.5 disabled:opacity-60"
                         >
-                          Approve
+                          <Check size={16} /> Approve
                         </button>
                         <button
                           type="button"
                           disabled={busyId === r.id}
                           onClick={() => review(r, false)}
-                          className="flex-1 bg-red-50 text-red-600 font-medium rounded-lg py-2.5 disabled:opacity-60"
+                          className="flex-1 flex items-center justify-center gap-1.5 bg-red-50 text-red-600 font-medium rounded-lg py-2.5 disabled:opacity-60"
                         >
-                          Send back
+                          <X size={16} /> Send back
                         </button>
                       </div>
                     </div>
@@ -141,4 +175,4 @@ export default function StudentReports() {
       </div>
     </div>
   )
-}
+      }
