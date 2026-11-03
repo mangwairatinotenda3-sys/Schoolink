@@ -5,7 +5,9 @@ import { AuthPage, PrimaryButton, Notice } from '../components/AuthKit.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
-// Students pick their school from the list. The school then approves them.
+const FIELD_CLASS = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-purple'
+
+// Students pick their school, then add their class and admission number. The school then approves them.
 export default function ChooseSchool() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
@@ -13,8 +15,12 @@ export default function ChooseSchool() {
   const [loading, setLoading] = useState(true)
   const [query, setQuery] = useState('')
   const [picked, setPicked] = useState(null)
+  const [classRoom, setClassRoom] = useState('')
+  const [admission, setAdmission] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+
+  const ready = !!picked && classRoom.trim().length > 0 && admission.trim().length > 0
 
   useEffect(() => { load() }, [])
 
@@ -38,24 +44,35 @@ export default function ChooseSchool() {
   }, [schools, query])
 
   async function sendRequest() {
-    if (!picked || busy) return
+    if (!ready || busy) return
     setBusy(true)
     setError('')
-    const { data, error: rpcError } = await supabase.rpc('request_school', { p_school: picked.id })
+    const { data, error: rpcError } = await supabase.rpc('request_school', {
+      p_school: picked.id,
+      p_class: classRoom.trim(),
+      p_admission: admission.trim(),
+    })
     if (rpcError || !data?.ok) {
       setBusy(false)
       setError(data?.error || "Couldn't send your request. Try again.")
       return
     }
     if (saveProfileDetails) {
-      await saveProfileDetails({ school_id: picked.id, role: 'Student', account_type: 'school_member', status: 'pending' })
+      await saveProfileDetails({
+        school_id: picked.id,
+        role: 'Student',
+        account_type: 'school_member',
+        status: 'pending',
+        class_name: classRoom.trim(),
+        admission_no: admission.trim(),
+      })
     }
     setBusy(false)
     navigate('/verify-student', { replace: true })
   }
 
   return (
-    <AuthPage title="Find your school" subtitle="Pick your school. Its staff will approve you after you verify your school report.">
+    <AuthPage title="Find your school" subtitle="Pick your school, then add your class. The school approves you after you verify your school report.">
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <div className="relative mt-2">
@@ -68,7 +85,7 @@ export default function ChooseSchool() {
         />
       </div>
 
-      <div className="mt-4 space-y-2 max-h-[52vh] overflow-y-auto">
+      <div className="mt-4 space-y-2 max-h-[38vh] overflow-y-auto">
         {loading ? <p className="text-sm text-gray-400 text-center py-6">Loading schools…</p> : null}
         {!loading && filtered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">No schools match. Check the spelling, or ask your school for a student code.</p>
@@ -93,8 +110,31 @@ export default function ChooseSchool() {
         })}
       </div>
 
+      <div className="mt-5 space-y-4">
+        <div>
+          <label className="text-sm font-semibold block mb-1.5">Class</label>
+          <input
+            value={classRoom}
+            onChange={(e) => setClassRoom(e.target.value)}
+            maxLength={20}
+            placeholder="For example Form 3B"
+            className={FIELD_CLASS}
+          />
+        </div>
+        <div>
+          <label className="text-sm font-semibold block mb-1.5">Admission number</label>
+          <input
+            value={admission}
+            onChange={(e) => setAdmission(e.target.value)}
+            maxLength={20}
+            placeholder="The number on your school report"
+            className={FIELD_CLASS}
+          />
+        </div>
+      </div>
+
       <div className="mt-6">
-        <PrimaryButton type="button" onClick={sendRequest} disabled={!picked} busy={busy} busyLabel="Sending request…">
+        <PrimaryButton type="button" onClick={sendRequest} disabled={!ready} busy={busy} busyLabel="Sending request…">
           {picked ? `Send request to ${picked.name}` : 'Choose a school'}
         </PrimaryButton>
       </div>
