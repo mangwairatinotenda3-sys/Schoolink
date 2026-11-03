@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { Check, X, Clock, RefreshCw } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
@@ -25,22 +25,20 @@ export default function StudentReports() {
     })
   }, [])
 
-  useEffect(() => {
-    if (allowed) load()
-  }, [allowed])
-
-  async function load() {
-    setLoading(true)
+  // silent = true refreshes without the loading state (used for live updates)
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     const { data: reports, error } = await supabase
       .from('student_report_requests')
       .select('*')
       .eq('status', 'pending')
       .order('created_at', { ascending: true })
     if (error) {
-      setMessage("Couldn't load reports. Try again.")
+      setMessage("Couldn't load reports. Tap the refresh button to try again.")
       setLoading(false)
       return
     }
+    setMessage('')
     const list = reports ?? []
     setRows(list)
 
@@ -57,7 +55,32 @@ export default function StudentReports() {
     setPeople(Object.fromEntries((profiles ?? []).map((p) => [p.id, p])))
     setSchoolNames(Object.fromEntries((schools ?? []).map((s) => [s.id, s.name])))
     setLoading(false)
-  }
+  }, [])
+
+  useEffect(() => {
+    if (allowed) load()
+  }, [allowed, load])
+
+  // Live: a new report, or a decision made by another team member, shows up straight away.
+  useEffect(() => {
+    if (!allowed) return undefined
+    let timer = null
+    const later = () => {
+      clearTimeout(timer)
+      timer = setTimeout(() => load(true), 250)
+    }
+    const channel = supabase
+      .channel(`student-reports-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'student_report_requests' }, later)
+      .subscribe()
+    const onVisible = () => { if (document.visibilityState === 'visible') later() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      clearTimeout(timer)
+      supabase.removeChannel(channel)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
+  }, [allowed, load])
 
   async function toggle(r) {
     if (openId === r.id) { setOpenId(null); return }
@@ -88,33 +111,35 @@ export default function StudentReports() {
 
   return (
     <div className="app-shell">
-      <BackHeader
-        title="Student reports"
-        right={
-          <button
-            type="button"
-            onClick={load}
-            aria-label="Refresh"
-            className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500"
-          >
-            <RefreshCw size={18} />
-          </button>
-        }
-      />
-      <div className="screen-scroll px-4 pt-3 pb-8 space-y-3">
+      <BackHeader title="Student reports" />
+      <div className="screen-scroll px-4 pt-2 pb-8 space-y-3">
         {allowed === null ? <p className="text-sm text-gray-400 text-center py-8">Checking access…</p> : null}
         {allowed === false ? <p className="text-sm text-gray-500 text-center py-8">This page is for the Schoolink team.</p> : null}
 
         {allowed ? (
           <>
-            {!loading && rows.length > 0 ? (
-              <p className="text-xs text-gray-400 px-1">{rows.length} waiting for review</p>
-            ) : null}
+            <div className="flex items-center justify-between py-1">
+              <p className="text-xs text-gray-400">
+                {loading ? 'Checking reports…' : rows.length === 0 ? 'Nothing waiting' : `${rows.length} waiting for review`}
+              </p>
+              <button
+                type="button"
+                onClick={() => load()}
+                aria-label="Refresh reports"
+                className="w-9 h-9 rounded-full flex items-center justify-center text-gray-500"
+              >
+                <RefreshCw size={16} />
+              </button>
+            </div>
+
             {message ? <p className="text-sm text-brand-purple text-center">{message}</p> : null}
             {loading ? <p className="text-sm text-gray-400 text-center py-8">Loading…</p> : null}
+
             {!loading && rows.length === 0 ? (
               <div className="text-center py-12">
-                <span className="mx-auto w-14 h-14 rounded-full bg-brand-light flex items-center justify-center"><Clock size={24} className="text-brand-purple" /></span>
+                <span className="mx-auto w-14 h-14 rounded-full bg-brand-light flex items-center justify-center">
+                  <Clock size={24} className="text-brand-purple" />
+                </span>
                 <p className="text-sm text-gray-400 mt-3">No student reports waiting.</p>
               </div>
             ) : null}
@@ -175,4 +200,4 @@ export default function StudentReports() {
       </div>
     </div>
   )
-      }
+         }
