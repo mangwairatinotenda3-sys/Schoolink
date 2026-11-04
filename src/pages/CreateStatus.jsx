@@ -116,7 +116,7 @@ export default function CreateStatus() {
       // eslint-disable-next-line no-await-in-loop
       const info = await videoInfo(it.url)
       if (info.duration > STATUS_MAX_VIDEO_SECONDS) {
-        setNotice(`Status videos can be up to ${STATUS_MAX_VIDEO_SECONDS} seconds.`)
+        setNotice(`Update videos can be up to ${STATUS_MAX_VIDEO_SECONDS} seconds.`)
         setItems((prev) => prev.filter((x) => x.id !== it.id))
         URL.revokeObjectURL(it.url)
         continue
@@ -267,7 +267,7 @@ export default function CreateStatus() {
             value={content}
             maxLength={STATUS_MAX_LENGTH}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Type a status"
+            placeholder="Type an update"
             rows={Math.min(8, Math.max(2, Math.ceil(content.length / 22)))}
             style={{ background: 'transparent', color: '#fff', ...font.css }}
             className={`w-full text-center ${textSize} leading-snug border-0 outline-none resize-none placeholder:!text-white/60`}
@@ -393,4 +393,4 @@ export default function CreateStatus() {
       ) : null}
     </div>
   )
-      }
+        }
