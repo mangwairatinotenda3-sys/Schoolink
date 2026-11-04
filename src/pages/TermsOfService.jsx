@@ -72,7 +72,7 @@ const sections = [
   {
     title: 'Slow-down limits',
     short: 'Limits',
-    lead: 'To stop spam and floods, there are limits on how fast one account can post, comment, send messages, add statuses and send reports. If you hit a limit the app tells you to wait a moment, and you can carry on after that.',
+    lead: 'To stop spam and floods, there are limits on how fast one account can post, comment, send messages, add updates and send reports. If you hit a limit the app tells you to wait a moment, and you can carry on after that.',
     points: [
       'The limits are set high enough for normal use. You can see them in More → Safety and data.',
       'Sending the same message again and again is also blocked.',
@@ -84,9 +84,9 @@ const sections = [
     short: 'Your content',
     lead: 'You keep ownership of what you post, whether text, photos, videos, voice notes or documents. By posting you let other people see it in the way the feature is meant to work, such as your school, a community or the person you are messaging.',
     points: [
-      'You can delete your own posts, statuses, comments and messages at any time. Deleting is permanent.',
+      'You can delete your own posts, updates, comments and messages at any time. Deleting is permanent.',
       'In a community, an admin can remove any message. The chat then shows that a message was removed.',
-      'Statuses disappear on their own after 24 hours.',
+      'Updates disappear on their own after 24 hours.',
     ],
   },
   {
