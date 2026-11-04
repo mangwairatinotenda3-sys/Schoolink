@@ -1,9 +1,57 @@
-import { X, User, Settings, UserPlus, Users, Clock, Home, HelpCircle, Info, LogOut, ChevronRight, GraduationCap } from 'lucide-react'
+import { X, User, Settings, UserPlus, Users, Clock, Home, HelpCircle, Info, LogOut } from 'lucide-react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext.jsx'
 import { canManageStaff, isSchoolMember } from '../lib/permissions.js'
 
-// Dark side menu. Colours are inline so it looks the same in every theme.
+// Side menu. Flat dark panel, one slide, no fades or glow. Colours are inline so it looks the same in every theme.
+const PANEL = '#150F45'
+const TEXT = '#F5F3FF'
+const MUTED = '#8E8BC8'
+const TILE = 'rgba(139,92,246,0.18)'
+const ACTIVE = 'rgba(139,92,246,0.24)'
+
+function Row({ label, icon: Icon, active, onClick, danger = false }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+      className="w-full flex items-center gap-3 text-left"
+      style={{
+        padding: '10px 12px',
+        borderRadius: 14,
+        background: active ? ACTIVE : 'transparent',
+        color: danger ? '#FB7185' : TEXT,
+      }}
+    >
+      <span
+        style={{
+          width: 34,
+          height: 34,
+          borderRadius: 11,
+          flexShrink: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: danger ? 'rgba(244,63,94,0.14)' : TILE,
+        }}
+      >
+        <Icon size={18} color={danger ? '#FB7185' : active ? '#FFFFFF' : '#C4B5FD'} />
+      </span>
+      <span style={{ fontSize: 15, fontWeight: active ? 600 : 500 }}>{label}</span>
+    </button>
+  )
+}
+
+function Group({ title, children }) {
+  return (
+    <div style={{ marginTop: 18 }}>
+      <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: '0.12em', textTransform: 'uppercase', color: MUTED, padding: '0 12px 6px' }}>{title}</p>
+      <div className="space-y-1">{children}</div>
+    </div>
+  )
+}
+
 export default function SideDrawer({ open, onClose }) {
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -20,17 +68,19 @@ export default function SideDrawer({ open, onClose }) {
     navigate('/', { replace: true })
   }
 
-  const links = [
+  const menu = [
     { label: 'Home', icon: Home, to: '/home' },
     { label: 'Profile', icon: User, to: '/profile' },
     { label: 'Settings', icon: Settings, to: '/settings' },
     ...(isSchoolMember(profile) ? [{ label: 'Staff Directory', icon: Users, to: '/staff-directory' }] : []),
-    ...(canManageStaff(profile)
-      ? [
-          { label: 'Invite a Member', icon: UserPlus, to: '/invite-member' },
-          { label: 'Pending Approvals', icon: Clock, to: '/pending-approvals' },
-        ]
-      : []),
+  ]
+  const school = canManageStaff(profile)
+    ? [
+        { label: 'Invite a Member', icon: UserPlus, to: '/invite-member' },
+        { label: 'Pending Approvals', icon: Clock, to: '/pending-approvals' },
+      ]
+    : []
+  const help = [
     { label: 'Help & Support', icon: HelpCircle, to: '/settings/help' },
     { label: 'About Schoolink', icon: Info, to: '/about' },
   ]
@@ -41,109 +91,102 @@ export default function SideDrawer({ open, onClose }) {
   return (
     <>
       <div
-        className={`fixed inset-0 z-40 transition-opacity ${open ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
-        style={{ background: 'rgba(0,0,0,0.55)' }}
+        className={`fixed inset-0 z-40 ${open ? 'pointer-events-auto' : 'opacity-0 pointer-events-none'}`}
+        style={{ background: 'rgba(5,3,25,0.55)' }}
         onClick={onClose}
       />
-      <div
-        className={`fixed top-0 left-0 h-full z-50 transition-transform ${open ? 'translate-x-0' : '-translate-x-full'}`}
+      <aside
+        className={`fixed top-0 left-0 h-full z-50 flex flex-col transition-transform duration-200 ease-out ${open ? 'translate-x-0' : '-translate-x-full'}`}
         style={{
-          width: 'min(86%, 340px)', overflowY: 'auto',
-          background: 'linear-gradient(180deg, #1B1450 0%, #0E0B33 45%, #0A0828 100%)',
-          borderRadius: '0 28px 28px 0', color: '#fff', boxShadow: '8px 0 40px rgba(0,0,0,0.5)',
+          width: 'min(84%, 320px)',
+          background: PANEL,
+          color: TEXT,
+          borderRadius: '0 24px 24px 0',
+          boxShadow: '4px 0 24px rgba(0,0,0,0.35)',
+          paddingTop: 'max(16px, env(safe-area-inset-top))',
         }}
+        aria-label="Side menu"
       >
-        {/* header */}
-        <div
-          style={{
-            padding: '24px 20px 20px', position: 'relative',
-            background: 'linear-gradient(135deg, rgba(109,77,255,0.55), rgba(27,20,80,0.2))',
-            borderRadius: '0 28px 0 0',
-          }}
-        >
-          <button onClick={onClose} aria-label="Close" style={{ position: 'absolute', top: 18, right: 18, color: '#fff' }}>
-            <X size={24} />
-          </button>
-          <div className="flex items-center gap-3">
-            <span
-              style={{
-                width: 52, height: 52, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'linear-gradient(135deg, #8B5CF6, #4F46E5)', flexShrink: 0,
-              }}
-            >
-              <GraduationCap size={28} color="#fff" />
-            </span>
-            <div>
-              <p style={{ fontSize: 22, fontWeight: 700, lineHeight: 1.1 }}>
-                School<span style={{ color: '#A78BFA' }}>ink</span>
-              </p>
-              <p style={{ fontSize: 11.5, color: '#C7D2FE' }}>Connect &nbsp;•&nbsp; Learn &nbsp;•&nbsp; Grow</p>
-            </div>
-          </div>
-
-          <button onClick={() => go('/profile')} className="flex items-center gap-3 w-full text-left" style={{ marginTop: 18 }}>
-            <span
-              style={{
-                width: 58, height: 58, borderRadius: 999, padding: 3, flexShrink: 0,
-                background: 'linear-gradient(135deg, #A78BFA, #6D4DFF)',
-              }}
-            >
-              {profile?.avatar_url && !isGuest ? (
-                <img src={profile.avatar_url} alt="" style={{ width: '100%', height: '100%', borderRadius: 999, objectFit: 'cover' }} />
-              ) : (
-                <span
-                  style={{
-                    width: '100%', height: '100%', borderRadius: 999, background: '#3B2FA0',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}
-                >
-                  <User size={28} color="#fff" />
-                </span>
-              )}
-            </span>
-            <span className="flex-1 min-w-0">
-              <span className="truncate" style={{ display: 'block', fontSize: 18, fontWeight: 700 }}>{name}</span>
-              <span className="truncate" style={{ display: 'block', fontSize: 12.5, color: '#C7D2FE' }}>{subtitle}</span>
-            </span>
-            <ChevronRight size={20} color="#C7D2FE" />
-          </button>
-        </div>
-
-                {/* menu */}
-        <div style={{ padding: '16px 14px 24px' }}>
-          {links.map(({ label, icon: Icon, to }) => {
-            const active = pathname === to
-            return (
-              <button
-                key={label}
-                onClick={() => go(to)}
-                className="w-full flex items-center gap-3 text-left"
-                style={{
-                  padding: '13px 14px', marginBottom: 6, borderRadius: 18, fontSize: 15, fontWeight: 500,
-                  background: active ? 'linear-gradient(90deg, #5B4BFF, #7C3AED)' : 'transparent',
-                  boxShadow: active ? '0 6px 20px rgba(91,75,255,0.45)' : 'none',
-                }}
-              >
-                <Icon size={22} color={active ? '#fff' : '#A78BFA'} />
-                <span className="flex-1">{label}</span>
-                <ChevronRight size={18} color={active ? '#fff' : '#C7D2FE'} />
-              </button>
-            )
-          })}
-
-          <div style={{ height: 1, background: 'rgba(129,140,248,0.35)', margin: '12px 6px' }} />
-
+        {/* Top: wordmark and close */}
+        <div className="flex items-center justify-between px-5">
+          <p style={{ fontSize: 17, fontWeight: 800, letterSpacing: '-0.01em' }}>
+            School<span style={{ color: '#A78BFA' }}>ink</span>
+          </p>
           <button
-            onClick={handleSignOut}
-            className="w-full flex items-center gap-3 text-left"
-            style={{ padding: '13px 14px', borderRadius: 18, fontSize: 15, fontWeight: 600, color: isGuest ? '#A78BFA' : '#F43F5E' }}
+            type="button"
+            onClick={onClose}
+            aria-label="Close menu"
+            style={{ width: 36, height: 36, borderRadius: 999, display: 'flex', alignItems: 'center', justifyContent: 'center', background: TILE, color: TEXT }}
           >
-            {isGuest ? <UserPlus size={22} /> : <LogOut size={22} />}
-            <span className="flex-1">{isGuest ? 'Sign In' : 'Sign Out'}</span>
-            <ChevronRight size={18} color="#C7D2FE" />
+            <X size={18} />
           </button>
         </div>
-      </div>
+
+        {/* Profile */}
+        <button
+          type="button"
+          onClick={() => go('/profile')}
+          className="flex items-center gap-3 mx-3 mt-4 text-left"
+          style={{ padding: 12, borderRadius: 18, background: 'rgba(255,255,255,0.05)' }}
+        >
+          <span
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 999,
+              overflow: 'hidden',
+              flexShrink: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: '#3B2FA0',
+            }}
+          >
+            {profile?.avatar_url && !isGuest ? (
+              <img src={profile.avatar_url} alt="" className="w-full h-full object-cover" />
+            ) : (
+              <User size={24} color="#FFFFFF" />
+            )}
+          </span>
+          <span className="flex-1 min-w-0">
+            <span className="block truncate" style={{ fontSize: 16, fontWeight: 600 }}>{name}</span>
+            <span className="block truncate" style={{ fontSize: 12, color: MUTED, marginTop: 2 }}>{subtitle}</span>
+          </span>
+        </button>
+
+        {/* Menu */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 pb-4">
+          <Group title="Menu">
+            {menu.map(({ label, icon, to }) => (
+              <Row key={label} label={label} icon={icon} active={pathname === to} onClick={() => go(to)} />
+            ))}
+          </Group>
+
+          {school.length ? (
+            <Group title="School">
+              {school.map(({ label, icon, to }) => (
+                <Row key={label} label={label} icon={icon} active={pathname === to} onClick={() => go(to)} />
+              ))}
+            </Group>
+          ) : null}
+
+          <Group title="Help">
+            {help.map(({ label, icon, to }) => (
+              <Row key={label} label={label} icon={icon} active={pathname === to} onClick={() => go(to)} />
+            ))}
+          </Group>
+        </nav>
+
+        {/* Sign in or out */}
+        <div className="px-3 pb-6 pt-2" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <Row
+            label={isGuest ? 'Sign in' : 'Sign out'}
+            icon={isGuest ? UserPlus : LogOut}
+            onClick={handleSignOut}
+            danger={!isGuest}
+          />
+        </div>
+      </aside>
     </>
   )
-}
+        }
