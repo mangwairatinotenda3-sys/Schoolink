@@ -1,7 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Plus, Play } from 'lucide-react'
-import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { loadStatusFeed } from '../lib/statusFeed.js'
 import { backgroundFor, fontFor, mediaOf, statusKind } from '../lib/statusUtils.js'
@@ -55,7 +54,6 @@ export default function StatusRow() {
   const { user, profile } = useAuth()
   const [feed, setFeed] = useState(null)
   const [showMuted, setShowMuted] = useState(false)
-  const timer = useRef(null)
 
   async function refresh() {
     if (!user) return
@@ -70,23 +68,17 @@ export default function StatusRow() {
     refresh()
   }, [user?.id, profile?.school_id, profile?.role])
 
-  // Stay fresh: when new updates are posted or removed, and when you come back to the app.
+  // No live channel here. A table-wide subscription would send every status change to every user,
+  // which uses up the free realtime quota. Instead the row refreshes when you come back to the app,
+  // and every 2 minutes while it is open.
   useEffect(() => {
     if (!user) return undefined
-    const later = () => {
-      clearTimeout(timer.current)
-      timer.current = setTimeout(refresh, 700)
-    }
-    const channel = supabase
-      .channel(`status-feed-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'statuses' }, later)
-      .subscribe()
     const onVisible = () => { if (document.visibilityState === 'visible') refresh() }
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('focus', refresh)
+    const poll = setInterval(refresh, 120000)
     return () => {
-      clearTimeout(timer.current)
-      supabase.removeChannel(channel)
+      clearInterval(poll)
       document.removeEventListener('visibilitychange', onVisible)
       window.removeEventListener('focus', refresh)
     }
@@ -183,4 +175,4 @@ export default function StatusRow() {
       </div>
     </section>
   )
-      }
+  }
