@@ -173,6 +173,8 @@ const ReceptionistDashboard = lazyPage(() => import('./pages/ReceptionistDashboa
 const MoreHub = lazyPage(() => import('./pages/MoreHub.jsx'))
 const CreateStatus = lazyPage(() => import('./pages/CreateStatus.jsx'))
 const StatusViewer = lazyPage(() => import('./pages/StatusViewer.jsx'))
+const SchoolChat = lazyPage(() => import('./pages/SchoolChat.jsx'))
+const SchoolChatThread = lazyPage(() => import('./pages/SchoolChatThread.jsx'))
 const UnifiedSearch = lazyPage(() => import('./pages/UnifiedSearch.jsx'))
 const SendProposal = lazyPage(() => import('./pages/SendProposal.jsx'))
 const ViewProposals = lazyPage(() => import('./pages/ViewProposals.jsx'))
@@ -290,7 +292,7 @@ export default function App() {
         <Route path="/verify-student" element={<RequireAuth><StudentVerification /></RequireAuth>} />
         <Route path="/admin/student-reports" element={<RequireAuth><StudentReports /></RequireAuth>} />
 
-                <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
+        <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
         <Route path="/reports" element={<RequireAuth><ReportsQueue /></RequireAuth>} />
         <Route path="/staff-directory" element={<RequireAuth><StaffDirectory /></RequireAuth>} />
         <Route path="/pending-approvals" element={<RequireAuth><PendingApprovals /></RequireAuth>} />
@@ -363,6 +365,8 @@ export default function App() {
         <Route path="/more" element={<RequireAuth><MoreHub /></RequireAuth>} />
         <Route path="/statuses/create" element={<RequireAuth><CreateStatus /></RequireAuth>} />
         <Route path="/statuses/:userId" element={<RequireAuth><StatusViewer /></RequireAuth>} />
+        <Route path="/school-chat/thread/:threadId" element={<RequireAuth><SchoolChatThread /></RequireAuth>} />
+<Route path="/school-chat/:schoolId" element={<RequireAuth><SchoolChat /></RequireAuth>} />
         <Route path="/search" element={<RequireAuth><UnifiedSearch /></RequireAuth>} />
         <Route path="/proposals" element={<RequireAuth><ViewProposals /></RequireAuth>} />
         <Route path="/exam-results" element={<RequireAuth><ExamResults /></RequireAuth>} />
