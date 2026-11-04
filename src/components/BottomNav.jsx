@@ -8,48 +8,69 @@ import { canPost } from '../lib/permissions.js'
 import OnboardingTour from './OnboardingTour.jsx'
 import CreateSheet from './CreateSheet.jsx'
 
-// Phones in portrait use the dark bar at the bottom. Tablets and landscape
-// screens show the same tabs as a side bar (the nav-side rules are in index.css).
+// Phones in portrait use the bar at the bottom. Tablets and landscape screens show the
+// same tabs as a side bar (the nav-side rules are in index.css). Flat colours, no glow, no animation.
 const BAR = '#150F45'
-const IDLE = '#8E8BC8'
+const ACCENT = '#7C5CF0'
+const IDLE = '#9C98D4'
+const ACTIVE_PILL = 'rgba(139,92,246,0.24)'
 
 function Tab({ to, label, icon: Icon, showBadge, unread, vertical = false }) {
   return (
     <NavLink
       to={to}
+      aria-label={label}
       style={{
         flex: vertical ? undefined : 1,
         width: vertical ? '100%' : undefined,
+        minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: 3,
+        gap: 4,
+        textDecoration: 'none',
       }}
     >
       {({ isActive }) => (
         <>
           <span
             style={{
-              position: 'relative', width: 44, height: 34, borderRadius: 14,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              background: isActive ? 'linear-gradient(135deg, #6D4DFF, #8B5CF6)' : 'transparent',
-              boxShadow: isActive ? '0 0 16px rgba(124,92,255,0.7)' : 'none',
+              position: 'relative',
+              width: 52,
+              height: 30,
+              borderRadius: 999,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: isActive ? ACTIVE_PILL : 'transparent',
             }}
           >
-            <Icon size={22} color={isActive ? '#fff' : IDLE} />
+            <Icon size={21} strokeWidth={isActive ? 2.3 : 2} color={isActive ? '#FFFFFF' : IDLE} />
             {showBadge && unread > 0 ? (
               <span
                 style={{
-                  position: 'absolute', top: -2, right: 2, minWidth: 16, height: 16, padding: '0 4px', borderRadius: 999,
-                  background: '#EF4444', color: '#fff', fontSize: 9, fontWeight: 700,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  position: 'absolute',
+                  top: -3,
+                  right: 4,
+                  minWidth: 16,
+                  height: 16,
+                  padding: '0 4px',
+                  borderRadius: 999,
+                  background: '#F43F5E',
+                  color: '#FFFFFF',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: `2px solid ${BAR}`,
                 }}
               >
                 {unread > 9 ? '9+' : unread}
               </span>
             ) : null}
           </span>
-          <span style={{ fontSize: 11, fontWeight: isActive ? 600 : 400, color: isActive ? '#fff' : IDLE }}>{label}</span>
+          <span style={{ fontSize: 11, lineHeight: 1, fontWeight: isActive ? 600 : 500, color: isActive ? '#FFFFFF' : IDLE }}>{label}</span>
         </>
       )}
     </NavLink>
@@ -57,27 +78,27 @@ function Tab({ to, label, icon: Icon, showBadge, unread, vertical = false }) {
 }
 
 function PostButton({ label, onClick, big = true }) {
+  const size = big ? 56 : 48
   return (
     <button
       type="button"
       onClick={onClick}
       aria-label={label}
       style={{
-        width: big ? 62 : 56,
-        height: big ? 62 : 56,
-        marginTop: big ? -34 : 0,
+        width: size,
+        height: size,
+        marginTop: big ? -24 : 0,
         borderRadius: 999,
         flexShrink: 0,
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #6D4DFF, #8B5CF6)',
-        color: '#fff',
-        border: `5px solid ${BAR}`,
-        boxShadow: '0 0 20px rgba(124,92,255,0.8)',
+        background: ACCENT,
+        color: '#FFFFFF',
+        border: `4px solid ${BAR}`,
       }}
     >
-      <Plus size={big ? 32 : 28} strokeWidth={2.75} color="#fff" />
+      <Plus size={big ? 26 : 22} strokeWidth={2.5} color="#FFFFFF" />
     </button>
   )
 }
@@ -104,10 +125,14 @@ export default function BottomNav() {
       <nav className="nav-bottom" style={{ position: 'absolute', left: 0, right: 0, bottom: 0, zIndex: 30 }}>
         <div
           style={{
-            position: 'relative', height: 70, display: 'flex', alignItems: 'center', padding: '0 8px',
-            background: `linear-gradient(180deg, ${BAR}, #0F0B38)`,
-            borderRadius: '24px 24px 0 0', borderTop: '1px solid rgba(139,92,246,0.35)',
-            boxShadow: '0 -6px 24px rgba(21,15,69,0.35)',
+            position: 'relative',
+            height: 68,
+            display: 'flex',
+            alignItems: 'center',
+            padding: '0 10px',
+            background: BAR,
+            borderRadius: '22px 22px 0 0',
+            borderTop: '1px solid rgba(255,255,255,0.06)',
           }}
         >
           {left.map((item) => <Tab key={item.to} {...item} unread={unread} />)}
@@ -131,4 +156,4 @@ export default function BottomNav() {
       <OnboardingTour />
     </>
   )
-    }
+  }
