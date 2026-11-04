@@ -825,11 +825,9 @@ export default function SchoolProfile() {
     else { navigator.clipboard?.writeText(url); setToast('Link copied') }
   }
 
-  async function handleMessageSchool() {
-    const { data: headteacher } = await supabase.from('profiles').select('id').eq('school_id', school.id).eq('role', 'Headteacher').maybeSingle()
-    if (headteacher) navigate(`/chats/${headteacher.id}`)
-    else setToast('The headteacher is not on Schoolink yet')
-  }
+     function handleMessageSchool() {
+    navigate(`/school-chat/${school.id}`)
+       }
 
   function mapsUrl() {
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(school?.location || '')}`
