@@ -23,7 +23,7 @@ export const contentTypeLabels = {
   school_gallery: 'Gallery photo',
   school_document: 'School document',
   user: 'User',
-  status: 'Status',
+  status: 'Update',
 }
 
 // Add or remove words here. Matching is whole-word, case-insensitive, and
@@ -51,7 +51,7 @@ function normalize(text) {
   return String(text || '')
     .toLowerCase()
     .normalize('NFKD')
-    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[@4310!|$57+]/g, (ch) => substitutions[ch] || ch)
     .replace(/(.)\1{2,}/g, '$1$1') // "fuuuuck" -> "fuuck"
 }
@@ -66,4 +66,4 @@ export function containsProfanity(text) {
   const cleaned = normalize(text)
   if (!cleaned.trim()) return false
   return blockedPatterns.some((re) => re.test(cleaned))
-}
+   }
