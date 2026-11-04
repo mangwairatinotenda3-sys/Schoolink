@@ -14,7 +14,7 @@ const steps = [
   {
     icon: Home,
     title: 'Your feed',
-    text: 'Home shows posts and updates. Statuses on top disappear after 24 hours. Look out for announcements from Schoolink at the very top.',
+    text: 'Home shows posts and updates. Updates on top disappear after 24 hours. Look out for announcements from Schoolink at the very top.',
   },
   {
     icon: MessageCircle,
@@ -123,4 +123,4 @@ export default function OnboardingTour() {
       </div>
     </div>
   )
-    }
+}
