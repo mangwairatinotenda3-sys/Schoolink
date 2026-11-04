@@ -6,7 +6,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { buildExport, saveFile, sizeText } from '../lib/dataExport.js'
 
-const TABLE_NAMES = { posts: 'Posts', comments: 'Comments', messages: 'Chat messages', community_messages: 'Community messages', statuses: 'Statuses', content_reports: 'Reports' }
+const TABLE_NAMES = { posts: 'Posts', comments: 'Comments', messages: 'Chat messages', community_messages: 'Community messages', statuses: 'Updates', content_reports: 'Reports' }
 
 function windowText(s) {
   if (s % 86400 === 0) return s === 86400 ? 'a day' : `${s / 86400} days`
@@ -109,7 +109,7 @@ export default function SafetyData() {
       <ScreenHeader title="Safety and data" onBack={() => navigate(-1)} />
       <div className="screen-scroll px-4 pb-12">
         <Card icon={Download} title="Download your data">
-          <p className="text-sm text-gray-600 leading-snug">Get a copy of what you have on Schoolink: your profile, posts, comments, statuses, chats, saved items, follows, communities, notifications, login history, reports and appeals.</p>
+          <p className="text-sm text-gray-600 leading-snug">Get a copy of what you have on Schoolink: your profile, posts, comments, updates, chats, saved items, follows, communities, notifications, login history, reports and appeals.</p>
           <p className="text-xs text-gray-400 mt-2 leading-snug">Photos and videos are included as links. Marks, report cards, fees and counselling records belong to your school and are not in the file.</p>
 
           {isGuest ? (
@@ -194,4 +194,4 @@ export default function SafetyData() {
       </div>
     </div>
   )
-}
+        }
