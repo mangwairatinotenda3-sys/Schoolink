@@ -91,7 +91,7 @@ export default function CreateSheet({ open, onClose }) {
           >
             <span className="w-11 h-11 rounded-2xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.22)' }}><Sparkles size={22} color="#fff" /></span>
             <span>
-              <span className="block text-[17px] font-extrabold" style={{ color: '#fff' }}>Status</span>
+              <span className="block text-[17px] font-extrabold" style={{ color: '#fff' }}>Update</span>
               <span className="block text-xs" style={{ color: 'rgba(255,255,255,0.85)' }}>Share a moment</span>
             </span>
           </button>
@@ -131,4 +131,4 @@ export default function CreateSheet({ open, onClose }) {
       </div>
     </div>
   )
-}
+     }
