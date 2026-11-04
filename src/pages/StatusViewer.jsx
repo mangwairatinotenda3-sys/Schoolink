@@ -336,7 +336,7 @@ export default function StatusViewer() {
     if (!text || sending || !current || isGuest) return
     setSending(true)
     const snippet = snippetOf(current)
-    const body = `↩️ Replied to your status${snippet ? `: “${snippet}”` : ''}\n${text}`
+    const body = `↩️ Replied to your update${snippet ? `: “${snippet}”` : ''}\n${text}`
     const { error } = await supabase.from('messages').insert({ sender_id: user.id, receiver_id: userId, content: body })
     setSending(false)
     if (error) {
@@ -369,7 +369,7 @@ export default function StatusViewer() {
     }
     if (!had) {
       const snippet = snippetOf(current)
-      await supabase.from('messages').insert({ sender_id: user.id, receiver_id: userId, content: `${emoji} Reacted to your status${snippet ? `: “${snippet}”` : ''}` })
+      await supabase.from('messages').insert({ sender_id: user.id, receiver_id: userId, content: `${emoji} Reacted to your update${snippet ? `: “${snippet}”` : ''}` })
     }
   }
 
@@ -383,7 +383,7 @@ export default function StatusViewer() {
       <div className={shell} style={{ background: backgroundFor('night') }}>
         <p className="text-white/80">No active updates.</p>
         {userId === user?.id && !isGuest ? (
-          <button onClick={() => navigate('/statuses/create', { replace: true })} className="bg-brand-purple rounded-full px-5 py-2 text-sm font-medium">Add a status</button>
+          <button onClick={() => navigate('/statuses/create', { replace: true })} className="bg-brand-purple rounded-full px-5 py-2 text-sm font-medium">Add an update</button>
         ) : null}
         <button onClick={close} className="bg-white/15 rounded-full px-5 py-2 text-sm">Go back</button>
       </div>
@@ -469,7 +469,7 @@ export default function StatusViewer() {
               <Avatar src={person?.avatar_url} name={person?.full_name} size={38} />
               <span className="min-w-0">
                 <span className="flex items-center gap-1 text-sm font-semibold">
-                  <span className="truncate">{isOwner ? 'My status' : person?.full_name}</span>
+                  <span className="truncate">{isOwner ? 'My update' : person?.full_name}</span>
                   {!isOwner ? <VerifiedBadge userId={userId} size={13} /> : null}
                 </span>
                 <span className="block text-xs text-white/75">{formatStatusTime(current.created_at)} · {audienceLabel(current.audience)}</span>
@@ -488,6 +488,7 @@ export default function StatusViewer() {
           </div>
         </div>
 
+        
         {/* Bottom: caption, then views (yours) or reply (theirs) */}
         <div className={`absolute inset-x-0 bottom-0 z-10 transition-opacity duration-150 ${hideUi ? 'opacity-0' : 'opacity-100'}`} style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}>
           <div className="absolute inset-x-0 bottom-0 h-48 bg-gradient-to-t from-black/70 to-transparent pointer-events-none" />
@@ -581,4 +582,4 @@ export default function StatusViewer() {
       ) : null}
     </div>
   )
-      }
+}
