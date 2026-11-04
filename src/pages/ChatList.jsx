@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, MessageSquarePlus, Pin, PinOff, Archive, ArchiveRestore, Users, Search, X, BellOff, Bell, Check, CheckCheck, ChevronLeft, MessageCircle, Info, Phone } from 'lucide-react'
+import { Camera, MessageSquarePlus, Pin, PinOff, Archive, ArchiveRestore, Users, Search, X, BellOff, Bell, Check, CheckCheck, ChevronLeft, MessageCircle, Info, Phone, Landmark, Image as ImageIcon, Video, Mic, Paperclip, Ban } from 'lucide-react'
 import BottomNav from '../components/BottomNav.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { useIsOnline } from '../lib/presence.jsx'
+import { isSchoolMember } from '../lib/permissions.js'
 
 const FILTERS = ['All', 'Unread', 'Direct', 'Groups']
 
@@ -22,13 +23,14 @@ function timeLabel(dateString) {
   return d.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: '2-digit' })
 }
 
+// Preview of the last message: an icon (or none) plus the text shown after it.
 function previewOf(m) {
-  if (m.deleted_at) return '🚫 Message deleted'
-  if (m.media_type === 'image') return m.content ? `📷 ${m.content}` : '📷 Photo'
-  if (m.media_type === 'video') return '🎥 Video'
-  if (m.media_type === 'audio') return '🎤 Voice message'
-  if (m.media_type === 'file') return `📎 ${m.content || 'File'}`
-  return m.content || '📷 Media'
+  if (m.deleted_at) return { icon: Ban, text: 'Message deleted' }
+  if (m.media_type === 'image') return { icon: ImageIcon, text: m.content || 'Photo' }
+  if (m.media_type === 'video') return { icon: Video, text: m.content || 'Video' }
+  if (m.media_type === 'audio') return { icon: Mic, text: 'Voice message' }
+  if (m.media_type === 'file') return { icon: Paperclip, text: m.content || 'File' }
+  return { icon: null, text: m.content || 'Media' }
 }
 
 function Avatar({ item, onTap }) {
@@ -68,9 +70,10 @@ function Row({ item, onOpen, onMenu, onAvatarTap }) {
   }
   function up() { clearTimeout(timer.current) }
 
-  const subtitle = item.lastMessage
-    ? item.lastMessage
-    : item.type === 'community' ? `${item.memberCount ?? 0} members` : 'Say hello 👋'
+  const PreviewIcon = item.lastPreview?.icon
+  const subtitleText = item.lastPreview
+    ? item.lastPreview.text
+    : item.type === 'community' ? `${item.memberCount ?? 0} members` : 'Say hello'
 
   return (
     <div
@@ -99,7 +102,9 @@ function Row({ item, onOpen, onMenu, onAvatarTap }) {
         <div className="flex items-center justify-between gap-2 mt-0.5">
           <p className={`text-[14px] truncate flex items-center gap-1 min-w-0 ${unread ? 'text-gray-800' : 'text-gray-400'}`}>
             {item.lastMine ? (item.lastRead ? <CheckCheck size={15} className="text-brand-purple shrink-0" /> : <Check size={15} className="text-gray-400 shrink-0" />) : null}
-            <span className="truncate">{item.lastMine && item.type === 'community' ? 'You: ' : ''}{subtitle}</span>
+            {item.lastMine && item.type === 'community' ? <span className="shrink-0">You:</span> : null}
+            {PreviewIcon ? <PreviewIcon size={14} className={`shrink-0 ${unread ? 'text-gray-700' : 'text-gray-400'}`} /> : null}
+            <span className="truncate">{subtitleText}</span>
           </p>
           <span className="flex items-center gap-1.5 shrink-0">
             {item.muted ? <BellOff size={14} className="text-gray-400" /> : null}
@@ -134,7 +139,7 @@ function SkeletonRows() {
 
 export default function ChatList() {
   const navigate = useNavigate()
-  const { user } = useAuth()
+  const { user, profile } = useAuth()
   const [tab, setTab] = useState('All')
   const [query, setQuery] = useState('')
   const [items, setItems] = useState([])
@@ -147,11 +152,25 @@ export default function ChatList() {
   useEffect(() => {
     if (!user) return undefined
     loadAll(true)
+
+    // Only messages sent TO this user. A table-wide subscription would push every message
+    // in the app to every user and uses up the free realtime quota.
     const channel = supabase
       .channel(`chatlist-${user.id}-${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages' }, () => loadAll(false))
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` }, () => loadAll(false))
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
+
+    // Sent messages and read receipts are picked up when the app comes back into view.
+    const onVisible = () => { if (document.visibilityState === 'visible') loadAll(false) }
+    const onFocus = () => loadAll(false)
+    document.addEventListener('visibilitychange', onVisible)
+    window.addEventListener('focus', onFocus)
+
+    return () => {
+      supabase.removeChannel(channel)
+      document.removeEventListener('visibilitychange', onVisible)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [user])
 
   useEffect(() => {
@@ -173,7 +192,7 @@ export default function ChatList() {
     for (const m of messages ?? []) {
       const partnerId = m.sender_id === user.id ? m.receiver_id : m.sender_id
       if (!byPartner.has(partnerId)) {
-        byPartner.set(partnerId, { type: 'direct', id: partnerId, lastMessage: previewOf(m), lastMine: m.sender_id === user.id, lastRead: !!m.read, lastTime: m.created_at, unread: false, unreadCount: 0 })
+        byPartner.set(partnerId, { type: 'direct', id: partnerId, lastPreview: previewOf(m), lastMine: m.sender_id === user.id, lastRead: !!m.read, lastTime: m.created_at, unread: false, unreadCount: 0 })
       }
       if (m.receiver_id === user.id && !m.read && !m.deleted_at) {
         const conv = byPartner.get(partnerId)
@@ -219,7 +238,7 @@ export default function ChatList() {
           .gt('created_at', lastRead)
         communityItems.push({
           type: 'community', id: c.id, name: c.name, avatarUrl: c.avatar_url, memberCount: count ?? 0,
-          lastMessage: lastMsg ? previewOf(lastMsg) : '', lastTime: lastMsg?.created_at || c.created_at,
+          lastPreview: lastMsg ? previewOf(lastMsg) : null, lastTime: lastMsg?.created_at || c.created_at,
           unread: (unreadCount ?? 0) > 0,
           unreadCount: unreadCount ?? 0,
           lastMine: lastMsg?.sender_id === user.id,
@@ -262,6 +281,7 @@ export default function ChatList() {
   }, [items, showArchived, tab, query])
 
   const canPin = (i) => i.type === 'direct'
+  const showSchoolChat = !showArchived && !query.trim() && isSchoolMember(profile) && !!profile?.school_id
 
   return (
     <div className="app-shell">
@@ -309,6 +329,16 @@ export default function ChatList() {
       ) : null}
 
       <div className="screen-scroll">
+        {showSchoolChat ? (
+          <button onClick={() => navigate(`/school-chat/${profile.school_id}`)} className="w-full flex items-center gap-3.5 px-4 py-3 active:bg-gray-50">
+            <span className="w-[52px] h-[52px] rounded-full bg-brand-light flex items-center justify-center shrink-0"><Landmark size={21} className="text-brand-purple" /></span>
+            <span className="flex-1 min-w-0 text-left">
+              <span className="block font-semibold text-[16px]">School chat</span>
+              <span className="block text-[14px] text-gray-400">Message your school's official team</span>
+            </span>
+          </button>
+        ) : null}
+
         {!showArchived && archivedCount > 0 && !query.trim() ? (
           <button onClick={() => setShowArchived(true)} className="w-full flex items-center gap-3.5 px-4 py-3 active:bg-gray-50">
             <span className="w-[52px] h-[52px] flex items-center justify-center"><Archive size={21} className="text-gray-500" /></span>
@@ -374,4 +404,4 @@ export default function ChatList() {
       <BottomNav />
     </div>
   )
-        }
+}
