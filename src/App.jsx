@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import { useAuth } from './context/AuthContext.jsx'
 import { supabase } from './lib/supabaseClient.js'
 import { PENDING_INVITE_KEY } from './pages/JoinByLink.jsx'
+import { savedScreen } from './lib/lastScreen.js'
 
 import Welcome from './pages/Welcome.jsx'
 
@@ -88,7 +89,7 @@ function RootRoute() {
       .maybeSingle()
       .then(({ data, error }) => {
         if (cancelled) return
-        if (data?.account_type) setTarget('/home')
+        if (data?.account_type) setTarget(savedScreen() || '/home')
         else if (error) setTarget('/home')
         else setShowWelcome(true)
       })
