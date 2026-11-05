@@ -4,6 +4,7 @@ import { Capacitor } from '@capacitor/core'
 import { useAuth } from '../context/AuthContext.jsx'
 import { haptic } from '../lib/uiPrefs.js'
 import { trackScreen } from '../lib/analytics.js'
+import { rememberScreen } from '../lib/lastScreen.js'
 
 const TAB_ROOTS = ['/chats', '/notifications', '/profile', '/saved', '/calendar']
 
@@ -76,10 +77,13 @@ export default function NativeBridge() {
 
   useEffect(() => { trackScreen(pathname) }, [pathname])
 
+  // Remember the current screen so the app can reopen it if Android restarts it.
+  useEffect(() => { if (native) rememberScreen(pathname) }, [native, pathname])
+
   if (!hint) return null
   return (
     <div className="fixed left-0 right-0 z-[95] flex justify-center pointer-events-none" style={{ bottom: 100 }}>
       <span className="bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg">{hint}</span>
     </div>
   )
-}
+    }
