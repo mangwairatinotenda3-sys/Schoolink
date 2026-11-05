@@ -149,6 +149,7 @@ jobs:
               '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
               '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
               '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />',
+              '<uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />',
               '<uses-feature android:name="android.hardware.camera" android:required="false" />',
               '<uses-feature android:name="android.hardware.microphone" android:required="false" />',
           ]
@@ -160,6 +161,21 @@ jobs:
                   added += 1
           open(p, 'w').write(s)
           print("Added", added, "permissions")
+          PY
+
+      - name: Keep the message box on top of the keyboard
+        run: |
+          python3 - <<'PY'
+          import re
+          p = 'android/app/src/main/AndroidManifest.xml'
+          s = open(p).read()
+          if 'android:windowSoftInputMode' in s:
+              s = re.sub(r'android:windowSoftInputMode="[^"]*"', 'android:windowSoftInputMode="adjustResize"', s, count=1)
+              print("Set keyboard mode to adjustResize")
+          else:
+              s = s.replace('<activity', '<activity\n            android:windowSoftInputMode="adjustResize"', 1)
+              print("Added keyboard mode adjustResize")
+          open(p, 'w').write(s)
           PY
 
       - name: Match the website look and sharpen the opening screen
