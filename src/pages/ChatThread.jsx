@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2, Info, Ban, User } from 'lucide-react'
+import { Send, Check, CheckCheck, MoreVertical, X, CornerUpLeft, Mic, Star, Image as ImageIcon, Paperclip, Copy, Forward, FileText, Search, ChevronUp, ChevronDown, Plus, Trash2, Pencil, Smile, Camera, Clock, AlertCircle, Download, Film, Loader2, Info, Ban, User, Flag } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { CallButtons } from '../components/CallOverlay.jsx'
 import VoicePlayer from '../components/VoicePlayer.jsx'
@@ -15,6 +15,7 @@ import { wallpapers, playTone, shouldAutoLoadMedia } from '../lib/chatPrefs.js'
 import VerifiedBadge from '../components/VerifiedBadge.jsx'
 import { haptic } from '../lib/uiPrefs.js'
 import { pickGalleryPhotos } from '../lib/nativePhotos.js'
+import ReportSheet from '../components/ReportSheet.jsx'
 
 const PAGE_SIZE = 40
 const EDIT_WINDOW_MS = 15 * 60 * 1000
@@ -365,7 +366,7 @@ function MessageBubble({ m, isMine, reactions, starred, currentUserId, partnerNa
 }
 
 // The menu that opens when you press and hold a message.
-function MessageSheet({ m, isMine, isStarred, reactions, currentUserId, onClose, onReact, onRemoveReaction, onReply, onStar, onForward, onEdit, onDelete }) {
+function MessageSheet({ m, isMine, isStarred, reactions, currentUserId, onClose, onReact, onRemoveReaction, onReply, onStar, onForward, onEdit, onDelete, onReport }) {
   const [more, setMore] = useState(false)
   const [info, setInfo] = useState(false)
   if (!m) return null
@@ -390,6 +391,7 @@ function MessageSheet({ m, isMine, isStarred, reactions, currentUserId, onClose,
     { label: 'Forward', icon: Forward, fn: () => onForward(m) },
     { label: isStarred ? 'Remove star' : 'Star', icon: Star, fn: () => onStar(m.id, isStarred) },
     ...(canEdit ? [{ label: 'Edit', icon: Pencil, fn: () => onEdit(m) }] : []),
+     ...(!isMine && !m.deleted_at ? [{ label: 'Report', icon: Flag, fn: () => onReport(m) }] : []),
   ]
 
   return (
@@ -483,6 +485,7 @@ export default function ChatThread() {
   const [atBottom, setAtBottom] = useState(true)
   const [newCount, setNewCount] = useState(0)
   const [menuMsg, setMenuMsg] = useState(null)
+  const [reportMsg, setReportMsg] = useState(null)
   const [flashId, setFlashId] = useState(null)
   const [dividerId, setDividerId] = useState(null)
   const [unreadCount, setUnreadCount] = useState(0)
@@ -1304,9 +1307,22 @@ export default function ChatThread() {
           onForward={setForwarding}
           onEdit={startEdit}
           onDelete={handleDeleteMessage}
+          onReport={setReportMsg}
         />
       ) : null}
 
+      {reportMsg ? (
+        <ReportSheet
+          contentType="message"
+          contentId={reportMsg.id}
+          blockUserId={reportMsg.sender_id}
+          blockName={(partner?.full_name || 'them').split(' ')[0]}
+          onClose={() => setReportMsg(null)}
+          onDone={(didBlock) => { if (didBlock) setIsBlocked(true) }}
+        />
+      ) : null}
+          
+          
       {previewItems ? <MediaPreview items={previewItems} onSend={confirmPreview} onCancel={cancelPreview} /> : null}
       {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
       {viewingAvatar ? <AvatarViewer imageUrl={viewingAvatar} onClose={() => setViewingAvatar(null)} /> : null}
