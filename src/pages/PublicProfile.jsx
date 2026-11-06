@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { ChevronLeft, MoreVertical, MessageSquare, Share2, Link2, Ban, Eye, CircleDot, Lock, UserCheck, UserPlus, ShieldCheck } from 'lucide-react'
+import { ChevronLeft, MoreVertical, MessageSquare, Share2, Link2, Ban, Eye, CircleDot, Lock, UserCheck, UserPlus, ShieldCheck, Flag } from 'lucide-react'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
 import ProfileHeader from '../components/ProfileHeader.jsx'
 import ProfileContent from '../components/ProfileContent.jsx'
 import AvatarViewer from '../components/AvatarViewer.jsx'
+import ReportSheet from '../components/ReportSheet.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 import { isSchoolMember } from '../lib/permissions.js'
@@ -276,7 +277,19 @@ export default function PublicProfile() {
           <SheetAction icon={Share2} label="Share profile" onClick={() => { setSheet(null); share() }} />
           <SheetAction icon={Link2} label="Copy profile link" onClick={copyLink} />
           <SheetAction icon={blocked ? ShieldCheck : Ban} danger={!blocked} label={blocked ? `Unblock ${firstName}` : `Block ${firstName}`} sub={blocked ? undefined : "They won't be able to message you."} onClick={blocked ? toggleBlock : () => setSheet('block')} />
+          <SheetAction icon={Flag} danger label={`Report ${firstName}`} sub="Tell school staff about a problem" onClick={() => setSheet('report')} />
         </BottomSheet>
+      ) : null}
+
+      {sheet === 'report' ? (
+        <ReportSheet
+          contentType="user"
+          contentId={userId}
+          blockUserId={blocked ? null : userId}
+          blockName={firstName}
+          onClose={() => setSheet(null)}
+          onDone={(didBlock) => { if (didBlock) setBlocked(true); setToast('Report sent') }}
+        />
       ) : null}
 
       {sheet === 'block' ? (
@@ -291,4 +304,4 @@ export default function PublicProfile() {
       {viewing ? <AvatarViewer imageUrl={viewing} onClose={() => setViewing(null)} /> : null}
     </div>
   )
-        }
+}
