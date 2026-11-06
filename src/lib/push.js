@@ -10,6 +10,31 @@ function isNative() {
   return Capacitor.isNativePlatform()
 }
 
+// Android needs these channels to show a heads-up banner and make a sound.
+async function createChannels(PushNotifications) {
+  if (Capacitor.getPlatform() !== 'android') return
+  try {
+    await PushNotifications.createChannel({
+      id: 'default',
+      name: 'Messages and updates',
+      description: 'Messages, likes, comments and updates',
+      importance: 4,
+      visibility: 1,
+      vibration: true,
+    })
+    await PushNotifications.createChannel({
+      id: 'calls',
+      name: 'Calls',
+      description: 'Incoming voice and video calls',
+      importance: 5,
+      visibility: 1,
+      vibration: true,
+    })
+  } catch {
+    // channels already exist or the phone does not support them
+  }
+}
+
 // Ask permission, get this phone's push address and save it for the signed-in person.
 export async function registerPush(userId) {
   if (!isNative() || !userId) return
@@ -35,6 +60,8 @@ export async function registerPush(userId) {
       })
     }
 
+    await createChannels(PushNotifications)
+
     let perm = await PushNotifications.checkPermissions()
     if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') {
       perm = await PushNotifications.requestPermissions()
@@ -55,4 +82,4 @@ export async function unregisterPush() {
     // ignore
   }
   currentToken = null
-                                    }
+  }
