@@ -6,7 +6,7 @@ const CallCtx = createContext(null)
 const NO_ANSWER_MS = 45 * 1000
 const RING_MS = 60 * 1000
 const HEARTBEAT_MS = 30 * 1000
-const RECHECK_MS = 15 * 1000
+const RECHECK_MS = 4 * 1000
 
 export async function callApi(body) {
   const { data, error } = await supabase.functions.invoke('calls', { body })
@@ -37,9 +37,14 @@ export function CallProvider({ children }) {
   const [active, setActive] = useState(null)     // the call on screen
   const [notice, setNotice] = useState('')
   const [requests, setRequests] = useState([])   // people asking to be allowed to call me
+  const [calling, setCalling] = useState(null)   // I pressed call and the server is still setting it up
+  const [joining, setJoining] = useState(false)  // I pressed answer and the server is still joining me
   const activeRef = useRef(null)
   const incomingRef = useRef(null)
   const startingRef = useRef(false)
+  const joiningRef = useRef(false)
+  const cancelCallRef = useRef(false)
+  const cancelJoinRef = useRef(false)
   activeRef.current = active
   incomingRef.current = incoming
 
@@ -67,7 +72,7 @@ export function CallProvider({ children }) {
 
   // Looks for a ring that arrived while the live connection was down or the app was in the background
   const checkRinging = useCallback(async () => {
-    if (!uid || activeRef.current || incomingRef.current) return
+    if (!uid || activeRef.current || incomingRef.current || joiningRef.current || startingRef.current) return
     const since = new Date(Date.now() - RING_MS).toISOString()
     const { data } = await supabase.from('call_participants').select('call_id')
       .eq('user_id', uid).eq('role', 'invitee').eq('status', 'ringing')
@@ -75,7 +80,7 @@ export function CallProvider({ children }) {
     const callId = data?.[0]?.call_id
     if (!callId) return
     const info = await loadIncoming(callId)
-    if (info && !activeRef.current && !incomingRef.current) setIncoming(info)
+    if (info && !activeRef.current && !incomingRef.current && !joiningRef.current && !startingRef.current) setIncoming(info)
   }, [uid, loadIncoming])
 
   const hangUp = useCallback(() => {
@@ -110,10 +115,11 @@ export function CallProvider({ children }) {
   // Live updates. RLS limits every event to calls this person is part of.
   useEffect(() => {
     if (!uid) return undefined
+    const busy = () => !!(activeRef.current || incomingRef.current || joiningRef.current || startingRef.current)
     const offerIncoming = async (callId) => {
-      if (activeRef.current || incomingRef.current) return
+      if (busy()) return
       const info = await loadIncoming(callId)
-      if (info && !activeRef.current && !incomingRef.current) setIncoming(info)
+      if (info && !busy()) setIncoming(info)
     }
 
     const channel = supabase
@@ -123,7 +129,8 @@ export function CallProvider({ children }) {
         if (row.status !== 'ringing') return
         if (row.user_id === uid) {
           if (activeRef.current?.callId === row.call_id) return
-          if (activeRef.current || incomingRef.current) {
+          if (busy()) {
+            if (incomingRef.current?.callId === row.call_id) return // the same ring, already on screen
             callApi({ action: 'decline', callId: row.call_id }).catch(() => {}) // already on a call
             return
           }
@@ -140,7 +147,8 @@ export function CallProvider({ children }) {
         const cur = activeRef.current
         if (row.user_id === uid) {
           const inc = incomingRef.current
-          if (inc && inc.callId === row.call_id && row.status !== 'ringing') setIncoming(null)
+          // While I am joining, the ring screen stays up until the call screen replaces it
+          if (inc && inc.callId === row.call_id && row.status !== 'ringing' && !joiningRef.current) setIncoming(null)
           if (row.status === 'ringing' && !cur && !inc) offerIncoming(row.call_id)
           if (cur && cur.callId === row.call_id && ['missed', 'declined', 'left'].includes(row.status)) {
             setActive(null)
@@ -220,10 +228,10 @@ export function CallProvider({ children }) {
 
   // An incoming ring stops on its own after a minute, matching the server
   useEffect(() => {
-    if (!incoming) return undefined
+    if (!incoming || joining) return undefined
     const t = setTimeout(() => setIncoming(null), RING_MS)
     return () => clearTimeout(t)
-  }, [incoming])
+  }, [incoming, joining])
 
   // Keep my place in the call alive while the app is open
   const activeCallId = active?.callId || null
@@ -267,12 +275,23 @@ export function CallProvider({ children }) {
   }, [])
 
   const startCall = useCallback(async ({ inviteeIds, kind = 'video', title = '' }) => {
-    if (startingRef.current) return false
+    if (startingRef.current || joiningRef.current) return false
     if (activeRef.current) { setNotice('Finish your current call first.'); return false }
     if (incomingRef.current) { setNotice('Answer or decline the incoming call first.'); return false }
     startingRef.current = true
+    cancelCallRef.current = false
+    // Show the calling screen at once so the app never looks frozen
+    setCalling({ kind, title, peer: null, extra: Math.max(0, inviteeIds.length - 1) })
+    fetchPeople([inviteeIds[0]]).then((people) => {
+      if (cancelCallRef.current || !startingRef.current) return
+      setCalling((c) => (c ? { ...c, peer: people[inviteeIds[0]] || null } : c))
+    })
     try {
       const data = await callApi({ action: 'start', calleeIds: inviteeIds, kind })
+      if (cancelCallRef.current) {
+        callApi({ action: 'leave', callId: data.callId }).catch(() => {}) // I hung up while it was connecting
+        return false
+      }
       setActive({
         callId: data.callId,
         kind: data.kind,
@@ -287,22 +306,35 @@ export function CallProvider({ children }) {
       if (data.skipped?.length) setNotice(data.skipped.join(' · '))
       return true
     } catch (e) {
+      if (cancelCallRef.current) return false
       // Calling a stranger: send the request for them, they decide
       if (e.code === 'needs_request' && inviteeIds.length === 1) await requestCall(inviteeIds[0])
       else setNotice(e.message)
       return false
     } finally {
       startingRef.current = false
+      setCalling(null)
     }
   }, [requestCall])
 
+  // Hang up from the calling screen before the call has connected
+  const cancelCalling = useCallback(() => {
+    cancelCallRef.current = true
+    setCalling(null)
+  }, [])
+
   const accept = useCallback(async () => {
     const cur = incomingRef.current
-    if (!cur || activeRef.current) return
-    incomingRef.current = null
-    setIncoming(null)
+    if (!cur || activeRef.current || joiningRef.current) return
+    joiningRef.current = true
+    cancelJoinRef.current = false
+    setJoining(true) // the ring screen stays up, now saying "Connecting…"
     try {
       const data = await callApi({ action: 'join', callId: cur.callId })
+      if (cancelJoinRef.current) {
+        callApi({ action: 'leave', callId: cur.callId }).catch(() => {})
+        return
+      }
       setActive({
         callId: cur.callId,
         kind: data.kind,
@@ -315,8 +347,22 @@ export function CallProvider({ children }) {
         joined: [],
       })
     } catch (e) {
-      setNotice(e.message)
+      if (!cancelJoinRef.current) setNotice(e.message)
+    } finally {
+      incomingRef.current = null
+      setIncoming(null)
+      joiningRef.current = false
+      setJoining(false)
     }
+  }, [])
+
+  // Hang up from the ring screen while it is still connecting
+  const cancelJoining = useCallback(() => {
+    cancelJoinRef.current = true
+    incomingRef.current = null
+    joiningRef.current = false
+    setIncoming(null)
+    setJoining(false)
   }, [])
 
   const decline = useCallback(async () => {
@@ -325,6 +371,14 @@ export function CallProvider({ children }) {
     incomingRef.current = null
     setIncoming(null)
     try { await callApi({ action: 'decline', callId: cur.callId }) } catch { /* ignore */ }
+  }, [])
+
+  // The call screen saw this person arrive in the room: move them from ringing to joined
+  const peerJoined = useCallback((userId) => {
+    setActive((a) => {
+      if (!a || a.joined.includes(userId)) return a
+      return { ...a, joined: [...a.joined, userId], pending: a.pending.filter((p) => p.id !== userId) }
+    })
   }, [])
 
   const invite = useCallback(async (userIds) => {
@@ -347,10 +401,10 @@ export function CallProvider({ children }) {
 
   const value = useMemo(
     () => ({
-      uid, incoming, active, notice, setNotice, clearNotice, requests,
-      startCall, accept, decline, hangUp, invite, requestCall, respondRequest,
+      uid, incoming, active, calling, joining, notice, setNotice, clearNotice, requests,
+      startCall, cancelCalling, accept, cancelJoining, decline, hangUp, invite, peerJoined, requestCall, respondRequest,
     }),
-    [uid, incoming, active, notice, clearNotice, requests, startCall, accept, decline, hangUp, invite, requestCall, respondRequest]
+    [uid, incoming, active, calling, joining, notice, clearNotice, requests, startCall, cancelCalling, accept, cancelJoining, decline, hangUp, invite, peerJoined, requestCall, respondRequest]
   )
 
   return <CallCtx.Provider value={value}>{children}</CallCtx.Provider>
@@ -360,4 +414,4 @@ export function useCalls() {
   const value = useContext(CallCtx)
   if (!value) throw new Error('useCalls must be used inside CallProvider')
   return value
-                                 }
+  }
