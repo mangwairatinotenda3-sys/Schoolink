@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Room, RoomEvent, Track } from 'livekit-client'
-import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, RefreshCw, UserPlus, Check, Search } from 'lucide-react'
+import { Mic, MicOff, Video, VideoOff, PhoneOff, Phone, RefreshCw, UserPlus, Check, Search, Loader2 } from 'lucide-react'
 import BottomSheet from './BottomSheet.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useCalls } from '../context/CallContext.jsx'
@@ -57,15 +57,18 @@ function Avatar({ src, name, size }) {
   )
 }
 
-function IncomingCall({ incoming, onAccept, onDecline }) {
+const CALL_BG = 'linear-gradient(180deg, #1B1739, #0B0920)'
+const NO_HIGHLIGHT = { WebkitTapHighlightColor: 'transparent' }
+
+function IncomingCall({ incoming, joining, onAccept, onDecline, onCancel }) {
   const { caller, kind, others } = incoming
   const video = kind === 'video'
   const group = others.length > 0
   const withText = others.slice(0, 2).map((o) => o.name).join(', ') + (others.length > 2 ? ` +${others.length - 2}` : '')
   return (
     <div
-      className="fixed inset-0 z-[120] flex flex-col items-center justify-between py-16 px-6 text-center"
-      style={{ background: 'linear-gradient(180deg, #1B1739, #0B0920)', color: '#fff' }}
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-between py-16 px-6 text-center select-none"
+      style={{ background: CALL_BG, color: '#fff', ...NO_HIGHLIGHT }}
       role="dialog"
       aria-modal="true"
       aria-label="Incoming call"
@@ -73,24 +76,73 @@ function IncomingCall({ incoming, onAccept, onDecline }) {
       <div className="flex flex-col items-center gap-4 mt-10">
         <Avatar src={caller?.avatar} name={caller?.name} size={120} />
         <p className="text-2xl font-semibold">{caller?.name}</p>
-        <p className="text-sm opacity-70">
-          {group ? 'Group' : 'Incoming'} {video ? 'video' : 'voice'} call
-          {group ? ` · with ${withText}` : ''}
-        </p>
+        {joining ? (
+          <p className="text-sm opacity-80 flex items-center gap-2">
+            <Loader2 size={16} className="animate-spin" />
+            Connecting…
+          </p>
+        ) : (
+          <p className="text-sm opacity-70">
+            {group ? 'Group' : 'Incoming'} {video ? 'video' : 'voice'} call
+            {group ? ` · with ${withText}` : ''}
+          </p>
+        )}
       </div>
-      <div className="w-full max-w-sm grid grid-cols-2 gap-6">
+      {joining ? (
         <div className="flex flex-col items-center gap-2">
-          <button onClick={onDecline} aria-label="Decline" className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center">
+          <button onClick={onCancel} aria-label="End call" className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center active:scale-95 transition-transform">
             <PhoneOff size={30} />
           </button>
-          <span className="text-xs opacity-80">Decline</span>
+          <span className="text-xs opacity-80">End</span>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <button onClick={onAccept} aria-label="Accept" className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center">
-            <Phone size={30} />
-          </button>
-          <span className="text-xs opacity-80">Accept</span>
+      ) : (
+        <div className="w-full max-w-sm grid grid-cols-2 gap-6">
+          <div className="flex flex-col items-center gap-2">
+            <button onClick={onDecline} aria-label="Decline" className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center active:scale-95 transition-transform">
+              <PhoneOff size={30} />
+            </button>
+            <span className="text-xs opacity-80">Decline</span>
+          </div>
+          <div className="flex flex-col items-center gap-2">
+            <button onClick={onAccept} aria-label="Accept" className="w-20 h-20 rounded-full bg-green-500 flex items-center justify-center active:scale-95 transition-transform">
+              <Phone size={30} />
+            </button>
+            <span className="text-xs opacity-80">Accept</span>
+          </div>
         </div>
+      )}
+    </div>
+  )
+}
+
+// Shown the moment you press call, while the server sets the call up. One screen, no flicker.
+function CallingScreen({ calling, onCancel }) {
+  const { kind, title, peer, extra } = calling
+  const name = peer?.name || title || 'Calling…'
+  return (
+    <div
+      className="fixed inset-0 z-[120] flex flex-col items-center justify-between py-16 px-6 text-center select-none"
+      style={{ background: CALL_BG, color: '#fff', ...NO_HIGHLIGHT }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Calling"
+    >
+      <div className="flex flex-col items-center gap-4 mt-10">
+        <Avatar src={peer?.avatar} name={name} size={120} />
+        <p className="text-2xl font-semibold">
+          {name}
+          {extra > 0 ? ` +${extra}` : ''}
+        </p>
+        <p className="text-sm opacity-80 flex items-center gap-2">
+          <Loader2 size={16} className="animate-spin" />
+          Calling… {kind === 'video' ? 'video' : 'voice'}
+        </p>
+      </div>
+      <div className="flex flex-col items-center gap-2">
+        <button onClick={onCancel} aria-label="End call" className="w-20 h-20 rounded-full bg-red-500 flex items-center justify-center active:scale-95 transition-transform">
+          <PhoneOff size={30} />
+        </button>
+        <span className="text-xs opacity-80">End</span>
       </div>
     </div>
   )
@@ -306,8 +358,8 @@ export function ContactPicker({ exclude = [], max = 11, confirmLabel = 'Start', 
   )
 }
 
-function ActiveCall({ active, hangUp, invite, setNotice }) {
-  const { kind, token, url, title, pending } = active
+function ActiveCall({ active, hangUp, invite, setNotice, peerJoined }) {
+  const { kind, token, url, title, role, pending: pendingAll } = active
   const video = kind === 'video'
   const [room, setRoom] = useState(null)
   const [version, setVersion] = useState(0)
@@ -333,12 +385,17 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
     let cancelled = false
     const bump = () => setVersion((v) => v + 1)
     ROOM_EVENTS.forEach((ev) => r.on(ev, bump))
+    r.on(RoomEvent.ParticipantConnected, (p) => { if (!cancelled) peerJoined(p.identity) })
     r.on(RoomEvent.Disconnected, () => { if (!cancelled) hangUp() })
 
     ;(async () => {
       try {
         await r.connect(url, token)
         if (cancelled) { r.disconnect(); return }
+        // Show the room right away; the mic and camera switch on behind it
+        setRoom(r)
+        r.remoteParticipants.forEach((p) => peerJoined(p.identity))
+        bump()
         await r.localParticipant.setMicrophoneEnabled(true)
         if (video) {
           try {
@@ -348,7 +405,6 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
             setNotice('Camera not available. Joined with voice only.')
           }
         }
-        setRoom(r)
         bump()
       } catch {
         if (!cancelled) {
@@ -359,11 +415,14 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
     })()
 
     return () => { cancelled = true; r.disconnect() }
-  }, [token, url, video, hangUp, setNotice])
+  }, [token, url, video, hangUp, setNotice, peerJoined])
 
   const local = room?.localParticipant
   const remote = room ? Array.from(room.remoteParticipants.values()) : []
   const everyone = room ? [local, ...remote] : []
+  // Someone already in the room must not also show as still ringing (that made a third tile)
+  const inRoom = new Set(remote.map((p) => p.identity))
+  const pending = pendingAll.filter((p) => !inRoom.has(p.id))
   const others = remote.length
   const connected = others > 0
   const oneToOne = video && others === 1 && pending.length === 0
@@ -374,7 +433,7 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
   const hideable = video && connected
   const uiOn = !hideable || showUi
   const timer = connectedAt ? elapsed(now - connectedAt) : ''
-  const status = timer || (pending.length ? 'Ringing…' : 'Connecting…')
+  const status = timer || (!room ? (role === 'caller' ? 'Calling…' : 'Connecting…') : pending.length ? 'Ringing…' : 'Connecting…')
 
   useEffect(() => {
     if (others > 0 && !connectedAt) setConnectedAt(Date.now())
@@ -557,7 +616,7 @@ function ActiveCall({ active, hangUp, invite, setNotice }) {
 }
 
 export default function CallOverlay() {
-  const { incoming, active, notice, clearNotice, setNotice, accept, decline, hangUp, invite, requests, respondRequest } = useCalls()
+  const { incoming, active, calling, joining, notice, clearNotice, setNotice, accept, cancelJoining, decline, cancelCalling, hangUp, invite, peerJoined, requests, respondRequest } = useCalls()
   const [later, setLater] = useState([]) // requests I chose to leave for now this session
   const request = requests.find((r) => !later.includes(r.requesterId)) || null
 
@@ -574,15 +633,18 @@ export default function CallOverlay() {
           {notice}
         </div>
       ) : null}
-      {incoming && !active ? <IncomingCall incoming={incoming} onAccept={accept} onDecline={decline} /> : null}
-      {request && !active && !incoming ? (
+      {calling && !active ? <CallingScreen calling={calling} onCancel={cancelCalling} /> : null}
+      {incoming && !active ? (
+        <IncomingCall incoming={incoming} joining={joining} onAccept={accept} onDecline={decline} onCancel={cancelJoining} />
+      ) : null}
+      {request && !active && !incoming && !calling ? (
         <CallRequestSheet
           request={request}
           onRespond={respondRequest}
           onLater={() => setLater((l) => [...l, request.requesterId])}
         />
       ) : null}
-      {active ? <ActiveCall active={active} hangUp={hangUp} invite={invite} setNotice={setNotice} /> : null}
+      {active ? <ActiveCall active={active} hangUp={hangUp} invite={invite} setNotice={setNotice} peerJoined={peerJoined} /> : null}
     </>
   )
 }
@@ -601,4 +663,4 @@ export function CallButtons({ partnerId }) {
       </button>
     </>
   )
-}
+  }
