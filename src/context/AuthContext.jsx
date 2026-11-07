@@ -1,3 +1,4 @@
+import { clearOfflineCache } from '../lib/offlineCache.js'
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { setGuestMode } from '../lib/guestShield.js'
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session)
+      if (event === 'SIGNED_OUT') clearOfflineCache()
       if (event === 'SIGNED_IN' && session?.user) {
         logLogin(session.user.id, 'session')
       }
