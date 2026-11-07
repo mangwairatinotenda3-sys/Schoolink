@@ -39,15 +39,22 @@ export default function Profile() {
   const isMember = isSchoolMember(profile)
   const name = profile?.full_name || user?.email?.split('@')[0] || 'Your name'
 
+  // School posts and school updates belong to the school's page, so they are not counted here.
   useEffect(() => {
     if (!user) return
     Promise.all([
-      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', user.id),
+      supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', user.id).is('as_school_id', null),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', user.id),
       supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', user.id),
     ]).then(([a, b, c]) => setStats({ posts: a.count ?? 0, followers: b.count ?? 0, following: c.count ?? 0 }))
     const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
-    supabase.from('statuses').select('id').eq('user_id', user.id).gt('created_at', cutoff).then(({ data }) => setStatusCount((data ?? []).length))
+    supabase
+      .from('statuses')
+      .select('id')
+      .eq('user_id', user.id)
+      .is('school_author_id', null)
+      .gt('created_at', cutoff)
+      .then(({ data }) => setStatusCount((data ?? []).length))
   }, [user?.id])
 
   useEffect(() => {
@@ -203,4 +210,4 @@ export default function Profile() {
       <BottomNav />
     </div>
   )
-        }
+  }
