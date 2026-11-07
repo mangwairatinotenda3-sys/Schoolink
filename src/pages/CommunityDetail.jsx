@@ -878,3 +878,182 @@ export default function CommunityDetail() {
                 <Smile size={21} />
               </button>
               <input ref={photoInputRef} type="file" accept="image/*,video/*" onChange={pickPhoto} className="hidden" />
+                            <input ref={videoInputRef} type="file" accept="video/*" onChange={pickPhoto} className="hidden" />
+              <input ref={fileInputRef} type="file" onChange={pickFile} className="hidden" />
+              <input
+                ref={inputRef}
+                value={text}
+                onChange={(e) => onType(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+                placeholder={editing ? 'Edit your message' : 'Message'}
+                maxLength={4000}
+                className="flex-1 min-w-0 bg-gray-100 rounded-full px-4 py-2.5 text-[15px] outline-none"
+              />
+              {text.trim() || editing ? (
+                <button onClick={handleSend} disabled={sending || !text.trim()} aria-label={editing ? 'Save edit' : 'Send'} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40">
+                  {editing ? <Check size={18} className="text-white" /> : <Send size={17} className="text-white" />}
+                </button>
+              ) : (
+                <button onClick={voice.start} disabled={uploading} aria-label="Record voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-transform">
+                  <Mic size={18} className="text-white" />
+                </button>
+              )}
+            </div>
+            )}
+          </div>
+        ) : (
+          <div className="px-4 py-3.5 border-t border-gray-100 text-center text-sm text-gray-400 flex items-center justify-center gap-2 shrink-0" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+            <Lock size={14} /> Only admins can send messages
+          </div>
+        )
+      ) : (
+        <div className="px-4 py-3 border-t border-gray-100 shrink-0" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
+          {requested ? (
+            <p className="text-center text-sm text-gray-500 py-2">Request sent. An admin will let you in.</p>
+          ) : (
+            <button onClick={join} disabled={joining} className="w-full bg-brand-purple text-white font-semibold py-3 rounded-full disabled:opacity-40 flex items-center justify-center">
+              {joining ? <Loader2 size={18} className="animate-spin" /> : community.is_private ? 'Request to join' : 'Join to send messages'}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Community menu */}
+      {menuOpen ? (
+        <BottomSheet onClose={() => setMenuOpen(false)}>
+          <SheetAction icon={Info} label="Community info" onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/info`) }} />
+          <SheetAction icon={ImageIcon} label="Photos, videos and files" onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/media`) }} />
+          <SheetAction icon={Search} label="Search messages" onClick={() => openSearch(false)} />
+          <SheetAction icon={Star} label="Starred messages" onClick={() => openSearch(true)} />
+          <SheetAction
+            icon={isMutedNow(mutedUntil) ? Bell : BellOff}
+            label={isMutedNow(mutedUntil) ? 'Notifications muted' : 'Mute notifications'}
+            sub={isMutedNow(mutedUntil) ? 'Tap to change' : undefined}
+            onClick={() => { setMenuOpen(false); setMuteOpen(true) }}
+          />
+          {isAdmin && community.is_private ? <SheetAction icon={Inbox} label="Join requests" sub={requestCount ? `${requestCount} waiting` : undefined} onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/requests`) }} /> : null}
+          {isAdmin && (mode === 'approval' || pending.length > 0) ? <SheetAction icon={ShieldCheck} label="Messages waiting for approval" sub={pending.length ? `${pending.length} waiting` : 'Nothing waiting'} onClick={() => { setMenuOpen(false); setReviewOpen(true) }} /> : null}
+        </BottomSheet>
+      ) : null}
+
+      {muteOpen ? (
+        <BottomSheet onClose={() => setMuteOpen(false)}>
+          <p className="px-4 pb-2 font-semibold">Mute notifications</p>
+          <SheetAction icon={BellOff} label="8 hours" onClick={() => setMute('8h')} />
+          <SheetAction icon={BellOff} label="1 week" onClick={() => setMute('1w')} />
+          <SheetAction icon={BellOff} label="Always" onClick={() => setMute('always')} />
+          {isMutedNow(mutedUntil) ? <SheetAction icon={Bell} label="Unmute" onClick={() => setMute('off')} /> : null}
+        </BottomSheet>
+      ) : null}
+
+      {attachOpen ? (
+        <BottomSheet onClose={() => setAttachOpen(false)}>
+          <SheetAction icon={ImageIcon} label="Gallery" sub="Choose photos from your phone" onClick={openGallery} />
+          <SheetAction icon={Film} label="Video" onClick={() => { setAttachOpen(false); videoInputRef.current?.click() }} />
+          <SheetAction icon={FileText} label="Document" onClick={() => { setAttachOpen(false); fileInputRef.current?.click() }} />
+        </BottomSheet>
+      ) : null}
+
+      {/* Message actions */}
+      {sheetMsg ? (
+        <BottomSheet onClose={() => setActionMsg(null)}>
+          <div className="px-4 pb-2">
+            <p className="text-xs font-semibold text-gray-400 truncate">{mineSheet ? 'You' : sheetMsg.sender_name || 'Member'}</p>
+            <p className="text-sm text-gray-600 line-clamp-2 break-words">{previewOf(sheetMsg)}</p>
+          </div>
+          {sheetLive && !sheetPending ? (
+            <div className="flex items-center justify-around px-2 pb-3">
+              {QUICK_REACTIONS.map((e) => {
+                const on = (reactions[sheetMsg.id] ?? []).some((r) => r.user_id === user.id && r.emoji === e)
+                return (
+                  <button key={e} onClick={() => react(sheetMsg, e)} aria-label={`React ${e}`} className={`w-11 h-11 rounded-full text-2xl flex items-center justify-center ${on ? 'bg-brand-light' : ''}`}>{e}</button>
+                )
+              })}
+              <button onClick={() => { setActionMsg(null); setReactPicker(sheetMsg) }} aria-label="More reactions" className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 text-gray-600"><Plus size={20} /></button>
+            </div>
+          ) : null}
+          {canPost && sheetLive && !sheetPending ? <SheetAction icon={Reply} label="Reply" onClick={() => startReply(sheetMsg)} /> : null}
+          {sheetMsg.content ? <SheetAction icon={Copy} label="Copy" onClick={() => copyText(sheetMsg)} /> : null}
+          {sheetLive && !sheetPending ? <SheetAction icon={Forward} label="Forward" onClick={() => { setForwarding(sheetMsg); setActionMsg(null) }} /> : null}
+          {sheetLive && !sheetPending ? (
+            <SheetAction icon={Star} label={stars.has(sheetMsg.id) ? 'Remove from starred' : 'Star message'} onClick={() => toggleStar(sheetMsg)} />
+          ) : null}
+          {mineSheet && canEditMsg(sheetMsg) ? <SheetAction icon={Pencil} label="Edit message" sub="Within 15 minutes" onClick={() => startEdit(sheetMsg)} /> : null}
+          {isAdmin && sheetLive && !sheetPending ? (
+            sheetMsg.pinned_at
+              ? <SheetAction icon={PinOff} label="Unpin message" onClick={() => pin(sheetMsg, false)} />
+              : <SheetAction icon={Pin} label="Pin message" sub="Shows at the top for everyone" onClick={() => pin(sheetMsg, true)} />
+          ) : null}
+          {isAdmin && sheetPending ? <SheetAction icon={Check} label="Approve" onClick={() => review([String(sheetMsg.id)], true)} /> : null}
+          {isAdmin && sheetPending ? <SheetAction icon={X} label="Turn down" danger onClick={() => review([String(sheetMsg.id)], false)} /> : null}
+          {mineSheet && sheetLive ? <SheetAction icon={Info} label="Message info" onClick={() => openInfo(sheetMsg)} /> : null}
+          <SheetAction icon={Trash2} label="Delete for me" onClick={() => { setConfirm({ kind: 'me', m: sheetMsg }); setActionMsg(null) }} />
+          {mineSheet && sheetLive ? <SheetAction icon={Trash2} label="Delete for everyone" danger onClick={() => { setConfirm({ kind: 'own', m: sheetMsg }); setActionMsg(null) }} /> : null}
+          {!mineSheet && sheetLive && !sheetPending ? <SheetAction icon={Flag} label="Report message" danger onClick={() => { setReportMsg(sheetMsg); setActionMsg(null) }} /> : null}
+          {isAdmin && !mineSheet && sheetLive && !sheetPending ? <SheetAction icon={Trash2} label="Remove message" sub="Everyone sees that an admin removed it" danger onClick={() => { setConfirm({ kind: 'admin', m: sheetMsg }); setActionMsg(null) }} /> : null}
+        </BottomSheet>
+      ) : null}
+
+      {reportMsg ? (
+        <ReportSheet
+          contentType="community_message"
+          contentId={reportMsg.id}
+          blockUserId={reportMsg.sender_id}
+          blockName={(reportMsg.sender_name || '').split(' ')[0]}
+          onClose={() => setReportMsg(null)}
+          onDone={(didBlock) => { if (didBlock) setBlockedIds((prev) => new Set(prev).add(reportMsg.sender_id)) }}
+        />
+      ) : null}
+
+      {/* Full emoji list to react with */}
+      {reactPicker ? (
+        <BottomSheet onClose={() => setReactPicker(null)}>
+          <p className="px-4 pb-2 font-semibold">React</p>
+          <EmojiPicker height={300} selected={(reactions[reactPicker.id] ?? []).find((r) => r.user_id === user.id)?.emoji ?? null} onPick={(e) => { const target = reactPicker; setReactPicker(null); react(target, e) }} />
+        </BottomSheet>
+      ) : null}
+
+      {/* Message info: who has read it */}
+      {infoMsg ? (
+        <BottomSheet onClose={() => setInfoMsg(null)}>
+          <div className="px-4 pb-3">
+            <p className="font-semibold">Message info</p>
+            <p className="text-xs text-gray-400">Sent {new Date(infoMsg.created_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
+            <p className="text-sm text-gray-600 line-clamp-2 break-words mt-1">{previewOf(infoMsg)}</p>
+          </div>
+          {(() => {
+            const others = members.filter((m) => m.user_id !== infoMsg.sender_id)
+            const withTime = others.map((m) => ({ m, at: reads.find((r) => r.user_id === m.user_id)?.last_read_at ?? null }))
+            const seen = withTime.filter((x) => x.at && Date.parse(x.at) >= Date.parse(infoMsg.created_at))
+            const unseen = withTime.filter((x) => !seen.includes(x))
+            const row = (x, label) => (
+              <div key={x.m.user_id} className="flex items-center gap-3 px-4 py-2">
+                <PersonAvatar p={x.m.profiles} size={36} />
+                <span className="flex-1 min-w-0 truncate text-[15px]">{x.m.user_id === user.id ? 'You' : x.m.profiles?.full_name || 'Member'}</span>
+                {label ? <span className="text-xs text-gray-400 shrink-0">{label}</span> : null}
+              </div>
+            )
+            return (
+              <>
+                <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Read by {seen.length}</p>
+                {seen.map((x) => row(x, new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })))}
+                <p className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Not read yet · {unseen.length}</p>
+                {unseen.map((x) => row(x, ''))}
+              </>
+            )
+          })()}
+        </BottomSheet>
+      ) : null}
+
+      {confirm?.kind === 'me' ? <ConfirmSheet title="Delete for you?" body="It is hidden from your view only. Others still see it." confirmLabel="Delete for me" danger onConfirm={() => deleteForMe(confirm.m)} onClose={() => setConfirm(null)} /> : null}
+      {confirm?.kind === 'own' ? <ConfirmSheet title="Delete for everyone?" body="It is deleted for everyone in the community." confirmLabel="Delete" danger onConfirm={() => deleteForEveryone(confirm.m)} onClose={() => setConfirm(null)} /> : null}
+      {confirm?.kind === 'admin' ? <ConfirmSheet title="Remove this message?" body="It is removed for everyone. The chat will show that an admin removed it." confirmLabel="Remove" danger onConfirm={() => removeAsAdmin(confirm.m)} onClose={() => setConfirm(null)} /> : null}
+
+      {callOpen ? <CommunityCallSheet members={members.filter((m) => m.user_id !== user.id)} onClose={() => setCallOpen(false)} /> : null}
+      {reviewOpen ? <CommunityReviewSheet items={pending} busy={reviewBusy} onApprove={(ids) => review(ids, true)} onReject={(ids) => review(ids, false)} onClose={() => setReviewOpen(false)} /> : null}
+      {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
+
+      {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 84 }}>{toast}</div> : null}
+    </div>
+  )
+                }
