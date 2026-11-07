@@ -8,6 +8,7 @@ import PostVideo from './PostVideo.jsx'
 import VerifiedBadge from './VerifiedBadge.jsx'
 import ReportSheet from './ReportSheet.jsx'
 import { fileExtension } from '../lib/mediaTools.js'
+import { isStaffMember } from '../lib/permissions.js'
 
 function timeAgo(iso) {
   if (!iso) return ''
@@ -59,6 +60,19 @@ function loadAvatar(authorId) {
     )
   }
   return avatarCache.get(authorId)
+}
+
+// Posts made as a school show the school's logo, shared by every card on the screen.
+const schoolLogoCache = new Map()
+function loadSchoolLogo(schoolId) {
+  if (!schoolId) return Promise.resolve(null)
+  if (!schoolLogoCache.has(schoolId)) {
+    schoolLogoCache.set(
+      schoolId,
+      supabase.from('schools').select('logo_url').eq('id', schoolId).maybeSingle().then(({ data }) => data?.logo_url || null, () => null),
+    )
+  }
+  return schoolLogoCache.get(schoolId)
 }
 
 function AuthorAvatar({ url, name, id, size = 42 }) {
@@ -117,6 +131,8 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   const lastMediaTap = useRef(0)
 
   const isMine = user && post.author_id === user.id
+  // Staff of a school can take down any post from that school's members
+  const canDelete = !!isMine || (!!post.school_id && isStaffMember(profile) && profile.school_id === post.school_id)
   const images = post.image_urls && post.image_urls.length > 0 ? post.image_urls : post.image_url ? [post.image_url] : []
   const categoryColor = colorOf(post.category)
 
@@ -130,9 +146,10 @@ export default function PostCard({ post, onDeleted, expandComments }) {
 
   useEffect(() => {
     let live = true
-    loadAvatar(post.author_id).then((url) => { if (live) setAvatarUrl(url) })
+    const source = post.as_school_id ? loadSchoolLogo(post.as_school_id) : loadAvatar(post.author_id)
+    source.then((url) => { if (live) setAvatarUrl(url) })
     return () => { live = false }
-  }, [post.author_id])
+  }, [post.author_id, post.as_school_id])
 
   async function loadLikes() {
     const { count } = await supabase.from('likes').select('*', { count: 'exact', head: true }).eq('post_id', post.id)
@@ -250,7 +267,8 @@ export default function PostCard({ post, onDeleted, expandComments }) {
 
   function goToAuthorProfile(e) {
     e.stopPropagation()
-    if (post.author_id) navigate(`/users/${post.author_id}`)
+    if (post.as_school_id) navigate(`/schools/${post.as_school_id}`)
+    else if (post.author_id) navigate(`/users/${post.author_id}`)
   }
 
   const iconBtn = 'h-10 px-3 rounded-full flex items-center gap-1.5 text-sm font-medium active:bg-black/5'
@@ -269,7 +287,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         <button onClick={goToAuthorProfile} className="min-w-0 flex-1 text-left">
           <span className="flex items-center gap-1 min-w-0">
             <span className="font-semibold text-[15px] text-gray-900 truncate">{post.author_name}</span>
-            <VerifiedBadge userId={post.author_id} size={15} />
+            {post.as_school_id ? <VerifiedBadge schoolId={post.as_school_id} size={15} /> : <VerifiedBadge userId={post.author_id} size={15} />}
           </span>
           <span className="flex items-center gap-1.5 text-xs text-gray-400 min-w-0">
             {post.author_role ? (
@@ -288,7 +306,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </button>
 
         <div className="flex items-center gap-1 shrink-0">
-          {user && post.author_id !== user.id ? (
+          {user && !post.as_school_id && post.author_id !== user.id ? (
             <button
               onClick={toggleFollow}
               className="text-xs font-semibold px-3.5 h-8 rounded-full"
@@ -306,16 +324,17 @@ export default function PostCard({ post, onDeleted, expandComments }) {
               </button>
               {menuOpen ? (
                 <div className="absolute right-0 top-10 bg-white border border-gray-100 rounded-xl shadow-lg z-10 w-40 overflow-hidden">
-                  {isMine ? (
+                  {canDelete ? (
                     <button onClick={handleDelete} className="w-full flex items-center gap-2 px-3 py-3 text-sm text-red-500"><Trash2 size={15} /> Delete post</button>
-                  ) : (
+                  ) : null}
+                  {!isMine ? (
                     <button
-                      onClick={() => { setMenuOpen(false); setReportTarget({ type: 'post', id: post.id, authorId: post.author_id, authorName: post.author_name }) }}
+                      onClick={() => { setMenuOpen(false); setReportTarget({ type: 'post', id: post.id, authorId: post.as_school_id ? null : post.author_id, authorName: post.author_name }) }}
                       className="w-full flex items-center gap-2 px-3 py-3 text-sm text-red-500"
                     >
                       <Flag size={15} /> Report post
                     </button>
-                  )}
+                  ) : null}
                 </div>
               ) : null}
             </div>
@@ -403,7 +422,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </button>
       </div>
 
-      {/* Comments: shown on the post's own screen */}
+      {/* Comments */}
       {showComments ? (
         <div className="border-t border-gray-100 px-4 py-3 space-y-2.5" onClick={(e) => e.stopPropagation()}>
           {comments.map((c) => (
