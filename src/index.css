@@ -314,11 +314,8 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
           }
 
 /* ===== Fit every screen =====
-   Phone, portrait: bottom bar (as before).
-   Wider screens (tablet portrait): full width, content centred.
-   Tablet and laptop, or phone turned sideways: side bar on the left. */
-
-.nav-side { display: none; }
+   Every screen, on phones, tablets and in landscape, uses the bar along the bottom.
+   Wider screens centre the content in a column. */
 
 @media (min-width: 600px) {
   .app-shell { max-width: none; }
@@ -326,31 +323,17 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
 }
 
 @media (min-width: 768px) and (orientation: landscape), (min-width: 1024px) {
-  .app-shell {
-    padding-left: 92px; /* the side bar sits over the camera cut-out area, so the content starts after it */
-    padding-right: env(safe-area-inset-right, 0px);
-  }
-  .app-shell .screen-scroll { max-width: 960px; padding-bottom: 24px; }
-  .nav-bottom { display: none; }
-  .nav-side {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 14px;
-    position: absolute;
-    top: calc(env(safe-area-inset-top, 0px) + 64px); /* starts below the top bar, so it never reaches the logo or menu corner */
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
-    left: 0;
-    width: 92px;
-    padding: 12px 0;
-    overflow-y: auto;
-    z-index: 30;
-    background: linear-gradient(180deg, #150F45, #0F0B38);
-    border-right: 1px solid rgba(139, 92, 246, 0.35);
-    border-radius: 0 20px 20px 0;
-  }
-         }
+  .app-shell .screen-scroll { max-width: 960px; }
+}
+
+/* The bottom bar slides away while scrolling down and comes back when scrolling stops or goes up */
+.nav-bottom {
+  transition: transform 0.24s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.app-shell[data-nav-hidden="1"] .nav-bottom {
+  transform: translateY(100%);
+  pointer-events: none;
+}
 
 /* Phones in portrait: the app fills the whole screen, with no gaps or shadow at the edges */
 @media (max-width: 480px) and (orientation: portrait) {
