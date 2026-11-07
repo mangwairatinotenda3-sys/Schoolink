@@ -69,14 +69,22 @@ export default function PublicProfile() {
 
       const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
       const [posts, followers, following, mine, theirs, block, schoolRes, statuses] = await Promise.all([
-        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', userId),
+        // Their personal posts only. Posts they make as the school are on the school's page.
+        supabase.from('posts').select('*', { count: 'exact', head: true }).eq('author_id', userId).is('as_school_id', null),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('followed_id', userId),
         supabase.from('follows').select('*', { count: 'exact', head: true }).eq('follower_id', userId),
         supabase.from('follows').select('follower_id').eq('follower_id', user.id).eq('followed_id', userId).maybeSingle(),
         supabase.from('follows').select('follower_id').eq('follower_id', userId).eq('followed_id', user.id).maybeSingle(),
         supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id).eq('blocked_id', userId).maybeSingle(),
         data.school_id ? supabase.from('schools').select('name, location').eq('id', data.school_id).maybeSingle() : Promise.resolve({ data: null }),
-        supabase.from('statuses').select('*').eq('user_id', userId).gt('created_at', cutoff).order('created_at', { ascending: true }),
+        // Their personal updates only. School updates are shown on the school's page.
+        supabase
+          .from('statuses')
+          .select('*')
+          .eq('user_id', userId)
+          .is('school_author_id', null)
+          .gt('created_at', cutoff)
+          .order('created_at', { ascending: true }),
       ])
       if (cancelled) return
       setStats({ posts: posts.count ?? 0, followers: followers.count ?? 0, following: following.count ?? 0 })
@@ -304,4 +312,4 @@ export default function PublicProfile() {
       {viewing ? <AvatarViewer imageUrl={viewing} onClose={() => setViewing(null)} /> : null}
     </div>
   )
-}
+          }
