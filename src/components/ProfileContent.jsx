@@ -69,6 +69,7 @@ function Tile({ post, photos, onClick }) {
 }
 
 // The tabs under a profile: Posts, Media and About. Used for your own profile and for other people's.
+// School posts are left out here, because they live on the school's page.
 export default function ProfileContent({ userId, person, school, isMe, canSeePosts, joined, stickyTop = 52 }) {
   const navigate = useNavigate()
   const [tab, setTab] = useState('Posts')
@@ -85,7 +86,13 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       setPosts([])
       if (!canSeePosts) { setLoading(false); return }
       setLoading(true)
-      const { data } = await supabase.from('posts').select('*').eq('author_id', userId).order('created_at', { ascending: false }).range(0, PAGE - 1)
+      const { data } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('author_id', userId)
+        .is('as_school_id', null)
+        .order('created_at', { ascending: false })
+        .range(0, PAGE - 1)
       if (cancelled) return
       setPosts(data ?? [])
       setHasMore((data ?? []).length === PAGE)
@@ -98,7 +105,13 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
   async function loadMore() {
     if (moreLoading || !hasMore) return
     setMoreLoading(true)
-    const { data } = await supabase.from('posts').select('*').eq('author_id', userId).order('created_at', { ascending: false }).range(posts.length, posts.length + PAGE - 1)
+    const { data } = await supabase
+      .from('posts')
+      .select('*')
+      .eq('author_id', userId)
+      .is('as_school_id', null)
+      .order('created_at', { ascending: false })
+      .range(posts.length, posts.length + PAGE - 1)
     setPosts((prev) => {
       const have = new Set(prev.map((p) => p.id))
       return [...prev, ...(data ?? []).filter((p) => !have.has(p.id))]
@@ -231,4 +244,4 @@ export default function ProfileContent({ userId, person, school, isMe, canSeePos
       {viewer ? <PhotoViewer images={media.map((m) => m.url)} initialIndex={viewer.index} postId={media[viewer.index]?.postId} onClose={() => setViewer(null)} /> : null}
     </div>
   )
-                                                           }
+}
