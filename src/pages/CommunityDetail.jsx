@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   ArrowLeft, Send, Paperclip, Users, MoreVertical, Image as ImageIcon, FileText, Copy, Forward, Pin, PinOff,
-  Trash2, ShieldCheck, Info, Inbox, Lock, Loader2, X, Check, Reply, Star, Pencil, Phone, Search, BellOff, Bell, ChevronDown, Mic, Plus, Smile,
+  Trash2, ShieldCheck, Info, Inbox, Lock, Loader2, X, Check, Reply, Star, Pencil, Phone, Search, BellOff, Bell, ChevronDown, Mic, Plus, Smile, Flag, AtSign, ChevronUp, Film,
 } from 'lucide-react'
 import BottomSheet, { SheetAction } from '../components/BottomSheet.jsx'
+import ReportSheet from '../components/ReportSheet.jsx'
 import { ConfirmSheet } from '../components/FamilySheets.jsx'
 import CommunityMessageBubble, { mentionPattern } from '../components/CommunityMessageBubble.jsx'
 import CommunityPinned, { previewOf } from '../components/CommunityPinned.jsx'
@@ -14,6 +15,7 @@ import CommunityAvatar from '../components/CommunityAvatar.jsx'
 import PersonAvatar from '../components/PersonAvatar.jsx'
 import ForwardPicker from '../components/ForwardPicker.jsx'
 import useVoiceRecorder from '../lib/useVoiceRecorder.js'
+import { pickGalleryPhotos } from '../lib/nativePhotos.js'
 import EmojiPicker from '../components/EmojiPicker.jsx'
 import { loadCommunityMembers } from '../lib/communityMembers.js'
 import { supabase } from '../lib/supabaseClient.js'
@@ -22,6 +24,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 const EDIT_WINDOW_MS = 15 * 60 * 1000
 const FOREVER = '2099-12-31T00:00:00Z'
+// The person who created a community counts as an admin too
+const isAdminRole = (role) => role === 'admin' || role === 'owner' || role === 'creator'
 
 function clock(total) {
   const s = Math.max(0, Math.floor(total || 0))
@@ -69,6 +73,8 @@ export default function CommunityDetail() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
   const photoInputRef = useRef(null)
+  const videoInputRef = useRef(null)
+  const scrollRef = useRef(null)
   const fileInputRef = useRef(null)
   const inputRef = useRef(null)
   const bottomRef = useRef(null)
@@ -96,6 +102,7 @@ export default function CommunityDetail() {
   const [loading, setLoading] = useState(true)
   const [forwarding, setForwarding] = useState(null)
   const [actionMsg, setActionMsg] = useState(null)
+  const [reportMsg, setReportMsg] = useState(null)
   const [infoMsg, setInfoMsg] = useState(null)
   const [reads, setReads] = useState([])
   const [confirm, setConfirm] = useState(null)
@@ -116,6 +123,11 @@ export default function CommunityDetail() {
   const [composerEmoji, setComposerEmoji] = useState(false)
   const [reactPicker, setReactPicker] = useState(null)
   const [toast, setToast] = useState('')
+  const [blockedIds, setBlockedIds] = useState(() => new Set())
+  const [hasMore, setHasMore] = useState(false)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [awayCount, setAwayCount] = useState(0)
+  const [unreadAbove, setUnreadAbove] = useState(false)
 
   const voice = useVoiceRecorder({
     onRecorded: (file) => sendVoice(file),
@@ -124,7 +136,7 @@ export default function CommunityDetail() {
 
   const mode = community?.posting_mode || 'everyone'
   const isMember = !!myRole
-  const isAdmin = myRole === 'admin'
+  const isAdmin = isAdminRole(myRole)
   const canPost = isMember && (mode !== 'admins_only' || isAdmin)
   const memberCount = members.length
   adminRef.current = isAdmin
@@ -170,10 +182,11 @@ export default function CommunityDetail() {
     setMyRole(role)
 
     let query = supabase.from('community_messages').select('*').eq('community_id', communityId)
-    if (role !== 'admin') query = query.or(`status.eq.approved,sender_id.eq.${user.id}`)
+    if (!isAdminRole(role)) query = query.or(`status.eq.approved,sender_id.eq.${user.id}`)
     const { data: msgs } = await query.order('created_at', { ascending: false }).limit(300)
     const list = (msgs ?? []).reverse()
     setMessages(list)
+    setHasMore(list.length >= 300)
 
     const ids = list.map((m) => m.id)
     if (ids.length) {
@@ -190,6 +203,8 @@ export default function CommunityDetail() {
     }
 
     if (first) {
+      const { data: bl } = await supabase.from('blocked_users').select('blocked_id').eq('blocker_id', user.id)
+      setBlockedIds(new Set((bl ?? []).map((b) => b.blocked_id)))
       const { data: rd } = await supabase.from('community_reads').select('last_read_at, muted_until')
         .eq('user_id', user.id).eq('community_id', communityId).maybeSingle()
       setMutedUntil(rd?.muted_until ?? null)
@@ -198,7 +213,7 @@ export default function CommunityDetail() {
       setUnreadAnchor(firstUnread?.id ?? null)
     }
 
-    if (role === 'admin' && comm?.is_private) {
+    if (isAdminRole(role) && comm?.is_private) {
       const { count } = await supabase.from('community_join_requests').select('*', { count: 'exact', head: true }).eq('community_id', communityId).eq('status', 'pending')
       setRequestCount(count ?? 0)
     }
@@ -230,6 +245,7 @@ export default function CommunityDetail() {
         if (!visibleToMe(m)) return
         setMessages((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m].sort(byTime)))
         if (nearBottom.current) markCommunityRead()
+        else if (m.sender_id !== user.id && m.kind !== 'system') setAwayCount((c) => c + 1)
       })
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'community_messages', filter: `community_id=eq.${communityId}` }, (payload) => {
         const m = payload.new
@@ -278,9 +294,43 @@ export default function CommunityDetail() {
     const near = el.scrollHeight - el.scrollTop - el.clientHeight < 140
     nearBottom.current = near
     setShowDown(!near)
+    if (near) setAwayCount(0)
+    const anchorEl = unreadAnchor ? msgRefs.current[unreadAnchor] : null
+    setUnreadAbove(!!anchorEl && anchorEl.offsetTop + anchorEl.offsetHeight < el.scrollTop + 8)
   }
-  
-    // ---------- Derived ----------
+
+  // Older messages: the chat opens with the latest 300; this fetches 100 more above them
+  async function loadOlder() {
+    if (loadingOlder || !messages.length) return
+    setLoadingOlder(true)
+    const firstMsg = messages[0]
+    let query = supabase.from('community_messages').select('*').eq('community_id', communityId).lt('created_at', firstMsg.created_at)
+    if (!adminRef.current) query = query.or(`status.eq.approved,sender_id.eq.${user.id}`)
+    const { data: older, error } = await query.order('created_at', { ascending: false }).limit(100)
+    if (error) { setToast('Could not load older messages.'); setLoadingOlder(false); return }
+    const rows = (older ?? []).reverse()
+    if (rows.length) {
+      const el = scrollRef.current
+      const beforeHeight = el?.scrollHeight ?? 0
+      const beforeTop = el?.scrollTop ?? 0
+      const { data: rx } = await supabase.from('community_reactions').select('message_id, user_id, emoji').eq('community_id', communityId).in('message_id', rows.map((m) => m.id))
+      setReactions((prev) => {
+        const next = { ...prev }
+        for (const r of rx ?? []) next[r.message_id] = [...(next[r.message_id] ?? []).filter((x) => !(x.user_id === r.user_id && x.emoji === r.emoji)), { user_id: r.user_id, emoji: r.emoji }]
+        return next
+      })
+      setMessages((prev) => {
+        const have = new Set(prev.map((x) => x.id))
+        return [...rows.filter((r) => !have.has(r.id)), ...prev]
+      })
+      // Keep the screen where it was instead of jumping to the top
+      requestAnimationFrame(() => { if (el) el.scrollTop = el.scrollHeight - beforeHeight + beforeTop })
+    }
+    setHasMore(rows.length >= 100)
+    setLoadingOlder(false)
+  }
+
+  // ---------- Derived ----------
   const pinned = useMemo(
     () => messages.filter((m) => m.pinned_at && !m.removed_at && !m.deleted_at).sort((a, b) => new Date(b.pinned_at) - new Date(a.pinned_at)),
     [messages]
@@ -288,16 +338,19 @@ export default function CommunityDetail() {
   const pending = useMemo(() => messages.filter((m) => m.status === 'pending' && !m.removed_at), [messages])
   const byId = useMemo(() => new Map(messages.map((m) => [m.id, m])), [messages])
   const pattern = useMemo(() => mentionPattern(members.map((m) => m.profiles?.full_name).filter(Boolean)), [members])
-  const adminIds = useMemo(() => new Set(members.filter((m) => m.role === 'admin').map((m) => m.user_id)), [members])
+  const adminIds = useMemo(() => new Set(members.filter((m) => isAdminRole(m.role)).map((m) => m.user_id)), [members])
   const visible = useMemo(
-    () => messages.filter((m) => !hidden.has(m.id) && (!m.expires_at || Date.parse(m.expires_at) > Date.now())),
-    [messages, hidden]
+    () => messages.filter((m) => !hidden.has(m.id) && !blockedIds.has(m.sender_id) && (!m.expires_at || Date.parse(m.expires_at) > Date.now())),
+    [messages, hidden, blockedIds]
   )
   const typingNames = Object.values(typing).map((v) => v.name)
   const unreadIdx = unreadAnchor ? visible.findIndex((m) => m.id === unreadAnchor) : -1
   const unreadCount = unreadIdx >= 0
     ? visible.slice(unreadIdx).filter((m) => m.sender_id !== user.id && m.kind !== 'system').length
     : 0
+  const unreadMentionIds = unreadIdx >= 0
+    ? visible.slice(unreadIdx).filter((m) => m.sender_id !== user.id && Array.isArray(m.mentions) && m.mentions.includes(user.id)).map((m) => m.id)
+    : []
   const searching = search !== null
   const q = (search ?? '').trim().toLowerCase()
   const results = searching
@@ -432,6 +485,14 @@ export default function CommunityDetail() {
   const pickPhoto = (e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f, 'media') }
   const pickFile = (e) => { const f = e.target.files?.[0]; e.target.value = ''; upload(f, 'file') }
 
+  // The phone's own photo gallery, like WhatsApp. On a computer it falls back to the file picker.
+  async function openGallery() {
+    setAttachOpen(false)
+    const files = await pickGalleryPhotos({ limit: 10 })
+    if (files === null) { photoInputRef.current?.click(); return }
+    for (const f of files) await upload(f, 'media')
+  }
+
   async function sendVoice(file) {
     if (!file || !canPost) return
     setUploading(true)
@@ -444,7 +505,7 @@ export default function CommunityDetail() {
     setReplyTo(null)
     await sendMessage({ media_url: data.publicUrl, media_type: 'audio', ...(reply ? { reply_to: reply.id } : {}) })
     setUploading(false)
-}
+  }
 
   // ---------- Message actions ----------
   const patch = (id, fields) => setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...fields } : m)))
@@ -589,9 +650,9 @@ export default function CommunityDetail() {
       else await loadAll()
     }
     setJoining(false)
-      }
+  }
 
-    // ---------- Screens ----------
+  // ---------- Screens ----------
   if (loading || !community) {
     return (
       <div className="app-shell">
@@ -611,7 +672,8 @@ export default function CommunityDetail() {
   const sameDayAs = (a, b) => new Date(a.created_at).toDateString() === new Date(b.created_at).toDateString()
 
   return (
-    <div className="app-shell relative">
+    <div className="app-shell relative community-root">
+      <style>{'.community-root, .community-root * { -webkit-tap-highlight-color: transparent; } .community-root button:focus { outline: none; }'}</style>
       {searching ? (
         <div className="flex items-center gap-2 px-2 py-2 border-b border-gray-100 shrink-0">
           <button onClick={closeSearch} aria-label="Close search" className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 active:bg-gray-100"><ArrowLeft size={20} /></button>
@@ -636,7 +698,7 @@ export default function CommunityDetail() {
               <span className="block font-semibold text-[15px] truncate">
                 {community.name}
                 {isMutedNow(mutedUntil) ? <BellOff size={12} className="inline ml-1.5 text-gray-400" aria-label="Muted" /> : null}
-              </span>
+                              </span>
               <span className={`block text-xs truncate ${typingNames.length ? 'text-brand-purple font-medium' : 'text-gray-400'}`}>{subtitle}</span>
             </span>
           </button>
@@ -675,7 +737,36 @@ export default function CommunityDetail() {
           ))}
         </div>
       ) : (
-        <div onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-1.5 relative">
+        <div ref={scrollRef} onScroll={onScroll} className="flex-1 overflow-y-auto px-3 py-3 flex flex-col gap-1.5 relative">
+          {unreadAbove && unreadCount > 0 ? (
+            <div className="sticky top-0 z-10 flex justify-center gap-2 pointer-events-none -mt-1 mb-1">
+              <button
+                onClick={() => jumpTo(unreadAnchor)}
+                className="pointer-events-auto flex items-center gap-1.5 rounded-full bg-brand-purple text-white text-xs font-semibold px-3.5 py-2 shadow-lg"
+              >
+                <ChevronUp size={14} /> {unreadCount} unread
+              </button>
+              {unreadMentionIds.length > 0 ? (
+                <button
+                  onClick={() => jumpTo(unreadMentionIds[0])}
+                  aria-label="Jump to a message that mentions you"
+                  className="pointer-events-auto flex items-center gap-1 rounded-full bg-amber-500 text-white text-xs font-semibold px-3 py-2 shadow-lg"
+                >
+                  <AtSign size={14} /> {unreadMentionIds.length}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {hasMore && visible.length > 0 ? (
+            <button
+              onClick={loadOlder}
+              disabled={loadingOlder}
+              className="self-center mb-1 flex items-center gap-2 rounded-full bg-gray-100 text-gray-600 text-xs font-semibold px-4 py-2 disabled:opacity-60"
+            >
+              {loadingOlder ? <Loader2 size={14} className="animate-spin" /> : null}
+              {loadingOlder ? 'Loading…' : 'Load earlier messages'}
+            </button>
+          ) : null}
           {visible.length === 0 ? (
             <p className="text-center text-gray-400 mt-10 text-sm">No messages yet. Say hello!</p>
           ) : (
@@ -723,6 +814,9 @@ export default function CommunityDetail() {
               className="sticky bottom-2 self-end w-10 h-10 rounded-full bg-white shadow-lg border border-gray-100 flex items-center justify-center"
             >
               <ChevronDown size={20} />
+              {awayCount > 0 ? (
+                <span className="absolute -top-2 -right-1 min-w-[20px] h-5 px-1 rounded-full bg-brand-purple text-white text-[11px] font-semibold flex items-center justify-center">{awayCount > 99 ? '99+' : awayCount}</span>
+              ) : null}
             </button>
           ) : null}
         </div>
@@ -784,168 +878,3 @@ export default function CommunityDetail() {
                 <Smile size={21} />
               </button>
               <input ref={photoInputRef} type="file" accept="image/*,video/*" onChange={pickPhoto} className="hidden" />
-              <input ref={fileInputRef} type="file" onChange={pickFile} className="hidden" />
-              <input
-                ref={inputRef}
-                value={text}
-                onChange={(e) => onType(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder={editing ? 'Edit your message' : 'Message'}
-                maxLength={4000}
-                className="flex-1 min-w-0 bg-gray-100 rounded-full px-4 py-2.5 text-[15px] outline-none"
-              />
-              {text.trim() || editing ? (
-                <button onClick={handleSend} disabled={sending || !text.trim()} aria-label={editing ? 'Save edit' : 'Send'} className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40">
-                  {editing ? <Check size={18} className="text-white" /> : <Send size={17} className="text-white" />}
-                </button>
-              ) : (
-                <button onClick={voice.start} disabled={uploading} aria-label="Record voice message" className="w-10 h-10 rounded-full bg-brand-purple flex items-center justify-center shrink-0 disabled:opacity-40 active:scale-95 transition-transform">
-                  <Mic size={18} className="text-white" />
-                </button>
-              )}
-            </div>
-            )}
-          </div>
-        ) : (
-          <div className="px-4 py-3.5 border-t border-gray-100 text-center text-sm text-gray-400 flex items-center justify-center gap-2 shrink-0" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
-            <Lock size={14} /> Only admins can send messages
-          </div>
-        )
-      ) : (
-        <div className="px-4 py-3 border-t border-gray-100 shrink-0" style={{ paddingBottom: 'max(14px, env(safe-area-inset-bottom))' }}>
-          {requested ? (
-            <p className="text-center text-sm text-gray-500 py-2">Request sent. An admin will let you in.</p>
-          ) : (
-            <button onClick={join} disabled={joining} className="w-full bg-brand-purple text-white font-semibold py-3 rounded-full disabled:opacity-40 flex items-center justify-center">
-              {joining ? <Loader2 size={18} className="animate-spin" /> : community.is_private ? 'Request to join' : 'Join to send messages'}
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Community menu */}
-      {menuOpen ? (
-        <BottomSheet onClose={() => setMenuOpen(false)}>
-          <SheetAction icon={Info} label="Community info" onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/info`) }} />
-          <SheetAction icon={ImageIcon} label="Photos, videos and files" onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/media`) }} />
-          <SheetAction icon={Search} label="Search messages" onClick={() => openSearch(false)} />
-          <SheetAction icon={Star} label="Starred messages" onClick={() => openSearch(true)} />
-          <SheetAction
-            icon={isMutedNow(mutedUntil) ? Bell : BellOff}
-            label={isMutedNow(mutedUntil) ? 'Notifications muted' : 'Mute notifications'}
-            sub={isMutedNow(mutedUntil) ? 'Tap to change' : undefined}
-            onClick={() => { setMenuOpen(false); setMuteOpen(true) }}
-          />
-          {isAdmin && community.is_private ? <SheetAction icon={Inbox} label="Join requests" sub={requestCount ? `${requestCount} waiting` : undefined} onClick={() => { setMenuOpen(false); navigate(`/communities/${communityId}/requests`) }} /> : null}
-          {isAdmin && (mode === 'approval' || pending.length > 0) ? <SheetAction icon={ShieldCheck} label="Messages waiting for approval" sub={pending.length ? `${pending.length} waiting` : 'Nothing waiting'} onClick={() => { setMenuOpen(false); setReviewOpen(true) }} /> : null}
-        </BottomSheet>
-      ) : null}
-
-      {muteOpen ? (
-        <BottomSheet onClose={() => setMuteOpen(false)}>
-          <p className="px-4 pb-2 font-semibold">Mute notifications</p>
-          <SheetAction icon={BellOff} label="8 hours" onClick={() => setMute('8h')} />
-          <SheetAction icon={BellOff} label="1 week" onClick={() => setMute('1w')} />
-          <SheetAction icon={BellOff} label="Always" onClick={() => setMute('always')} />
-          {isMutedNow(mutedUntil) ? <SheetAction icon={Bell} label="Unmute" onClick={() => setMute('off')} /> : null}
-        </BottomSheet>
-      ) : null}
-
-      {attachOpen ? (
-        <BottomSheet onClose={() => setAttachOpen(false)}>
-          <SheetAction icon={ImageIcon} label="Photo or video" onClick={() => { setAttachOpen(false); photoInputRef.current?.click() }} />
-          <SheetAction icon={FileText} label="Document" onClick={() => { setAttachOpen(false); fileInputRef.current?.click() }} />
-        </BottomSheet>
-      ) : null}
-
-       {/* Message actions */}
-      {sheetMsg ? (
-        <BottomSheet onClose={() => setActionMsg(null)}>
-          <div className="px-4 pb-2">
-            <p className="text-xs font-semibold text-gray-400 truncate">{mineSheet ? 'You' : sheetMsg.sender_name || 'Member'}</p>
-            <p className="text-sm text-gray-600 line-clamp-2 break-words">{previewOf(sheetMsg)}</p>
-          </div>
-          {sheetLive && !sheetPending ? (
-            <div className="flex items-center justify-around px-2 pb-3">
-              {QUICK_REACTIONS.map((e) => {
-                const on = (reactions[sheetMsg.id] ?? []).some((r) => r.user_id === user.id && r.emoji === e)
-                return (
-                  <button key={e} onClick={() => react(sheetMsg, e)} aria-label={`React ${e}`} className={`w-11 h-11 rounded-full text-2xl flex items-center justify-center ${on ? 'bg-brand-light' : ''}`}>{e}</button>
-                )
-              })}
-              <button onClick={() => { setActionMsg(null); setReactPicker(sheetMsg) }} aria-label="More reactions" className="w-11 h-11 rounded-full flex items-center justify-center bg-gray-100 text-gray-600"><Plus size={20} /></button>
-            </div>
-          ) : null}
-          {canPost && sheetLive && !sheetPending ? <SheetAction icon={Reply} label="Reply" onClick={() => startReply(sheetMsg)} /> : null}
-          {sheetMsg.content ? <SheetAction icon={Copy} label="Copy" onClick={() => copyText(sheetMsg)} /> : null}
-          {sheetLive && !sheetPending ? <SheetAction icon={Forward} label="Forward" onClick={() => { setForwarding(sheetMsg); setActionMsg(null) }} /> : null}
-          {sheetLive && !sheetPending ? (
-            <SheetAction icon={Star} label={stars.has(sheetMsg.id) ? 'Remove from starred' : 'Star message'} onClick={() => toggleStar(sheetMsg)} />
-          ) : null}
-          {mineSheet && canEditMsg(sheetMsg) ? <SheetAction icon={Pencil} label="Edit message" sub="Within 15 minutes" onClick={() => startEdit(sheetMsg)} /> : null}
-          {isAdmin && sheetLive && !sheetPending ? (
-            sheetMsg.pinned_at
-              ? <SheetAction icon={PinOff} label="Unpin message" onClick={() => pin(sheetMsg, false)} />
-              : <SheetAction icon={Pin} label="Pin message" sub="Shows at the top for everyone" onClick={() => pin(sheetMsg, true)} />
-          ) : null}
-          {isAdmin && sheetPending ? <SheetAction icon={Check} label="Approve" onClick={() => review([String(sheetMsg.id)], true)} /> : null}
-          {isAdmin && sheetPending ? <SheetAction icon={X} label="Turn down" danger onClick={() => review([String(sheetMsg.id)], false)} /> : null}
-          {mineSheet && sheetLive ? <SheetAction icon={Info} label="Message info" onClick={() => openInfo(sheetMsg)} /> : null}
-          <SheetAction icon={Trash2} label="Delete for me" onClick={() => { setConfirm({ kind: 'me', m: sheetMsg }); setActionMsg(null) }} />
-          {mineSheet && sheetLive ? <SheetAction icon={Trash2} label="Delete for everyone" danger onClick={() => { setConfirm({ kind: 'own', m: sheetMsg }); setActionMsg(null) }} /> : null}
-          {isAdmin && !mineSheet && sheetLive && !sheetPending ? <SheetAction icon={Trash2} label="Remove message" sub="Everyone sees that an admin removed it" danger onClick={() => { setConfirm({ kind: 'admin', m: sheetMsg }); setActionMsg(null) }} /> : null}
-        </BottomSheet>
-      ) : null}
-
-      {/* Full emoji list to react with */}
-      {reactPicker ? (
-        <BottomSheet onClose={() => setReactPicker(null)}>
-          <p className="px-4 pb-2 font-semibold">React</p>
-          <EmojiPicker height={300} selected={(reactions[reactPicker.id] ?? []).find((r) => r.user_id === user.id)?.emoji ?? null} onPick={(e) => { const target = reactPicker; setReactPicker(null); react(target, e) }} />
-        </BottomSheet>
-      ) : null}
-
-      {/* Message info: who has read it */}
-      {infoMsg ? (
-        <BottomSheet onClose={() => setInfoMsg(null)}>
-          <div className="px-4 pb-3">
-            <p className="font-semibold">Message info</p>
-            <p className="text-xs text-gray-400">Sent {new Date(infoMsg.created_at).toLocaleString([], { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</p>
-            <p className="text-sm text-gray-600 line-clamp-2 break-words mt-1">{previewOf(infoMsg)}</p>
-          </div>
-          {(() => {
-            const others = members.filter((m) => m.user_id !== infoMsg.sender_id)
-            const withTime = others.map((m) => ({ m, at: reads.find((r) => r.user_id === m.user_id)?.last_read_at ?? null }))
-            const seen = withTime.filter((x) => x.at && Date.parse(x.at) >= Date.parse(infoMsg.created_at))
-            const unseen = withTime.filter((x) => !seen.includes(x))
-            const row = (x, label) => (
-              <div key={x.m.user_id} className="flex items-center gap-3 px-4 py-2">
-                <PersonAvatar p={x.m.profiles} size={36} />
-                <span className="flex-1 min-w-0 truncate text-[15px]">{x.m.user_id === user.id ? 'You' : x.m.profiles?.full_name || 'Member'}</span>
-                {label ? <span className="text-xs text-gray-400 shrink-0">{label}</span> : null}
-              </div>
-            )
-            return (
-              <>
-                <p className="px-4 pt-2 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Read by {seen.length}</p>
-                {seen.map((x) => row(x, new Date(x.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })))}
-                <p className="px-4 pt-3 pb-1 text-xs font-semibold text-gray-400 uppercase tracking-wide">Not read yet · {unseen.length}</p>
-                {unseen.map((x) => row(x, ''))}
-              </>
-            )
-          })()}
-        </BottomSheet>
-      ) : null}
-
-      {confirm?.kind === 'me' ? <ConfirmSheet title="Delete for you?" body="It is hidden from your view only. Others still see it." confirmLabel="Delete for me" danger onConfirm={() => deleteForMe(confirm.m)} onClose={() => setConfirm(null)} /> : null}
-      {confirm?.kind === 'own' ? <ConfirmSheet title="Delete for everyone?" body="It is deleted for everyone in the community." confirmLabel="Delete" danger onConfirm={() => deleteForEveryone(confirm.m)} onClose={() => setConfirm(null)} /> : null}
-      {confirm?.kind === 'admin' ? <ConfirmSheet title="Remove this message?" body="It is removed for everyone. The chat will show that an admin removed it." confirmLabel="Remove" danger onConfirm={() => removeAsAdmin(confirm.m)} onClose={() => setConfirm(null)} /> : null}
-
-      {callOpen ? <CommunityCallSheet members={members.filter((m) => m.user_id !== user.id)} onClose={() => setCallOpen(false)} /> : null}
-      {reviewOpen ? <CommunityReviewSheet items={pending} busy={reviewBusy} onApprove={(ids) => review(ids, true)} onReject={(ids) => review(ids, false)} onClose={() => setReviewOpen(false)} /> : null}
-      {forwarding ? <ForwardPicker onClose={() => setForwarding(null)} onSend={handleForwardSend} /> : null}
-
-      {toast ? <div className="absolute left-1/2 -translate-x-1/2 z-[70] bg-gray-900 text-white text-sm rounded-full px-4 py-2 shadow-lg max-w-[90%] text-center" style={{ bottom: 84 }}>{toast}</div> : null}
-    </div>
-  )
-}
