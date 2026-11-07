@@ -3,7 +3,7 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Camera, MapPin, Phone, Mail, MessageSquare, Plus, ExternalLink, Bell, BellRing, Video,
   Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2, Check, Upload,
-  MoreVertical, Eye, CircleDot, Link2, UserMinus, ImagePlus,
+  MoreVertical, Eye, CircleDot, Link2, UserMinus, ImagePlus, Play, Layers,
 } from 'lucide-react'
 import VerifiedBadge, { refreshVerifiedIds } from '../components/VerifiedBadge.jsx'
 import SchoolPlusBadge, { useIsPlusSchool } from '../components/SchoolPlusBadge.jsx'
@@ -23,6 +23,7 @@ const ROLE_RANK = { Headteacher: 0, 'Deputy Head': 1 }
 const MAX_FILE_MB = 50
 const MAX_BATCH = 30
 const DAY_MS = 24 * 60 * 60 * 1000
+const IMAGE_EXTS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic']
 
 // Colours come from this page, not the app theme, so text stays readable in light and dark mode.
 function paletteFor(dark) {
@@ -71,6 +72,15 @@ function dateLabel(value) {
   return new Date(value).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 }
 
+function photosOfPost(post) {
+  let urls = post.image_urls
+  if (typeof urls === 'string') {
+    try { urls = JSON.parse(urls) } catch { urls = null }
+  }
+  if (Array.isArray(urls) && urls.length) return urls
+  return post.image_url ? [post.image_url] : []
+}
+
 // ---------- Static skeletons (no animation) ----------
 function Block({ p, className = '', style }) {
   return <div className={className} style={{ background: p.line, borderRadius: 10, ...style }} aria-hidden="true" />
@@ -87,6 +97,16 @@ function ListSkeleton({ p }) {
             <Block p={p} className="h-3 w-1/3" />
           </div>
         </div>
+      ))}
+    </div>
+  )
+}
+
+function GridSkeleton({ p }) {
+  return (
+    <div className="grid grid-cols-3 gap-1.5" aria-busy="true" aria-label="Loading">
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <Block key={i} p={p} style={{ aspectRatio: '3 / 4', borderRadius: 12 }} />
       ))}
     </div>
   )
@@ -129,7 +149,7 @@ function PageSkeleton({ p, onBack }) {
       <div className="flex gap-7 px-5 mt-8 border-b" style={{ borderColor: p.line }}>
         {[0, 1, 2, 3].map((i) => <Block key={i} p={p} className="h-3.5 w-14 mb-3" />)}
       </div>
-      <div className="px-5 mt-2"><ListSkeleton p={p} /></div>
+      <div className="px-5 mt-4"><GridSkeleton p={p} /></div>
     </div>
   )
 }
@@ -138,14 +158,92 @@ function EmptyNote({ p, text }) {
   return <p className="text-center text-[14px] py-14" style={{ color: p.sub }}>{text}</p>
 }
 
-function SelectMark({ p, on, inline = false }) {
+function SelectMark({ p, on }) {
   return (
     <span
-      className={`${inline ? '' : 'absolute top-2 right-2'} w-6 h-6 rounded-full flex items-center justify-center border-2 shrink-0`}
+      className="absolute top-2 right-2 w-6 h-6 rounded-full flex items-center justify-center border-2 shrink-0"
       style={{ background: on ? p.accent : 'rgba(0,0,0,0.28)', borderColor: on ? p.accent : '#FFFFFF' }}
     >
       {on ? <Check size={13} color="#FFFFFF" strokeWidth={3} /> : null}
     </span>
+  )
+}
+
+function DeleteDot({ label, onDelete }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => { e.stopPropagation(); onDelete() }}
+      aria-label={label}
+      className="absolute top-1.5 left-1.5 z-10 w-7 h-7 rounded-full flex items-center justify-center"
+      style={{ background: 'rgba(0,0,0,0.55)', color: '#FFFFFF' }}
+    >
+      <Trash2 size={13} />
+    </button>
+  )
+}
+
+// ---------- Grid tiles (Posts, Media and Documents) ----------
+// A post as a square tile, like TikTok: the photo or video frame, or the text on a colour when there is no media.
+function PostTile({ p, post, onOpen, onDelete }) {
+  const photos = photosOfPost(post)
+  const thumb = photos[0] || post.video_thumb_url || null
+  const isVideo = !!post.video_url && photos.length === 0
+  const hasMedia = !!thumb || isVideo
+  const text = String(post.content ?? '').trim()
+  return (
+    <div className="relative" style={{ aspectRatio: '3 / 4' }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="absolute inset-0 w-full h-full overflow-hidden rounded-xl active:opacity-80"
+        style={{ background: hasMedia ? p.panel : `linear-gradient(160deg, ${p.coverA}, ${p.coverB})` }}
+      >
+        {thumb ? (
+          <img src={thumb} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+        ) : isVideo ? (
+          <video src={`${post.video_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 w-full h-full object-cover pointer-events-none" />
+        ) : (
+          <span className="absolute inset-0 flex items-center justify-center p-2.5 text-center text-white text-[12px] leading-snug font-medium break-words">
+            <span style={{ display: '-webkit-box', WebkitLineClamp: 6, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{text || 'Post'}</span>
+          </span>
+        )}
+        {post.video_url ? (
+          <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Play size={15} fill="currentColor" /></span>
+        ) : photos.length > 1 ? (
+          <span className="absolute top-1.5 right-1.5 text-white drop-shadow"><Layers size={15} /></span>
+        ) : null}
+      </button>
+      {onDelete ? <DeleteDot label="Delete post" onDelete={onDelete} /> : null}
+    </div>
+  )
+}
+
+// A document as a square tile: a picture for image files, otherwise the file type on a colour.
+function DocTile({ p, doc, selectMode, selected, onOpen, onDelete }) {
+  const ext = extOf(doc.title)
+  const isImage = IMAGE_EXTS.includes(ext)
+  const label = ext.toUpperCase().slice(0, 4) || 'FILE'
+  return (
+    <div className="relative" style={{ aspectRatio: '3 / 4' }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="absolute inset-0 w-full h-full overflow-hidden rounded-xl flex flex-col text-left active:opacity-80"
+        style={{ background: p.panel, outline: selectMode && selected ? `2px solid ${p.accent}` : 'none', outlineOffset: -2 }}
+      >
+        {isImage ? (
+          <img src={doc.file_url} alt="" loading="lazy" className="w-full flex-1 min-h-0 object-cover" />
+        ) : (
+          <span className="flex-1 min-h-0 flex items-center justify-center text-white" style={{ background: `linear-gradient(160deg, ${p.coverA}, ${p.coverB})` }}>
+            <span className="text-[14px] font-bold tracking-wide">{label}</span>
+          </span>
+        )}
+        <span className="block w-full px-2 py-2 text-[11px] leading-snug font-medium truncate" style={{ color: p.ink }}>{doc.title}</span>
+        {selectMode ? <SelectMark p={p} on={selected} /> : null}
+      </button>
+      {onDelete && !selectMode ? <DeleteDot label="Delete document" onDelete={onDelete} /> : null}
+    </div>
   )
 }
 
@@ -273,10 +371,11 @@ function UpdateViewer({ list, index, onIndex, onClose, school, canDelete, onDele
       {hasMedia && u.content ? <p className="px-5 pb-6 pt-2 text-[15px] text-center">{u.content}</p> : null}
     </div>
   )
-      }
+        }
 
 export default function SchoolProfile() {
   const navigate = useNavigate()
+  const location = useLocation()
   const { schoolId: paramSchoolId } = useParams()
   const { user, profile, saveProfileDetails } = useAuth()
   const onlineIds = useOnlineIds()
@@ -288,7 +387,6 @@ export default function SchoolProfile() {
   const tabsRef = useRef(null)
   const tabReq = useRef(0) // only the latest tab request may update the screen
   const tabRef = useRef('Posts')
-  const location = useLocation()
   const openedFromFeed = useRef(false) // so returning to the page does not reopen the updates
 
   const targetSchoolId = paramSchoolId || profile?.school_id
@@ -355,7 +453,7 @@ export default function SchoolProfile() {
   const handle = school?.name ? '@' + school.name.toLowerCase().replace(/[^a-z0-9]/g, '') : ''
   const unseenUpdates = updates.filter((u) => !seenUpdateIds.has(u.id)).length
 
-  // Authors can delete their own posts. Staff can delete any post from their school's members.
+  // Authors can delete their own school posts. Staff can delete any post on the school page.
   const canDeletePost = (post) => post.author_id === user?.id || canManageMedia
 
   tabRef.current = activeTab
@@ -387,7 +485,7 @@ export default function SchoolProfile() {
     return () => { supabase.removeChannel(channel) }
   }, [school?.id])
 
-  // Photos, documents, events and updates stay live for everyone looking at the school
+  // Posts, photos, documents, events and updates stay live for everyone looking at the school
   useEffect(() => {
     if (!school?.id) return undefined
     let timer = null
@@ -397,6 +495,7 @@ export default function SchoolProfile() {
     }
     const channel = supabase
       .channel(`school-content-${school.id}-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'posts', filter: `as_school_id=eq.${school.id}` }, later)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'school_gallery', filter: `school_id=eq.${school.id}` }, later)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'school_documents', filter: `school_id=eq.${school.id}` }, later)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'events', filter: `school_id=eq.${school.id}` }, later)
@@ -423,7 +522,7 @@ export default function SchoolProfile() {
     return () => clearTimeout(t)
   }, [toast])
 
-    useEffect(() => { refreshVerifiedIds(true) }, [school?.id])
+  useEffect(() => { refreshVerifiedIds(true) }, [school?.id])
 
   // Opened from the Updates row on Home: go straight into the school's updates
   useEffect(() => {
@@ -552,12 +651,13 @@ export default function SchoolProfile() {
     if (!silent) setTabLoading(true)
     try {
       if (tab === 'Posts') {
-        // Fetch the members here so posts never load before we know who the members are
-        const { data: members } = await supabase.from('profiles').select('id').eq('school_id', schoolId).eq('status', 'active')
-        const ids = (members ?? []).map((m) => m.id)
-        const { data } = ids.length
-          ? await supabase.from('posts').select('*').in('author_id', ids).order('created_at', { ascending: false }).limit(20)
-          : { data: [] }
+        // Only posts made as the school. Personal posts stay on the person's own profile.
+        const { data } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('as_school_id', schoolId)
+          .order('created_at', { ascending: false })
+          .limit(60)
         if (req === tabReq.current) setPosts(data ?? [])
       } else if (tab === 'Staff') {
         await refreshMembers(schoolId)
@@ -578,7 +678,7 @@ export default function SchoolProfile() {
     } finally {
       if (req === tabReq.current) setTabLoading(false)
     }
-  }
+    }
 
   function updateField(key, value) {
     setForm((f) => ({ ...f, [key]: value }))
@@ -939,7 +1039,8 @@ export default function SchoolProfile() {
     saveProfileDetails?.({ class_name: v })
   }
 
-  // Headteacher only: removes the school. Members are moved out of the school but keep their accounts.
+  // Headteacher only: removes the school and everything it posted, so nothing is left behind.
+  // Members are moved out of the school but keep their accounts.
   async function removeStorageFolder(path) {
     const { data: items } = await supabase.storage.from('school-media').list(path, { limit: 1000 })
     const files = (items ?? []).filter((i) => i.id).map((i) => `${path}/${i.name}`)
@@ -950,6 +1051,16 @@ export default function SchoolProfile() {
     if (deleting || deleteText.trim().toLowerCase() !== (school.name || '').trim().toLowerCase()) return
     setDeleting(true)
     setDeleteError('')
+
+    // 1. The school's posts and updates
+    const { error: purgeErr } = await supabase.rpc('purge_school_content', { p_school: school.id })
+    if (purgeErr) {
+      setDeleting(false)
+      setDeleteError(purgeErr.message || 'Could not remove the school posts.')
+      return
+    }
+
+    // 2. Files in storage (best-effort)
     try {
       await removeStorageFolder(school.id)
       await removeStorageFolder(`${school.id}/gallery`)
@@ -957,6 +1068,8 @@ export default function SchoolProfile() {
       await removeStorageFolder(`${school.id}/posts`)
       await removeStorageFolder(`${school.id}/updates`)
     } catch { /* files are best-effort */ }
+
+    // 3. The school itself
     const { data: res, error } = await supabase.rpc('delete_school', { p_school: school.id })
     setDeleting(false)
     if (error || !res?.ok) { setDeleteError(res?.error || error?.message || 'Could not delete the school.'); return }
@@ -1028,7 +1141,7 @@ export default function SchoolProfile() {
     setComposerFile({ file, kind: file.type.startsWith('video') ? 'video' : 'image', url: URL.createObjectURL(file) })
   }
 
-  // Posts as the school (shows in the Posts tab and every feed) or shares a 24-hour update
+  // Posts as the school (shows on the school page and in feeds) or shares a 24-hour update
   async function submitComposer() {
     if (composerBusy || !school || !composer) return
     const text = composerText.trim()
@@ -1082,7 +1195,7 @@ export default function SchoolProfile() {
           media_url: mediaUrl,
           image_url: isImage ? mediaUrl : null,
           thumb_url: null,
-          duration_seconds: null,
+           duration_seconds: null,
         })
         if (error) throw error
         setToast('Update shared')
@@ -1096,991 +1209,7 @@ export default function SchoolProfile() {
       setComposerError(`Couldn't share that: ${err?.message || 'something went wrong'}`)
     } finally {
       setComposerBusy(false)
-}
+    }
   }
 
-    if (loading) {
-    return (
-      <div className="app-shell" style={{ background: p.surface }}>
-        <div className="screen-scroll">
-          <PageSkeleton p={p} onBack={() => navigate(-1)} />
-        </div>
-      </div>
-    )
-  }
-
-  if (!school) {
-    return (
-      <div className="app-shell" style={{ background: p.surface }}>
-        <BackHeader title="School" />
-        <div className="screen-scroll px-6 flex items-center justify-center text-center" style={{ color: p.sub }}>
-          {paramSchoolId ? 'School not found.' : "You're not linked to a school yet."}
-        </div>
-      </div>
-    )
-  }
-
-  const aboutText = school.mission || school.description || ''
-  const facts = [
-    ['Type', school.school_type],
-    ['Founded', school.established_year],
-    ['Pass rate', school.pass_rate ? `${school.pass_rate}%` : ''],
-    ['Classes', school.total_classes],
-  ].filter(([, v]) => v)
-
-  const showTabSkeleton = tabLoading && activeTab !== 'About'
-  const selectingItems = selectMode && (activeTab === 'Media' || activeTab === 'Documents')
-
-  return (
-    <div className="app-shell" style={{ background: p.surface }}>
-      <div className="screen-scroll">
-        {/* Cover */}
-        <div className="relative h-[168px] shrink-0" style={{ background: `linear-gradient(160deg, ${p.coverA}, ${p.coverB})` }}>
-          <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-            <button
-              onClick={() => navigate(-1)}
-              aria-label="Go back"
-              className="w-9 h-9 rounded-full flex items-center justify-center text-white"
-              style={{ background: 'rgba(0,0,0,0.28)' }}
-            >
-              <ChevronLeft size={21} />
-            </button>
-            <div className="flex gap-2">
-              <button onClick={shareSchool} aria-label="Share" className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.28)' }}>
-                <Share2 size={16} />
-              </button>
-              <button onClick={() => setMoreOpen(true)} aria-label="More" className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.28)' }}>
-                <MoreVertical size={17} />
-              </button>
-              {canManageMedia ? (
-                <button onClick={() => navigate('/school-settings')} aria-label="School dashboard" className="w-9 h-9 rounded-full flex items-center justify-center text-white" style={{ background: 'rgba(0,0,0,0.28)' }}>
-                  <Settings size={17} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-
-        {/* Identity */}
-        <div className="px-5 -mt-12 relative">
-          <div className="flex items-end justify-between gap-3">
-            <div className="relative shrink-0">
-              <button
-                type="button"
-                onClick={onLogoTap}
-                aria-label={updates.length ? 'View updates' : 'View logo'}
-                className="w-[84px] h-[84px] rounded-[22px] flex items-center justify-center overflow-hidden"
-                style={{
-                  background: p.panel,
-                  boxShadow: updates.length
-                    ? `0 0 0 4px ${p.surface}, 0 0 0 6.5px ${unseenUpdates ? p.accent : '#CBD5E1'}`
-                    : `0 0 0 4px ${p.surface}`,
-                }}
-              >
-                {school.logo_url ? (
-                  <img src={school.logo_url} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-[26px] font-semibold tracking-tight" style={{ color: p.accent }}>{monogram(school.name)}</span>
-                )}
-              </button>
-              {isOnline ? <span className="absolute bottom-0.5 right-0.5 w-3.5 h-3.5 rounded-full bg-green-500" style={{ boxShadow: `0 0 0 3px ${p.surface}` }} /> : null}
-              {canEdit ? (
-                <button
-                  onClick={() => logoInputRef.current?.click()}
-                  disabled={uploadingLogo}
-                  aria-label="Change logo"
-                  className="absolute -top-1.5 -right-1.5 w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: p.accent, boxShadow: `0 0 0 3px ${p.surface}` }}
-                >
-                  {uploadingLogo ? <Loader2 size={12} color="#FFFFFF" className="animate-spin" /> : <Camera size={12} color="#FFFFFF" />}
-                </button>
-              ) : null}
-              <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoChange} className="hidden" />
-            </div>
-
-            <div className="flex items-center gap-2 pb-1">
-              {!isMember ? (
-                isFollowing ? (
-                  <button onClick={() => setUnfollowOpen(true)} className="h-10 px-4 rounded-full text-[14px] font-medium border flex items-center gap-1.5" style={{ borderColor: p.line, color: p.ink }}>
-                    <BellRing size={14} /> Following
-                  </button>
-                ) : (
-                  <button onClick={openFollow} className="h-10 px-5 rounded-full text-[14px] font-semibold flex items-center gap-1.5" style={{ background: p.accent, color: p.accentInk }}>
-                    <Bell size={14} /> Follow
-                  </button>
-                )
-              ) : null}
-              {canEdit ? (
-                <button onClick={() => goTab('About')} className="h-10 px-4 rounded-full text-[14px] font-medium border flex items-center gap-1.5" style={{ borderColor: p.line, color: p.ink }}>
-                  <Pencil size={13} /> Edit
-                </button>
-              ) : null}
-              <button
-                onClick={handleMessageSchool}
-                aria-label="Message the headteacher"
-                className="h-10 w-10 rounded-full border flex items-center justify-center"
-                style={{ borderColor: p.line, color: p.ink }}
-              >
-                <MessageSquare size={16} />
-              </button>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2 flex-wrap">
-            <h1 className="text-[22px] font-semibold tracking-[-0.02em] leading-tight" style={{ color: p.ink }}>{school.name}</h1>
-            <VerifiedBadge schoolId={school.id} size={18} />
-            {plusActive ? <SchoolPlusBadge schoolId={school.id} size={18} /> : null}
-          </div>
-          <p className="text-[13px] mt-1" style={{ color: p.sub }}>
-            {handle}{school.school_type ? ` · ${school.school_type}` : ''}
-            {isOnline ? <span className="text-green-600 font-medium"> · Online</span> : null}
-          </p>
-
-          {school.location ? (
-            <a href={mapsUrl()} target="_blank" rel="noreferrer" className="mt-2.5 flex items-center gap-1.5 text-[14px]" style={{ color: p.ink }}>
-              <MapPin size={14} style={{ color: p.accent }} className="shrink-0" />
-              <span className="truncate">{school.location}</span>
-            </a>
-          ) : null}
-
-          {school.motto ? (
-            <p className="mt-3 text-[14px] leading-relaxed" style={{ color: p.sub }}>{school.motto}</p>
-          ) : null}
-        </div>
-
-        {/* Counts */}
-        <div className="mx-5 mt-6 grid grid-cols-4 rounded-2xl border" style={{ borderColor: p.line }}>
-          {[
-            [followerStats.follows, 'Followers'],
-            [studentCount, 'Students'],
-            [staffCount, 'Staff'],
-            [memberCount, 'Members'],
-          ].map(([n, label], i) => (
-            <div key={label} className="py-3.5 text-center" style={{ borderLeft: i ? `1px solid ${p.line}` : 'none' }}>
-              <p className="text-[18px] font-semibold tracking-tight tabular-nums leading-none" style={{ color: p.ink }}>{Number(n || 0).toLocaleString()}</p>
-              <p className="text-[10px] uppercase tracking-[0.12em] mt-2" style={{ color: p.sub }}>{label}</p>
-            </div>
-          ))}
-        </div>
-
-        {canManageMedia ? (
-          <button
-            onClick={() => navigate('/school-settings')}
-            className="mx-5 mt-3 w-[calc(100%-2.5rem)] flex items-center justify-between rounded-2xl border px-4 py-3.5 text-left"
-            style={{ borderColor: p.line, color: p.ink }}
-          >
-            <span>
-              <span className="block text-[14px] font-medium">School dashboard</span>
-              <span className="block text-[12px] mt-0.5" style={{ color: p.sub }}>Learners, reports and school tools</span>
-            </span>
-            <ChevronRight size={18} style={{ color: p.faint }} />
-          </button>
-        ) : null}
-
-        {showMyForm ? (
-          <div className="mx-5 mt-3 rounded-2xl border px-4 py-3 flex items-center gap-3" style={{ borderColor: p.line }}>
-            <div className="flex-1 min-w-0">
-              <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: p.sub }}>Your form</p>
-              <p className="text-[15px] font-medium truncate mt-0.5" style={{ color: p.ink }}>{myForm || 'Not set yet'}</p>
-            </div>
-            <button onClick={() => { setFormValue(myForm || ''); setSheet('form') }} className="text-[14px] font-medium flex items-center gap-1" style={{ color: p.accent }}>
-              <Pencil size={13} /> {myForm ? 'Change' : 'Add'}
-            </button>
-          </div>
-        ) : null}
-
-        {profile?.account_type === 'investor' ? (
-          <button
-            onClick={() => navigate(`/schools/${school.id}/propose`)}
-            className="mx-5 mt-3 w-[calc(100%-2.5rem)] py-3.5 rounded-2xl text-[14px] font-semibold"
-            style={{ background: p.accent, color: p.accentInk }}
-          >
-            Send investment proposal
-          </button>
-        ) : null}
-
-        {/* Details */}
-        {(facts.length || school.phone || school.contact_email) ? (
-          <div className="mx-5 mt-7">
-            <p className="text-[11px] uppercase tracking-[0.12em] mb-2" style={{ color: p.sub }}>Details</p>
-            <dl className="rounded-2xl border divide-y" style={{ borderColor: p.line }}>
-              {facts.map(([k, v]) => (
-                <div key={k} className="flex items-center justify-between px-4 py-3" style={{ borderColor: p.line }}>
-                  <dt className="text-[14px]" style={{ color: p.sub }}>{k}</dt>
-                  <dd className="text-[14px] font-medium" style={{ color: p.ink }}>{v}</dd>
-                </div>
-              ))}
-              {school.phone ? (
-                <a href={`tel:${school.phone}`} className="flex items-center justify-between px-4 py-3" style={{ borderColor: p.line }}>
-                  <span className="text-[14px] flex items-center gap-2" style={{ color: p.sub }}><Phone size={13} /> Phone</span>
-                  <span className="text-[14px] font-medium" style={{ color: p.accent }}>{school.phone}</span>
-                </a>
-              ) : null}
-              {school.contact_email ? (
-                <a href={`mailto:${school.contact_email}`} className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderColor: p.line }}>
-                  <span className="text-[14px] flex items-center gap-2 shrink-0" style={{ color: p.sub }}><Mail size={13} /> Email</span>
-                  <span className="text-[14px] font-medium truncate" style={{ color: p.accent }}>{school.contact_email}</span>
-                </a>
-              ) : null}
-            </dl>
-          </div>
-        ) : null}
-
-        {aboutText ? (
-          <div className="mx-5 mt-7">
-            <div className="flex items-baseline justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: p.sub }}>About</p>
-              <button onClick={() => goTab('About')} className="text-[13px] font-medium" style={{ color: p.accent }}>Read more</button>
-            </div>
-            <p className="text-[14px] leading-relaxed line-clamp-3" style={{ color: p.ink }}>{aboutText}</p>
-          </div>
-        ) : null}
-
-        {/* Updates: the school's 24-hour updates, like a person's status row */}
-        {(updates.length > 0 || canManageMedia) ? (
-          <div className="mt-7">
-            <div className="mx-5 flex items-baseline justify-between mb-3">
-              <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: p.sub }}>Updates</p>
-              <p className="text-[12px]" style={{ color: p.faint }}>Last 24 hours</p>
-            </div>
-            <div className="flex gap-3.5 overflow-x-auto px-5 pb-1" style={{ scrollbarWidth: 'none' }}>
-              {canManageMedia ? (
-                <button type="button" onClick={() => openComposer('update')} className="shrink-0 w-[68px] flex flex-col items-center gap-1.5">
-                  <span className="w-[62px] h-[62px] rounded-full border-2 border-dashed flex items-center justify-center" style={{ borderColor: p.accent, color: p.accent }}>
-                    <Plus size={20} />
-                  </span>
-                  <span className="text-[11px] text-center" style={{ color: p.sub }}>Add update</span>
-                </button>
-              ) : null}
-              {updates.map((u, i) => {
-                const seen = seenUpdateIds.has(u.id)
-                const thumb = u.media_type === 'image' && u.media_url ? u.media_url : school.logo_url
-                return (
-                  <button key={u.id} type="button" onClick={() => setUpdateIndex(i)} className="shrink-0 w-[68px] flex flex-col items-center gap-1.5">
-                    <StatusRing
-                      src={thumb}
-                      name={school.name}
-                      size={62}
-                      flags={[seen]}
-                      seenColor="#CBD5E1"
-                      unseenColor={p.accent}
-                    />
-                    <span className="text-[11px] text-center" style={{ color: p.sub }}>{timeAgo(u.created_at)}</span>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Recent media */}
-        {gallery.length > 0 ? (
-          <div className="mx-5 mt-7">
-            <div className="flex items-baseline justify-between mb-2">
-              <p className="text-[11px] uppercase tracking-[0.12em]" style={{ color: p.sub }}>Recent photos</p>
-              <button onClick={() => goTab('Media')} className="text-[13px] font-medium" style={{ color: p.accent }}>See all</button>
-            </div>
-            <div className="grid grid-cols-3 gap-1.5">
-              {gallery.slice(0, 3).map((g) => (
-                <button key={g.id} onClick={() => setLightboxItem({ ...g, kind: 'gallery' })} className="relative aspect-square rounded-xl overflow-hidden" style={{ background: p.panel }}>
-                  {g.media_type === 'video' ? (
-                    <>
-                      <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/20"><Video size={18} color="#FFFFFF" /></span>
-                    </>
-                  ) : (
-                    <img src={g.image_url} alt="" className="w-full h-full object-cover" />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : null}
-
-        {/* Tabs */}
-        <div ref={tabsRef} className="sticky top-0 z-20 mt-7 border-b scroll-mt-0" style={{ background: p.surface, borderColor: p.line }}>
-          <div className="flex gap-7 overflow-x-auto px-5" style={{ scrollbarWidth: 'none' }}>
-            {tabs.map((t) => {
-              const on = activeTab === t
-              return (
-                <button
-                  key={t}
-                  onClick={() => setActiveTab(t)}
-                  aria-current={on ? 'page' : undefined}
-                  className="relative py-3.5 text-[14px] shrink-0"
-                  style={{ color: on ? p.ink : p.sub, fontWeight: on ? 600 : 500 }}
-                >
-                  {t}
-                  {on ? <span className="absolute left-0 right-0 -bottom-px h-[2px]" style={{ background: p.accent }} /> : null}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className={`px-5 pt-5 ${selectingItems ? 'pb-28' : 'pb-10'}`}>
-          {showTabSkeleton ? <ListSkeleton p={p} /> : (
-            <>
-              {activeTab === 'Posts' ? (
-                <>
-                  {canManageMedia ? (
-                    <button
-                      type="button"
-                      onClick={() => openComposer('post')}
-                      className="w-full flex items-center justify-center gap-2 border rounded-2xl py-3 text-[14px] font-medium mb-4"
-                      style={{ borderColor: p.line, color: p.ink }}
-                    >
-                      <Plus size={16} /> Post as {school.name}
-                    </button>
-                  ) : null}
-                  {posts.length === 0 ? (
-                    <EmptyNote p={p} text="No posts from this school yet." />
-                  ) : (
-                    <div className="space-y-3">
-                      {posts.map((post) => (
-                        <div key={post.id} className="rounded-2xl border p-4" style={{ borderColor: p.line }}>
-                          <div className="flex items-start justify-between gap-3">
-                            <button onClick={() => navigate(`/post/${post.id}`)} className="flex-1 min-w-0 text-left">
-                              <p className="text-[14px] font-semibold truncate" style={{ color: p.ink }}>{post.author_name}</p>
-                              <p className="text-[11px] mt-0.5" style={{ color: p.faint }}>{dateLabel(post.created_at)}</p>
-                            </button>
-                            {canDeletePost(post) ? (
-                              <button
-                                type="button"
-                                onClick={() => deletePost(post)}
-                                aria-label="Delete post"
-                                className="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                                style={{ color: p.danger }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            ) : null}
-                          </div>
-                          <button onClick={() => navigate(`/post/${post.id}`)} className="block w-full text-left mt-2">
-                            <p className="text-[14px] leading-relaxed line-clamp-3" style={{ color: p.sub }}>{post.content}</p>
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : null}
-
-              {activeTab === 'About' ? (
-                <div className="space-y-6">
-                  {canEdit ? (
-                    <div className="grid grid-cols-1 gap-4">
-                      {[
-                        ['School name', 'name'],
-                        ['Location', 'location'],
-                      ].map(([label, key]) => (
-                        <div key={key}>
-                          <p className="text-[11px] uppercase tracking-[0.12em] mb-1.5" style={{ color: p.sub }}>{label}</p>
-                          <input
-                            value={form[key] || ''}
-                            onChange={(e) => updateField(key, e.target.value)}
-                            className="w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none"
-                            style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-                          />
-                        </div>
-                      ))}
-                      <div>
-                        <p className="text-[11px] uppercase tracking-[0.12em] mb-1.5" style={{ color: p.sub }}>School type</p>
-                        <select
-                          value={form.school_type || ''}
-                          onChange={(e) => updateField('school_type', e.target.value)}
-                          className="w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none"
-                          style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-                        >
-                          <option value="">Select type</option>
-                          <option value="Primary School">Primary School</option>
-                          <option value="High School">High School</option>
-                          <option value="Combined School">Combined School</option>
-                          <option value="College">College</option>
-                          <option value="University">University</option>
-                        </select>
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {['motto', 'vision', 'mission'].map((key) => (
-                    <div key={key}>
-                      <p className="text-[11px] uppercase tracking-[0.12em] mb-1.5" style={{ color: p.sub }}>{key}</p>
-                      {canEdit ? (
-                        <textarea
-                          value={form[key] || ''}
-                          onChange={(e) => updateField(key, e.target.value)}
-                          rows={2}
-                          className="w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none resize-none"
-                          style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-                        />
-                      ) : (
-                        <p className="text-[14px] leading-relaxed" style={{ color: p.ink }}>{school[key] || '—'}</p>
-                      )}
-                    </div>
-                  ))}
-
-                  {canEdit ? (
-                    <>
-                      <div className="grid grid-cols-2 gap-3">
-                        {[
-                          ['pass_rate', 'Pass rate %'],
-                          ['established_year', 'Established year'],
-                          ['total_teachers', 'Teachers'],
-                          ['non_teaching_staff', 'Non-teaching staff'],
-                          ['total_classes', 'Classes'],
-                          ['phone', 'Phone'],
-                          ['contact_email', 'Contact email'],
-                        ].map(([key, label]) => (
-                          <div key={key} className={key === 'contact_email' ? 'col-span-2' : ''}>
-                            <p className="text-[11px] uppercase tracking-[0.12em] mb-1.5" style={{ color: p.sub }}>{label}</p>
-                            <input
-                              value={form[key] || ''}
-                              onChange={(e) => updateField(key, e.target.value)}
-                              className="w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none"
-                              style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-                            />
-                          </div>
-                        ))}
-                        <div className="col-span-2 rounded-xl border px-3.5 py-3 text-[14px] flex items-center justify-between" style={{ borderColor: p.line, color: p.sub }}>
-                          <span>Total students (from members)</span>
-                          <span className="font-medium" style={{ color: p.ink }}>{studentCount}</span>
-                        </div>
-                      </div>
-                      {message ? <p className="text-[13px]" style={{ color: p.accent }}>{message}</p> : null}
-                      <button
-                        onClick={handleSave}
-                        disabled={saving}
-                        className="w-full py-3.5 rounded-2xl text-[14px] font-semibold flex items-center justify-center disabled:opacity-50"
-                        style={{ background: p.accent, color: p.accentInk }}
-                      >
-                        {saving ? <Loader2 size={18} className="animate-spin" color="#FFFFFF" /> : 'Save changes'}
-                      </button>
-                    </>
-                  ) : null}
-
-                  {isMember && profile?.role === 'Headteacher' ? (
-                    <div className="pt-6 border-t" style={{ borderColor: p.line }}>
-                      <p className="text-[11px] uppercase tracking-[0.12em] mb-1.5" style={{ color: p.danger }}>Delete school</p>
-                      <p className="text-[13px] mb-3 leading-relaxed" style={{ color: p.sub }}>
-                        This removes the school's profile, photos, documents, events and followers for good. Members keep their accounts but leave the school.
-                      </p>
-                      <button
-                        onClick={() => { setDeleteText(''); setDeleteError(''); setDeleteOpen(true) }}
-                        className="w-full flex items-center justify-center gap-2 border py-3 rounded-2xl text-[14px] font-medium"
-                        style={{ borderColor: p.danger, color: p.danger }}
-                      >
-                        <Trash2 size={15} /> Delete school
-                      </button>
-                    </div>
-                  ) : null}
-                </div>
-              ) : null}
-
-              {activeTab === 'Staff' ? (
-                staff.length === 0 ? (
-                  <EmptyNote p={p} text="No staff members yet." />
-                ) : (
-                  <div>
-                    {staff.map((s, i) => (
-                      <div key={s.id} className="flex items-center gap-3.5 py-3.5" style={{ borderTop: i ? `1px solid ${p.line}` : 'none' }}>
-                        {s.avatar_url ? (
-                          <img src={s.avatar_url} alt="" className="w-11 h-11 rounded-full object-cover shrink-0" />
-                        ) : (
-                          <span
-                            className="w-11 h-11 rounded-full flex items-center justify-center text-[15px] font-semibold shrink-0"
-                            style={{ background: p.accentSoft, color: p.accent }}
-                          >
-                            {monogram(s.full_name)}
-                          </span>
-                        )}
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[14px] font-medium truncate" style={{ color: p.ink }}>{s.full_name || 'Staff member'}</p>
-                          <p className="text-[12px] mt-0.5" style={{ color: p.sub }}>{s.role}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              ) : null}
-
-                            {activeTab === 'Media' ? (
-                <>
-                  <ContentToolbar
-                    p={p}
-                    count={gallery.length}
-                    noun="item"
-                    canManage={canManageMedia}
-                    hasItems={gallery.length > 0}
-                    selectMode={selectMode}
-                    onToggleSelect={toggleSelectMode}
-                    onUpload={() => galleryInputRef.current?.click()}
-                    busy={!!uploadProgress}
-                  />
-                  <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={(e) => { const files = e.target.files; e.target.value = ''; uploadMany(files, 'gallery') }} className="hidden" />
-                  {uploadProgress && activeTab === 'Media' ? <UploadBar p={p} progress={uploadProgress} /> : null}
-                  {!canManageMedia ? <p className="text-[12px] mb-3" style={{ color: p.faint }}>Only school staff can add photos and videos.</p> : null}
-
-                  {gallery.length === 0 ? (
-                    <EmptyNote p={p} text="No photos or videos yet." />
-                  ) : (
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {gallery.map((g) => {
-                        const on = selectedIds.has(g.id)
-                        return (
-                          <div key={g.id} className="relative">
-                            <button
-                              onClick={() => (selectMode ? toggleSelected(g.id) : setLightboxItem({ ...g, kind: 'gallery' }))}
-                              className="relative w-full aspect-square rounded-xl overflow-hidden"
-                              style={{ background: p.panel, outline: selectMode && on ? `2px solid ${p.accent}` : 'none', outlineOffset: -2 }}
-                            >
-                              {g.media_type === 'video' ? (
-                                <>
-                                  <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
-                                  <span className="absolute inset-0 flex items-center justify-center bg-black/20"><Video size={18} color="#FFFFFF" /></span>
-                                </>
-                              ) : (
-                                <img src={g.image_url} alt="" className="w-full h-full object-cover" />
-                              )}
-                              {selectMode ? <SelectMark p={p} on={on} /> : null}
-                              {!selectMode && galleryLikes[g.id]?.count > 0 ? (
-                                <span className="absolute bottom-1.5 left-1.5 bg-black/55 text-white text-[10px] rounded-full px-2 py-0.5 flex items-center gap-1">
-                                  <Heart size={10} color="#FFFFFF" fill="#FFFFFF" /> {galleryLikes[g.id].count}
-                                </span>
-                              ) : null}
-                            </button>
-                            {canManageMedia && !selectMode ? (
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); deleteOne('gallery', g) }}
-                                aria-label="Delete item"
-                                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center"
-                                style={{ background: 'rgba(0,0,0,0.55)', color: '#FFFFFF' }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            ) : null}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : null}
-
-              {activeTab === 'Events' ? (
-                <>
-                  {canManageMedia ? (
-                    <button
-                      onClick={() => navigate('/calendar/create')}
-                      className="w-full flex items-center justify-center gap-2 border rounded-2xl py-3 text-[14px] font-medium mb-4"
-                      style={{ borderColor: p.line, color: p.ink }}
-                    >
-                      <Plus size={16} /> Add event
-                    </button>
-                  ) : null}
-                  {events.length === 0 ? (
-                    <EmptyNote p={p} text="No events scheduled." />
-                  ) : (
-                    <div>
-                      {events.map((e, i) => {
-                        const d = new Date(e.event_date)
-                        return (
-                          <div key={e.id} className="flex items-center gap-4 py-3.5" style={{ borderTop: i ? `1px solid ${p.line}` : 'none' }}>
-                            <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: p.panel }}>
-                              <p className="text-[10px] uppercase tracking-[0.12em]" style={{ color: p.accent }}>{d.toLocaleDateString(undefined, { month: 'short' })}</p>
-                              <p className="text-[20px] font-semibold leading-none mt-1" style={{ color: p.ink }}>{d.getDate()}</p>
-                            </div>
-                            <div className="min-w-0">
-                              <p className="text-[14px] font-medium truncate" style={{ color: p.ink }}>{e.title}</p>
-                              <p className="text-[12px] mt-0.5" style={{ color: p.sub }}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : null}
-
-                            {activeTab === 'Documents' ? (
-                <>
-                  <ContentToolbar
-                    p={p}
-                    count={documents.length}
-                    noun="document"
-                    canManage={canManageMedia}
-                    hasItems={documents.length > 0}
-                    selectMode={selectMode}
-                    onToggleSelect={toggleSelectMode}
-                    onUpload={() => docInputRef.current?.click()}
-                    busy={!!uploadProgress}
-                  />
-                  <input ref={docInputRef} type="file" multiple onChange={(e) => { const files = e.target.files; e.target.value = ''; uploadMany(files, 'documents') }} className="hidden" />
-                  {uploadProgress && activeTab === 'Documents' ? <UploadBar p={p} progress={uploadProgress} /> : null}
-                  {!canManageMedia ? <p className="text-[12px] mb-3" style={{ color: p.faint }}>Only school staff can add documents.</p> : null}
-
-                  {documents.length === 0 ? (
-                    <EmptyNote p={p} text="No documents yet." />
-                  ) : (
-                    <div>
-                      {documents.map((d, i) => {
-                        const on = selectedIds.has(d.id)
-                        const ext = extOf(d.title).toUpperCase().slice(0, 4) || 'FILE'
-                        return (
-                          <div key={d.id} className="flex items-center gap-3 py-3.5" style={{ borderTop: i ? `1px solid ${p.line}` : 'none' }}>
-                            {selectMode ? <SelectMark p={p} on={on} inline /> : null}
-                            <button
-                              onClick={() => (selectMode ? toggleSelected(d.id) : setLightboxItem({ ...d, kind: 'document' }))}
-                              className="flex-1 min-w-0 flex items-center gap-3.5 text-left"
-                            >
-                              <span className="w-11 h-11 rounded-xl flex items-center justify-center text-[10px] font-semibold tracking-wide shrink-0" style={{ background: p.panel, color: p.accent }}>
-                                {ext}
-                              </span>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-[14px] font-medium truncate" style={{ color: p.ink }}>{d.title}</span>
-                                <span className="block text-[12px] mt-0.5" style={{ color: p.sub }}>
-                                  {dateLabel(d.created_at)}
-                                  {docLikes[d.id]?.count > 0 ? ` · ${docLikes[d.id].count} like${docLikes[d.id].count > 1 ? 's' : ''}` : ''}
-                                  {docRatings[d.id]?.count > 0 ? ` · ${(docRatings[d.id].sum / docRatings[d.id].count).toFixed(1)} rating` : ''}
-                                </span>
-                              </span>
-                            </button>
-                            {canManageMedia && !selectMode ? (
-                              <button
-                                type="button"
-                                onClick={() => deleteOne('document', d)}
-                                aria-label="Delete document"
-                                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
-                                style={{ color: p.danger }}
-                              >
-                                <Trash2 size={15} />
-                              </button>
-                            ) : null}
-                          </div>
-                        )
-                      })}
-                    </div>
-                  )}
-                </>
-              ) : null}
-            </>
-          )}
-        </div>
-      </div>
-
-      {selectingItems ? (
-        <div className="absolute left-4 right-4 bottom-5 z-40 rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg" style={{ background: p.ink, color: p.surface }}>
-          <span className="text-[14px] font-medium">{selectedIds.size} selected</span>
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={() => {
-                const list = activeTab === 'Documents' ? documents : gallery
-                setSelectedIds(new Set(list.map((x) => x.id)))
-              }}
-              className="h-9 px-3 rounded-full text-[13px] font-medium"
-              style={{ color: p.surface }}
-            >
-              All
-            </button>
-            <button
-              type="button"
-              onClick={deleteSelected}
-              disabled={selectedIds.size === 0}
-              className="h-9 px-4 rounded-full text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
-              style={{ background: p.danger, color: '#FFFFFF' }}
-            >
-              <Trash2 size={14} /> Delete
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {toast && !lightboxItem && updateIndex === null ? (
-        <div role="status" className="absolute left-1/2 -translate-x-1/2 z-50 text-[13px] rounded-full px-4 py-2 shadow-lg whitespace-nowrap" style={{ bottom: selectingItems ? 92 : 24, background: p.ink, color: p.surface }}>
-          {toast}
-        </div>
-      ) : null}
-
-      {sheet ? (
-        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => !sheetBusy && setSheet(null)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-6 pt-3 pb-8 max-h-[88%] overflow-y-auto" style={{ background: p.surface }}>
-            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
-            {sheet === 'follow' ? (
-              <>
-                <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>Follow {school.name}</p>
-                <p className="text-[14px] mt-1.5" style={{ color: p.sub }}>See their posts, events and news.</p>
-                <button
-                  type="button"
-                  onClick={() => setAsStudent((v) => !v)}
-                  className="mt-5 w-full flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left"
-                  style={{ borderColor: asStudent ? p.accent : p.line }}
-                >
-                  <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: asStudent ? p.accent : 'transparent', border: `2px solid ${asStudent ? p.accent : p.faint}` }}>
-                    {asStudent ? <Check size={12} color="#FFFFFF" strokeWidth={3} /> : null}
-                  </span>
-                  <span className="flex-1">
-                    <span className="block text-[14px] font-medium" style={{ color: p.ink }}>I'm a student at this school</span>
-                    <span className="block text-[12px] mt-0.5" style={{ color: p.sub }}>Tell them which form you are in</span>
-                  </span>
-                </button>
-                {asStudent ? <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div> : null}
-                <button
-                  onClick={confirmFollow}
-                  disabled={sheetBusy || (asStudent && !formValue.trim())}
-                  className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
-                  style={{ background: p.accent, color: p.accentInk }}
-                >
-                  {sheetBusy ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Follow'}
-                </button>
-              </>
-            ) : (
-              <>
-                <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>Which form are you in?</p>
-                <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div>
-                <button
-                  onClick={saveMyForm}
-                  disabled={sheetBusy || !formValue.trim()}
-                  className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
-                  style={{ background: p.accent, color: p.accentInk }}
-                >
-                  {sheetBusy ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Save'}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {moreOpen ? (
-        <BottomSheet onClose={() => setMoreOpen(false)}>
-          {school.logo_url ? <SheetAction icon={Eye} label="View logo" onClick={() => { setMoreOpen(false); setViewingLogo(school.logo_url) }} /> : null}
-          {updates.length ? <SheetAction icon={CircleDot} label="View updates" onClick={() => { setMoreOpen(false); setUpdateIndex(0) }} /> : null}
-          <SheetAction icon={Share2} label="Share school" onClick={() => { setMoreOpen(false); shareSchool() }} />
-          <SheetAction icon={Link2} label="Copy school link" onClick={copySchoolLink} />
-          {isFollowing && !isMember ? (
-            <SheetAction icon={UserMinus} danger label={`Unfollow ${school.name}`} onClick={() => { setMoreOpen(false); setUnfollowOpen(true) }} />
-          ) : null}
-        </BottomSheet>
-      ) : null}
-
-      {unfollowOpen ? (
-        <BottomSheet onClose={() => setUnfollowOpen(false)}>
-          <p className="font-semibold text-lg px-4 pt-2">Unfollow {school.name}?</p>
-          <p className="text-sm text-gray-500 px-4 mt-1">You can follow them again any time.</p>
-          <button onClick={unfollow} className="w-[calc(100%-16px)] mx-2 mt-5 bg-red-500 text-white font-semibold py-3.5 rounded-full">Unfollow</button>
-          <button onClick={() => setUnfollowOpen(false)} className="w-full mt-1 py-3.5 text-gray-600 font-medium">Cancel</button>
-        </BottomSheet>
-      ) : null}
-
-      {composer ? (
-        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={closeComposer}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-5 pt-3 pb-8 max-h-[88%] overflow-y-auto" style={{ background: p.surface }}>
-            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
-            <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>
-              {composer === 'post' ? `Post as ${school.name}` : 'New update'}
-            </p>
-            <p className="text-[13px] mt-1 leading-relaxed" style={{ color: p.sub }}>
-              {composer === 'post'
-                ? 'Your post shows under the school name in every feed.'
-                : 'Everyone on Schoolink can see this for 24 hours.'}
-            </p>
-
-            <textarea
-              value={composerText}
-              onChange={(e) => setComposerText(e.target.value)}
-              rows={4}
-              maxLength={composer === 'post' ? 2000 : 280}
-              placeholder={composer === 'post' ? 'What would you like to share?' : "What's happening at school?"}
-              className="mt-4 w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none resize-none"
-              style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-            />
-
-            {composerFile ? (
-              <div className="relative mt-3 rounded-xl overflow-hidden" style={{ background: p.panel }}>
-                {composerFile.kind === 'video' ? (
-                  <video src={composerFile.url} className="w-full max-h-64" controls playsInline />
-                ) : (
-                  <img src={composerFile.url} alt="" className="w-full max-h-64 object-cover" />
-                )}
-                <button
-                  type="button"
-                  onClick={() => { URL.revokeObjectURL(composerFile.url); setComposerFile(null) }}
-                  aria-label="Remove"
-                  className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-white"
-                  style={{ background: 'rgba(0,0,0,0.55)' }}
-                >
-                  <X size={16} />
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() => composerInputRef.current?.click()}
-                className="mt-3 w-full flex items-center justify-center gap-2 border rounded-2xl py-3 text-[14px] font-medium"
-                style={{ borderColor: p.line, color: p.ink }}
-              >
-                <ImagePlus size={16} /> Add photo or video
-              </button>
-            )}
-            <input ref={composerInputRef} type="file" accept="image/*,video/*" onChange={pickComposerFile} className="hidden" />
-
-            {composerError ? <p className="text-[13px] mt-3" style={{ color: p.danger }}>{composerError}</p> : null}
-
-            <button
-              type="button"
-              onClick={submitComposer}
-              disabled={composerBusy}
-              className="mt-5 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-50 flex items-center justify-center"
-              style={{ background: p.accent, color: p.accentInk }}
-            >
-              {composerBusy ? <Loader2 size={18} className="animate-spin" color="#FFFFFF" /> : composer === 'post' ? 'Post' : 'Share update'}
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {updateIndex !== null && updates[updateIndex] ? (
-        <UpdateViewer
-          list={updates}
-          index={updateIndex}
-          onIndex={setUpdateIndex}
-          onClose={() => setUpdateIndex(null)}
-          school={school}
-          canDelete={canManageMedia}
-          onDelete={deleteUpdate}
-        />
-      ) : null}
-
-      {lightboxItem ? (
-        <div className="absolute inset-0 z-50 flex flex-col" style={{ background: '#05040C' }}>
-          <div className="flex items-center justify-between px-5 py-4">
-            <p className="text-white text-[14px] font-medium truncate pr-3">
-              {lightboxItem.kind === 'document' ? lightboxItem.title : 'Photo'}
-            </p>
-            <button onClick={() => setLightboxItem(null)} aria-label="Close" className="text-white shrink-0">
-              <X size={22} />
-            </button>
-          </div>
-
-          <div className="flex-1 flex items-center justify-center px-4 min-h-0">
-            {lightboxItem.kind === 'gallery' ? (
-              lightboxItem.media_type === 'video' ? (
-                <video src={lightboxItem.image_url} className="max-w-full max-h-full rounded-xl" controls />
-              ) : (
-                <img src={lightboxItem.image_url} alt="" className="max-w-full max-h-full rounded-xl object-contain" />
-              )
-            ) : (
-              <div className="rounded-2xl px-10 py-12 flex flex-col items-center gap-4" style={{ background: p.surface }}>
-                <span className="w-16 h-16 rounded-2xl flex items-center justify-center text-[12px] font-semibold tracking-wide" style={{ background: p.panel, color: p.accent }}>
-                  {extOf(lightboxItem.title).toUpperCase().slice(0, 4) || 'FILE'}
-                </span>
-                <p className="text-[14px] text-center" style={{ color: p.ink }}>{lightboxItem.title}</p>
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-t-3xl px-5 pt-5 pb-7 space-y-4" style={{ background: p.surface }}>
-            <div className="flex items-center justify-between">
-              <button
-                onClick={() => (lightboxItem.kind === 'gallery' ? toggleGalleryLike(lightboxItem.id) : toggleDocLike(lightboxItem.id))}
-                className="flex items-center gap-2 text-[14px] font-medium"
-                style={{ color: p.ink }}
-              >
-                <Heart
-                  size={18}
-                  color={(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.likedByMe : docLikes[lightboxItem.id]?.likedByMe) ? p.danger : p.faint}
-                  fill={(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.likedByMe : docLikes[lightboxItem.id]?.likedByMe) ? p.danger : 'none'}
-                />
-                {(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.count : docLikes[lightboxItem.id]?.count) || 0}
-              </button>
-
-              <StarRow
-                p={p}
-                average={
-                  lightboxItem.kind === 'gallery'
-                    ? (galleryRatings[lightboxItem.id]?.count ? galleryRatings[lightboxItem.id].sum / galleryRatings[lightboxItem.id].count : 0)
-                    : (docRatings[lightboxItem.id]?.count ? docRatings[lightboxItem.id].sum / docRatings[lightboxItem.id].count : 0)
-                }
-                myRating={(lightboxItem.kind === 'gallery' ? galleryRatings[lightboxItem.id]?.myRating : docRatings[lightboxItem.id]?.myRating) || 0}
-                count={(lightboxItem.kind === 'gallery' ? galleryRatings[lightboxItem.id]?.count : docRatings[lightboxItem.id]?.count) || 0}
-                interactive
-                size={17}
-                onRate={(n) => (lightboxItem.kind === 'gallery' ? rateGalleryItem(lightboxItem.id, n) : rateDocument(lightboxItem.id, n))}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              {lightboxItem.kind === 'document' ? (
-                <button
-                  onClick={() => window.open(lightboxItem.file_url, '_blank', 'noreferrer')}
-                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-[13px] font-semibold"
-                  style={{ background: p.accent, color: p.accentInk }}
-                >
-                  <ExternalLink size={15} /> Open
-                </button>
-              ) : null}
-              <button
-                onClick={() => downloadItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
-                className="flex-1 flex items-center justify-center gap-1.5 border py-3 rounded-xl text-[13px] font-medium"
-                style={{ borderColor: p.line, color: p.ink }}
-              >
-                <Download size={15} /> Download
-              </button>
-              <button
-                onClick={() => shareItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
-                className="flex-1 flex items-center justify-center gap-1.5 border py-3 rounded-xl text-[13px] font-medium"
-                style={{ borderColor: p.line, color: p.ink }}
-              >
-                <Share2 size={15} /> Share
-              </button>
-              {canManageMedia ? (
-                <button
-                  onClick={deleteOpenItem}
-                  aria-label="Delete"
-                  className="flex items-center justify-center border py-3 px-3.5 rounded-xl"
-                  style={{ borderColor: p.danger, color: p.danger }}
-                >
-                  <Trash2 size={15} />
-                </button>
-              ) : null}
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      
-      {deleteOpen ? (
-        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => !deleting && setDeleteOpen(false)}>
-          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-6 pt-3 pb-8" style={{ background: p.surface }}>
-            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
-            <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.danger }}>Delete {school.name}?</p>
-            <p className="text-[14px] mt-1.5 leading-relaxed" style={{ color: p.sub }}>This cannot be undone. Type the school's name to confirm.</p>
-            <input
-              value={deleteText}
-              onChange={(e) => setDeleteText(e.target.value)}
-              placeholder={school.name}
-              className="mt-5 w-full rounded-xl border px-4 py-3 text-[14px] outline-none"
-              style={{ borderColor: p.line, background: p.panel, color: p.ink }}
-            />
-            {deleteError ? <p className="text-[13px] mt-2" style={{ color: p.danger }}>{deleteError}</p> : null}
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => setDeleteOpen(false)} disabled={deleting} className="flex-1 border rounded-2xl py-3.5 text-[14px] font-medium" style={{ borderColor: p.line, color: p.ink }}>Cancel</button>
-              <button
-                onClick={deleteSchool}
-                disabled={deleting || deleteText.trim().toLowerCase() !== (school.name || '').trim().toLowerCase()}
-                className="flex-1 rounded-2xl py-3.5 text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
-                style={{ background: p.danger, color: '#FFFFFF' }}
-              >
-                {deleting ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Delete forever'}
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : null}
-
-      {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
-    </div>
-  )
-}
+     
