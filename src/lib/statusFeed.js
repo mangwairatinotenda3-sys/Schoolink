@@ -1,28 +1,34 @@
 import { supabase } from './supabaseClient.js'
 import { canViewStatus } from './statusUtils.js'
 
+const DAY_MS = 24 * 60 * 60 * 1000
+
 // Loads everything the status row and the viewer need in one go:
-// my own updates, the people who have updates for me to see (unseen first), and which ones I have seen.
+// my own updates, the people who have updates for me to see (unseen first), the schools that have
+// updates (shown as the school, never as the person who posted it), and which ones I have seen.
 export async function loadStatusFeed(user, profile) {
-  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+  const cutoff = new Date(Date.now() - DAY_MS).toISOString()
   const { data } = await supabase
     .from('statuses')
     .select('*')
     .gt('created_at', cutoff)
-    .is('school_author_id', null) // school updates show on the school's own page, not on people's rows
     .order('created_at', { ascending: true })
 
-  const visible = (data ?? []).filter((s) => canViewStatus(s, profile, user.id))
-  const mine = visible.filter((s) => s.user_id === user.id)
-  const others = visible.filter((s) => s.user_id !== user.id)
+  const all = (data ?? []).filter((s) => canViewStatus(s, profile, user.id))
+  // School updates carry a school_author_id. They belong to the school, not to a person.
+  const personal = all.filter((s) => !s.school_author_id)
+  const schoolItems = all.filter((s) => s.school_author_id)
+  const mine = personal.filter((s) => s.user_id === user.id)
+  const others = personal.filter((s) => s.user_id !== user.id)
 
+  const viewable = [...others, ...schoolItems]
   let seen = new Set()
-  if (others.length) {
+  if (viewable.length) {
     const { data: views } = await supabase
       .from('status_views')
       .select('status_id')
       .eq('viewer_id', user.id)
-      .in('status_id', others.map((s) => s.id))
+      .in('status_id', viewable.map((s) => s.id))
     seen = new Set((views ?? []).map((v) => v.status_id))
   }
 
@@ -65,5 +71,35 @@ export async function loadStatusFeed(user, profile) {
   // Unseen first, then the most recent.
   people.sort((a, b) => Number(a.allSeen) - Number(b.allSeen) || (a.latest.created_at < b.latest.created_at ? 1 : -1))
 
-  return { mine, people, seen }
+  const bySchool = new Map()
+  for (const s of schoolItems) {
+    const entry = bySchool.get(s.school_author_id) || { id: s.school_author_id, items: [] }
+    entry.items.push(s)
+    bySchool.set(s.school_author_id, entry)
   }
+
+  let schoolMap = new Map()
+  if (bySchool.size) {
+    const { data: schoolRows } = await supabase
+      .from('schools')
+      .select('id, name, logo_url')
+      .in('id', [...bySchool.keys()])
+    schoolMap = new Map((schoolRows ?? []).map((s) => [s.id, s]))
+  }
+
+  const schools = [...bySchool.values()].map((entry) => {
+    const info = schoolMap.get(entry.id) || {}
+    const flags = entry.items.map((s) => seen.has(s.id))
+    return {
+      ...entry,
+      name: info.name || 'School',
+      logo_url: info.logo_url || null,
+      flags,
+      allSeen: flags.every(Boolean),
+      latest: entry.items[entry.items.length - 1],
+    }
+  })
+  schools.sort((a, b) => Number(a.allSeen) - Number(b.allSeen) || (a.latest.created_at < b.latest.created_at ? 1 : -1))
+
+  return { mine, people, schools, seen }
+}
