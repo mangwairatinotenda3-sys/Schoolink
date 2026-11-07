@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams } from 'react-router-dom'
 import {
   Camera, MapPin, Phone, Mail, MessageSquare, Plus, ExternalLink, Bell, BellRing, Video,
   Download, Share2, Heart, Star, Trash2, X, ChevronLeft, ChevronRight, Settings, Pencil, Loader2, Check, Upload,
@@ -288,6 +288,8 @@ export default function SchoolProfile() {
   const tabsRef = useRef(null)
   const tabReq = useRef(0) // only the latest tab request may update the screen
   const tabRef = useRef('Posts')
+  const location = useLocation()
+  const openedFromFeed = useRef(false) // so returning to the page does not reopen the updates
 
   const targetSchoolId = paramSchoolId || profile?.school_id
 
@@ -421,7 +423,14 @@ export default function SchoolProfile() {
     return () => clearTimeout(t)
   }, [toast])
 
-  useEffect(() => { refreshVerifiedIds(true) }, [school?.id])
+    useEffect(() => { refreshVerifiedIds(true) }, [school?.id])
+
+  // Opened from the Updates row on Home: go straight into the school's updates
+  useEffect(() => {
+    if (!location.state?.openUpdates || openedFromFeed.current || !updates.length) return
+    openedFromFeed.current = true
+    setUpdateIndex(0)
+  }, [updates])
 
   async function refreshContent(schoolId) {
     const { data: pics } = await supabase.from('school_gallery').select('*').eq('school_id', schoolId).order('created_at', { ascending: false })
