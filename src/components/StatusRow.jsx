@@ -146,6 +146,20 @@ export default function StatusRow() {
               )
             ) : null}
 
+             {(feed?.schools ?? []).map((s) => (
+              <Tile
+                key={`school-${s.id}`}
+                status={s.latest}
+                seen={s.allSeen}
+                onOpen={() => navigate(`/schools/${s.id}`, { state: { openUpdates: true } })}
+              >
+                <div className="absolute top-2.5 left-2.5">
+                  <StatusRing src={s.logo_url} name={s.name} size={36} flags={s.flags} />
+                </div>
+                <p className="absolute bottom-2.5 left-2.5 right-2.5 font-semibold text-[12px] truncate">{s.name}</p>
+              </Tile>
+            ))}
+
             {people.map((p) => (
               <Tile key={p.id} status={p.latest} seen={p.allSeen} onOpen={() => openPerson(p)}>
                 <div className="absolute top-2.5 left-2.5">
