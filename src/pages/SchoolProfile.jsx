@@ -1594,3 +1594,484 @@ export default function SchoolProfile() {
                   </div>
                 )
               ) : null}
+
+                            {activeTab === 'Media' ? (
+                <>
+                  <ContentToolbar
+                    p={p}
+                    count={gallery.length}
+                    noun="item"
+                    canManage={canManageMedia}
+                    hasItems={gallery.length > 0}
+                    selectMode={selectMode}
+                    onToggleSelect={toggleSelectMode}
+                    onUpload={() => galleryInputRef.current?.click()}
+                    busy={!!uploadProgress}
+                  />
+                  <input ref={galleryInputRef} type="file" accept="image/*,video/*" multiple onChange={(e) => { const files = e.target.files; e.target.value = ''; uploadMany(files, 'gallery') }} className="hidden" />
+                  {uploadProgress && activeTab === 'Media' ? <UploadBar p={p} progress={uploadProgress} /> : null}
+                  {!canManageMedia ? <p className="text-[12px] mb-3" style={{ color: p.faint }}>Only school staff can add photos and videos.</p> : null}
+
+                  {gallery.length === 0 ? (
+                    <EmptyNote p={p} text="No photos or videos yet." />
+                  ) : (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {gallery.map((g) => {
+                        const on = selectedIds.has(g.id)
+                        return (
+                          <div key={g.id} className="relative">
+                            <button
+                              onClick={() => (selectMode ? toggleSelected(g.id) : setLightboxItem({ ...g, kind: 'gallery' }))}
+                              className="relative w-full aspect-square rounded-xl overflow-hidden"
+                              style={{ background: p.panel, outline: selectMode && on ? `2px solid ${p.accent}` : 'none', outlineOffset: -2 }}
+                            >
+                              {g.media_type === 'video' ? (
+                                <>
+                                  <video src={g.image_url} className="w-full h-full object-cover" muted preload="metadata" />
+                                  <span className="absolute inset-0 flex items-center justify-center bg-black/20"><Video size={18} color="#FFFFFF" /></span>
+                                </>
+                              ) : (
+                                <img src={g.image_url} alt="" className="w-full h-full object-cover" />
+                              )}
+                              {selectMode ? <SelectMark p={p} on={on} /> : null}
+                              {!selectMode && galleryLikes[g.id]?.count > 0 ? (
+                                <span className="absolute bottom-1.5 left-1.5 bg-black/55 text-white text-[10px] rounded-full px-2 py-0.5 flex items-center gap-1">
+                                  <Heart size={10} color="#FFFFFF" fill="#FFFFFF" /> {galleryLikes[g.id].count}
+                                </span>
+                              ) : null}
+                            </button>
+                            {canManageMedia && !selectMode ? (
+                              <button
+                                type="button"
+                                onClick={(e) => { e.stopPropagation(); deleteOne('gallery', g) }}
+                                aria-label="Delete item"
+                                className="absolute top-1.5 right-1.5 w-7 h-7 rounded-full flex items-center justify-center"
+                                style={{ background: 'rgba(0,0,0,0.55)', color: '#FFFFFF' }}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : null}
+
+              {activeTab === 'Events' ? (
+                <>
+                  {canManageMedia ? (
+                    <button
+                      onClick={() => navigate('/calendar/create')}
+                      className="w-full flex items-center justify-center gap-2 border rounded-2xl py-3 text-[14px] font-medium mb-4"
+                      style={{ borderColor: p.line, color: p.ink }}
+                    >
+                      <Plus size={16} /> Add event
+                    </button>
+                  ) : null}
+                  {events.length === 0 ? (
+                    <EmptyNote p={p} text="No events scheduled." />
+                  ) : (
+                    <div>
+                      {events.map((e, i) => {
+                        const d = new Date(e.event_date)
+                        return (
+                          <div key={e.id} className="flex items-center gap-4 py-3.5" style={{ borderTop: i ? `1px solid ${p.line}` : 'none' }}>
+                            <div className="w-14 shrink-0 text-center rounded-xl py-2" style={{ background: p.panel }}>
+                              <p className="text-[10px] uppercase tracking-[0.12em]" style={{ color: p.accent }}>{d.toLocaleDateString(undefined, { month: 'short' })}</p>
+                              <p className="text-[20px] font-semibold leading-none mt-1" style={{ color: p.ink }}>{d.getDate()}</p>
+                            </div>
+                            <div className="min-w-0">
+                              <p className="text-[14px] font-medium truncate" style={{ color: p.ink }}>{e.title}</p>
+                              <p className="text-[12px] mt-0.5" style={{ color: p.sub }}>{d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : null}
+
+                            {activeTab === 'Documents' ? (
+                <>
+                  <ContentToolbar
+                    p={p}
+                    count={documents.length}
+                    noun="document"
+                    canManage={canManageMedia}
+                    hasItems={documents.length > 0}
+                    selectMode={selectMode}
+                    onToggleSelect={toggleSelectMode}
+                    onUpload={() => docInputRef.current?.click()}
+                    busy={!!uploadProgress}
+                  />
+                  <input ref={docInputRef} type="file" multiple onChange={(e) => { const files = e.target.files; e.target.value = ''; uploadMany(files, 'documents') }} className="hidden" />
+                  {uploadProgress && activeTab === 'Documents' ? <UploadBar p={p} progress={uploadProgress} /> : null}
+                  {!canManageMedia ? <p className="text-[12px] mb-3" style={{ color: p.faint }}>Only school staff can add documents.</p> : null}
+
+                  {documents.length === 0 ? (
+                    <EmptyNote p={p} text="No documents yet." />
+                  ) : (
+                    <div>
+                      {documents.map((d, i) => {
+                        const on = selectedIds.has(d.id)
+                        const ext = extOf(d.title).toUpperCase().slice(0, 4) || 'FILE'
+                        return (
+                          <div key={d.id} className="flex items-center gap-3 py-3.5" style={{ borderTop: i ? `1px solid ${p.line}` : 'none' }}>
+                            {selectMode ? <SelectMark p={p} on={on} inline /> : null}
+                            <button
+                              onClick={() => (selectMode ? toggleSelected(d.id) : setLightboxItem({ ...d, kind: 'document' }))}
+                              className="flex-1 min-w-0 flex items-center gap-3.5 text-left"
+                            >
+                              <span className="w-11 h-11 rounded-xl flex items-center justify-center text-[10px] font-semibold tracking-wide shrink-0" style={{ background: p.panel, color: p.accent }}>
+                                {ext}
+                              </span>
+                              <span className="min-w-0 flex-1">
+                                <span className="block text-[14px] font-medium truncate" style={{ color: p.ink }}>{d.title}</span>
+                                <span className="block text-[12px] mt-0.5" style={{ color: p.sub }}>
+                                  {dateLabel(d.created_at)}
+                                  {docLikes[d.id]?.count > 0 ? ` · ${docLikes[d.id].count} like${docLikes[d.id].count > 1 ? 's' : ''}` : ''}
+                                  {docRatings[d.id]?.count > 0 ? ` · ${(docRatings[d.id].sum / docRatings[d.id].count).toFixed(1)} rating` : ''}
+                                </span>
+                              </span>
+                            </button>
+                            {canManageMedia && !selectMode ? (
+                              <button
+                                type="button"
+                                onClick={() => deleteOne('document', d)}
+                                aria-label="Delete document"
+                                className="w-9 h-9 rounded-full flex items-center justify-center shrink-0"
+                                style={{ color: p.danger }}
+                              >
+                                <Trash2 size={15} />
+                              </button>
+                            ) : null}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </>
+              ) : null}
+            </>
+          )}
+        </div>
+      </div>
+
+      {selectingItems ? (
+        <div className="absolute left-4 right-4 bottom-5 z-40 rounded-2xl px-4 py-3 flex items-center justify-between shadow-lg" style={{ background: p.ink, color: p.surface }}>
+          <span className="text-[14px] font-medium">{selectedIds.size} selected</span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                const list = activeTab === 'Documents' ? documents : gallery
+                setSelectedIds(new Set(list.map((x) => x.id)))
+              }}
+              className="h-9 px-3 rounded-full text-[13px] font-medium"
+              style={{ color: p.surface }}
+            >
+              All
+            </button>
+            <button
+              type="button"
+              onClick={deleteSelected}
+              disabled={selectedIds.size === 0}
+              className="h-9 px-4 rounded-full text-[13px] font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              style={{ background: p.danger, color: '#FFFFFF' }}
+            >
+              <Trash2 size={14} /> Delete
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {toast && !lightboxItem && updateIndex === null ? (
+        <div role="status" className="absolute left-1/2 -translate-x-1/2 z-50 text-[13px] rounded-full px-4 py-2 shadow-lg whitespace-nowrap" style={{ bottom: selectingItems ? 92 : 24, background: p.ink, color: p.surface }}>
+          {toast}
+        </div>
+      ) : null}
+
+      {sheet ? (
+        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => !sheetBusy && setSheet(null)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-6 pt-3 pb-8 max-h-[88%] overflow-y-auto" style={{ background: p.surface }}>
+            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
+            {sheet === 'follow' ? (
+              <>
+                <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>Follow {school.name}</p>
+                <p className="text-[14px] mt-1.5" style={{ color: p.sub }}>See their posts, events and news.</p>
+                <button
+                  type="button"
+                  onClick={() => setAsStudent((v) => !v)}
+                  className="mt-5 w-full flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left"
+                  style={{ borderColor: asStudent ? p.accent : p.line }}
+                >
+                  <span className="w-5 h-5 rounded-md flex items-center justify-center shrink-0" style={{ background: asStudent ? p.accent : 'transparent', border: `2px solid ${asStudent ? p.accent : p.faint}` }}>
+                    {asStudent ? <Check size={12} color="#FFFFFF" strokeWidth={3} /> : null}
+                  </span>
+                  <span className="flex-1">
+                    <span className="block text-[14px] font-medium" style={{ color: p.ink }}>I'm a student at this school</span>
+                    <span className="block text-[12px] mt-0.5" style={{ color: p.sub }}>Tell them which form you are in</span>
+                  </span>
+                </button>
+                {asStudent ? <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div> : null}
+                <button
+                  onClick={confirmFollow}
+                  disabled={sheetBusy || (asStudent && !formValue.trim())}
+                  className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
+                  style={{ background: p.accent, color: p.accentInk }}
+                >
+                  {sheetBusy ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Follow'}
+                </button>
+              </>
+            ) : (
+              <>
+                <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>Which form are you in?</p>
+                <div className="mt-4"><FormPicker value={formValue} onChange={setFormValue} schoolType={school.school_type} /></div>
+                <button
+                  onClick={saveMyForm}
+                  disabled={sheetBusy || !formValue.trim()}
+                  className="mt-6 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
+                  style={{ background: p.accent, color: p.accentInk }}
+                >
+                  {sheetBusy ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Save'}
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      ) : null}
+
+      {moreOpen ? (
+        <BottomSheet onClose={() => setMoreOpen(false)}>
+          {school.logo_url ? <SheetAction icon={Eye} label="View logo" onClick={() => { setMoreOpen(false); setViewingLogo(school.logo_url) }} /> : null}
+          {updates.length ? <SheetAction icon={CircleDot} label="View updates" onClick={() => { setMoreOpen(false); setUpdateIndex(0) }} /> : null}
+          <SheetAction icon={Share2} label="Share school" onClick={() => { setMoreOpen(false); shareSchool() }} />
+          <SheetAction icon={Link2} label="Copy school link" onClick={copySchoolLink} />
+          {isFollowing && !isMember ? (
+            <SheetAction icon={UserMinus} danger label={`Unfollow ${school.name}`} onClick={() => { setMoreOpen(false); setUnfollowOpen(true) }} />
+          ) : null}
+        </BottomSheet>
+      ) : null}
+
+      {unfollowOpen ? (
+        <BottomSheet onClose={() => setUnfollowOpen(false)}>
+          <p className="font-semibold text-lg px-4 pt-2">Unfollow {school.name}?</p>
+          <p className="text-sm text-gray-500 px-4 mt-1">You can follow them again any time.</p>
+          <button onClick={unfollow} className="w-[calc(100%-16px)] mx-2 mt-5 bg-red-500 text-white font-semibold py-3.5 rounded-full">Unfollow</button>
+          <button onClick={() => setUnfollowOpen(false)} className="w-full mt-1 py-3.5 text-gray-600 font-medium">Cancel</button>
+        </BottomSheet>
+      ) : null}
+
+      {composer ? (
+        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={closeComposer}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-5 pt-3 pb-8 max-h-[88%] overflow-y-auto" style={{ background: p.surface }}>
+            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
+            <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.ink }}>
+              {composer === 'post' ? `Post as ${school.name}` : 'New update'}
+            </p>
+            <p className="text-[13px] mt-1 leading-relaxed" style={{ color: p.sub }}>
+              {composer === 'post'
+                ? 'Your post shows under the school name in every feed.'
+                : 'Everyone on Schoolink can see this for 24 hours.'}
+            </p>
+
+            <textarea
+              value={composerText}
+              onChange={(e) => setComposerText(e.target.value)}
+              rows={4}
+              maxLength={composer === 'post' ? 2000 : 280}
+              placeholder={composer === 'post' ? 'What would you like to share?' : "What's happening at school?"}
+              className="mt-4 w-full rounded-xl border px-3.5 py-3 text-[14px] outline-none resize-none"
+              style={{ borderColor: p.line, background: p.panel, color: p.ink }}
+            />
+
+            {composerFile ? (
+              <div className="relative mt-3 rounded-xl overflow-hidden" style={{ background: p.panel }}>
+                {composerFile.kind === 'video' ? (
+                  <video src={composerFile.url} className="w-full max-h-64" controls playsInline />
+                ) : (
+                  <img src={composerFile.url} alt="" className="w-full max-h-64 object-cover" />
+                )}
+                <button
+                  type="button"
+                  onClick={() => { URL.revokeObjectURL(composerFile.url); setComposerFile(null) }}
+                  aria-label="Remove"
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center text-white"
+                  style={{ background: 'rgba(0,0,0,0.55)' }}
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => composerInputRef.current?.click()}
+                className="mt-3 w-full flex items-center justify-center gap-2 border rounded-2xl py-3 text-[14px] font-medium"
+                style={{ borderColor: p.line, color: p.ink }}
+              >
+                <ImagePlus size={16} /> Add photo or video
+              </button>
+            )}
+            <input ref={composerInputRef} type="file" accept="image/*,video/*" onChange={pickComposerFile} className="hidden" />
+
+            {composerError ? <p className="text-[13px] mt-3" style={{ color: p.danger }}>{composerError}</p> : null}
+
+            <button
+              type="button"
+              onClick={submitComposer}
+              disabled={composerBusy}
+              className="mt-5 w-full py-3.5 rounded-2xl text-[14px] font-semibold disabled:opacity-50 flex items-center justify-center"
+              style={{ background: p.accent, color: p.accentInk }}
+            >
+              {composerBusy ? <Loader2 size={18} className="animate-spin" color="#FFFFFF" /> : composer === 'post' ? 'Post' : 'Share update'}
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {updateIndex !== null && updates[updateIndex] ? (
+        <UpdateViewer
+          list={updates}
+          index={updateIndex}
+          onIndex={setUpdateIndex}
+          onClose={() => setUpdateIndex(null)}
+          school={school}
+          canDelete={canManageMedia}
+          onDelete={deleteUpdate}
+        />
+      ) : null}
+
+      {lightboxItem ? (
+        <div className="absolute inset-0 z-50 flex flex-col" style={{ background: '#05040C' }}>
+          <div className="flex items-center justify-between px-5 py-4">
+            <p className="text-white text-[14px] font-medium truncate pr-3">
+              {lightboxItem.kind === 'document' ? lightboxItem.title : 'Photo'}
+            </p>
+            <button onClick={() => setLightboxItem(null)} aria-label="Close" className="text-white shrink-0">
+              <X size={22} />
+            </button>
+          </div>
+
+          <div className="flex-1 flex items-center justify-center px-4 min-h-0">
+            {lightboxItem.kind === 'gallery' ? (
+              lightboxItem.media_type === 'video' ? (
+                <video src={lightboxItem.image_url} className="max-w-full max-h-full rounded-xl" controls />
+              ) : (
+                <img src={lightboxItem.image_url} alt="" className="max-w-full max-h-full rounded-xl object-contain" />
+              )
+            ) : (
+              <div className="rounded-2xl px-10 py-12 flex flex-col items-center gap-4" style={{ background: p.surface }}>
+                <span className="w-16 h-16 rounded-2xl flex items-center justify-center text-[12px] font-semibold tracking-wide" style={{ background: p.panel, color: p.accent }}>
+                  {extOf(lightboxItem.title).toUpperCase().slice(0, 4) || 'FILE'}
+                </span>
+                <p className="text-[14px] text-center" style={{ color: p.ink }}>{lightboxItem.title}</p>
+              </div>
+            )}
+          </div>
+
+          <div className="rounded-t-3xl px-5 pt-5 pb-7 space-y-4" style={{ background: p.surface }}>
+            <div className="flex items-center justify-between">
+              <button
+                onClick={() => (lightboxItem.kind === 'gallery' ? toggleGalleryLike(lightboxItem.id) : toggleDocLike(lightboxItem.id))}
+                className="flex items-center gap-2 text-[14px] font-medium"
+                style={{ color: p.ink }}
+              >
+                <Heart
+                  size={18}
+                  color={(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.likedByMe : docLikes[lightboxItem.id]?.likedByMe) ? p.danger : p.faint}
+                  fill={(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.likedByMe : docLikes[lightboxItem.id]?.likedByMe) ? p.danger : 'none'}
+                />
+                {(lightboxItem.kind === 'gallery' ? galleryLikes[lightboxItem.id]?.count : docLikes[lightboxItem.id]?.count) || 0}
+              </button>
+
+              <StarRow
+                p={p}
+                average={
+                  lightboxItem.kind === 'gallery'
+                    ? (galleryRatings[lightboxItem.id]?.count ? galleryRatings[lightboxItem.id].sum / galleryRatings[lightboxItem.id].count : 0)
+                    : (docRatings[lightboxItem.id]?.count ? docRatings[lightboxItem.id].sum / docRatings[lightboxItem.id].count : 0)
+                }
+                myRating={(lightboxItem.kind === 'gallery' ? galleryRatings[lightboxItem.id]?.myRating : docRatings[lightboxItem.id]?.myRating) || 0}
+                count={(lightboxItem.kind === 'gallery' ? galleryRatings[lightboxItem.id]?.count : docRatings[lightboxItem.id]?.count) || 0}
+                interactive
+                size={17}
+                onRate={(n) => (lightboxItem.kind === 'gallery' ? rateGalleryItem(lightboxItem.id, n) : rateDocument(lightboxItem.id, n))}
+              />
+            </div>
+
+            <div className="flex gap-2">
+              {lightboxItem.kind === 'document' ? (
+                <button
+                  onClick={() => window.open(lightboxItem.file_url, '_blank', 'noreferrer')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-3 rounded-xl text-[13px] font-semibold"
+                  style={{ background: p.accent, color: p.accentInk }}
+                >
+                  <ExternalLink size={15} /> Open
+                </button>
+              ) : null}
+              <button
+                onClick={() => downloadItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
+                className="flex-1 flex items-center justify-center gap-1.5 border py-3 rounded-xl text-[13px] font-medium"
+                style={{ borderColor: p.line, color: p.ink }}
+              >
+                <Download size={15} /> Download
+              </button>
+              <button
+                onClick={() => shareItem(lightboxItem.kind === 'gallery' ? lightboxItem.image_url : lightboxItem.file_url, lightboxItem.title)}
+                className="flex-1 flex items-center justify-center gap-1.5 border py-3 rounded-xl text-[13px] font-medium"
+                style={{ borderColor: p.line, color: p.ink }}
+              >
+                <Share2 size={15} /> Share
+              </button>
+              {canManageMedia ? (
+                <button
+                  onClick={deleteOpenItem}
+                  aria-label="Delete"
+                  className="flex items-center justify-center border py-3 px-3.5 rounded-xl"
+                  style={{ borderColor: p.danger, color: p.danger }}
+                >
+                  <Trash2 size={15} />
+                </button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      
+      {deleteOpen ? (
+        <div className="absolute inset-0 z-50 flex items-end justify-center" style={{ background: 'rgba(0,0,0,0.5)' }} onClick={() => !deleting && setDeleteOpen(false)}>
+          <div onClick={(e) => e.stopPropagation()} className="w-full rounded-t-3xl px-6 pt-3 pb-8" style={{ background: p.surface }}>
+            <span className="block w-10 h-1 rounded-full mx-auto mb-5" style={{ background: p.line }} />
+            <p className="text-[18px] font-semibold tracking-tight" style={{ color: p.danger }}>Delete {school.name}?</p>
+            <p className="text-[14px] mt-1.5 leading-relaxed" style={{ color: p.sub }}>This cannot be undone. Type the school's name to confirm.</p>
+            <input
+              value={deleteText}
+              onChange={(e) => setDeleteText(e.target.value)}
+              placeholder={school.name}
+              className="mt-5 w-full rounded-xl border px-4 py-3 text-[14px] outline-none"
+              style={{ borderColor: p.line, background: p.panel, color: p.ink }}
+            />
+            {deleteError ? <p className="text-[13px] mt-2" style={{ color: p.danger }}>{deleteError}</p> : null}
+            <div className="flex gap-2 mt-5">
+              <button onClick={() => setDeleteOpen(false)} disabled={deleting} className="flex-1 border rounded-2xl py-3.5 text-[14px] font-medium" style={{ borderColor: p.line, color: p.ink }}>Cancel</button>
+              <button
+                onClick={deleteSchool}
+                disabled={deleting || deleteText.trim().toLowerCase() !== (school.name || '').trim().toLowerCase()}
+                className="flex-1 rounded-2xl py-3.5 text-[14px] font-semibold disabled:opacity-40 flex items-center justify-center"
+                style={{ background: p.danger, color: '#FFFFFF' }}
+              >
+                {deleting ? <Loader2 size={18} color="#FFFFFF" className="animate-spin" /> : 'Delete forever'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {viewingLogo ? <AvatarViewer imageUrl={viewingLogo} onClose={() => setViewingLogo(null)} /> : null}
+    </div>
+  )
+}
