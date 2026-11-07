@@ -13,14 +13,11 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { useUnreadCount } from '../lib/useUnreadCount.js'
 import { isSchoolMember } from '../lib/permissions.js'
 
-// Solid colour circles for the quick links, as they were before.
-const shortcuts = [
-  { label: 'Your School', icon: Landmark, color: 'bg-blue-500' },
-  { label: 'Science Club', icon: FlaskConical, color: 'bg-emerald-500', to: '/communities' },
-  { label: 'Sports Club', icon: Trophy, color: 'bg-orange-500', to: '/communities' },
-  { label: 'Parents', icon: Users, color: 'bg-purple-500', to: '/communities' },
-  { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
-  { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: '/more' },
+// Club tiles only appear when a community with that name exists.
+const CLUBS = [
+  { label: 'Science Club', match: /science/i, icon: FlaskConical, color: 'bg-emerald-500' },
+  { label: 'Sports Club', match: /sport/i, icon: Trophy, color: 'bg-orange-500' },
+  { label: 'Parents', match: /parent/i, icon: Users, color: 'bg-purple-500' },
 ]
 
 export default function Home() {
@@ -32,12 +29,18 @@ export default function Home() {
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [school, setSchool] = useState(null)
   const [memberCount, setMemberCount] = useState(0)
+  const [communities, setCommunities] = useState([])
 
   useEffect(() => {
     supabase.from('posts').select('*').order('created_at', { ascending: false }).limit(50).then(({ data }) => {
       setPosts(data ?? [])
       setLoading(false)
     })
+  }, [])
+
+  useEffect(() => {
+    supabase.from('communities').select('id, name').order('created_at', { ascending: false }).limit(200)
+      .then(({ data }) => setCommunities(data ?? []))
   }, [])
 
   useEffect(() => {
@@ -49,19 +52,20 @@ export default function Home() {
     supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('school_id', profile.school_id).eq('status', 'active').then(({ count }) => setMemberCount(count ?? 0))
   }, [profile?.school_id, profile?.status, profile?.account_type])
 
-  function handleShortcut(label) {
-    if (label === 'Your School') {
-      navigate(isSchoolMember(profile) ? '/school-profile' : '/schools')
-      return
-    }
-    const item = shortcuts.find((s) => s.label === label)
-    if (item?.to) navigate(item.to)
-  }
-
   const dark = !!profile?.dark_mode
   const ink = dark ? '#FFFFFF' : '#1B1450'
   const muted = dark ? '#C7D2FE' : '#7A7A99'
-  const visibleShortcuts = shortcuts.filter((s) => s.label !== 'Your School' || isSchoolMember(profile))
+
+  const clubTiles = CLUBS.flatMap((club) => {
+    const found = communities.find((c) => club.match.test(c.name || ''))
+    return found ? [{ label: club.label, icon: club.icon, color: club.color, to: `/communities/${found.id}` }] : []
+  })
+  const tiles = [
+    ...(isSchoolMember(profile) ? [{ label: 'Your School', icon: Landmark, color: 'bg-blue-500', to: '/school-profile' }] : []),
+    ...clubTiles,
+    { label: 'Alumni', icon: GraduationCap, color: 'bg-rose-500', to: '/alumni' },
+    { label: 'More', icon: Grid3x3, color: 'bg-gray-400', to: '/more' },
+  ]
 
   return (
     <div className="app-shell">
@@ -119,10 +123,10 @@ export default function Home() {
       <div className="screen-scroll" style={dark ? undefined : { background: '#F6F4FF' }}>
         {/* Quick links: coloured circles on white cards */}
         <div className="flex gap-3 px-4 py-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {visibleShortcuts.map(({ label, icon: Icon, color }) => (
+          {tiles.map(({ label, icon: Icon, color, to }) => (
             <button
               key={label}
-              onClick={() => handleShortcut(label)}
+              onClick={() => navigate(to)}
               className="flex flex-col items-center gap-2 shrink-0"
               style={{
                 width: 78, padding: '12px 6px', borderRadius: 20,
@@ -141,18 +145,18 @@ export default function Home() {
           <button
             type="button"
             onClick={() => navigate('/school-profile')}
-            className="flex items-center gap-3 mx-4 rounded-xl border border-gray-100 p-4 text-left"
+            className="flex items-center gap-3 mx-4 rounded-xl border border-gray-100 px-3 py-2 text-left"
             style={{ background: dark ? 'rgba(255,255,255,0.06)' : '#FFFFFF', borderColor: dark ? 'rgba(255,255,255,0.08)' : undefined }}
           >
             <span className="flex-1 min-w-0">
               <span className="flex items-center gap-1.5">
-                <span className="font-semibold truncate" style={{ color: ink }}>{school.name}</span>
-                <VerifiedBadge schoolId={school.id} size={16} />
+                <span className="font-semibold truncate" style={{ color: ink, fontSize: 14 }}>{school.name}</span>
+                <VerifiedBadge schoolId={school.id} size={14} />
               </span>
-              <span className="block text-sm truncate" style={{ color: muted }}>{school.location}</span>
-              <span className="block text-sm mt-2" style={{ color: ink }}><b>{memberCount}</b> Members</span>
+              <span className="block truncate" style={{ color: muted, fontSize: 11 }}>{school.location}</span>
+              <span className="block mt-0.5" style={{ color: ink, fontSize: 11 }}><b>{memberCount}</b> Members</span>
             </span>
-            <ChevronRight size={18} color={muted} />
+            <ChevronRight size={15} color={muted} />
           </button>
         ) : null}
 
@@ -179,4 +183,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-}
+  }
