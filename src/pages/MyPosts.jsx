@@ -5,6 +5,7 @@ import PostCard from '../components/PostCard.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
 
+// Only my personal posts. Posts I make as my school are on the school's page.
 export default function MyPosts() {
   const { user } = useAuth()
   const [posts, setPosts] = useState([])
@@ -21,6 +22,7 @@ export default function MyPosts() {
       .from('posts')
       .select('*')
       .eq('author_id', user.id)
+      .is('as_school_id', null)
       .order('created_at', { ascending: false })
     setPosts(data ?? [])
     setLoading(false)
@@ -48,4 +50,4 @@ export default function MyPosts() {
       <BottomNav />
     </div>
   )
-        }
+    }
