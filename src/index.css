@@ -327,7 +327,7 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
 
 @media (min-width: 768px) and (orientation: landscape), (min-width: 1024px) {
   .app-shell {
-    padding-left: calc(92px + env(safe-area-inset-left, 0px));
+    padding-left: 92px; /* the side bar sits over the camera cut-out area, so the content starts after it */
     padding-right: env(safe-area-inset-right, 0px);
   }
   .app-shell .screen-scroll { max-width: 960px; padding-bottom: 24px; }
@@ -339,15 +339,16 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
     justify-content: center;
     gap: 14px;
     position: absolute;
-    top: 0;
-    bottom: 0;
-    left: env(safe-area-inset-left, 0px);
+    top: calc(env(safe-area-inset-top, 0px) + 64px); /* starts below the top bar, so it never reaches the logo or menu corner */
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 12px);
+    left: 0;
     width: 92px;
     padding: 12px 0;
     overflow-y: auto;
     z-index: 30;
     background: linear-gradient(180deg, #150F45, #0F0B38);
     border-right: 1px solid rgba(139, 92, 246, 0.35);
+    border-radius: 0 20px 20px 0;
   }
          }
 
