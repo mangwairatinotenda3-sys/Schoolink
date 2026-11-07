@@ -103,7 +103,8 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   const [saved, setSaved] = useState(false)
   const [following, setFollowing] = useState(false)
   const [comments, setComments] = useState([])
-  const [showComments, setShowComments] = useState(!!expandComments)
+  // Comments are read on the post's own screen. The feed only opens the post.
+  const showComments = !!expandComments
   const [commentText, setCommentText] = useState('')
   const [submittingComment, setSubmittingComment] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -111,6 +112,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   const [deleting, setDeleting] = useState(false)
   const [viewerIndex, setViewerIndex] = useState(null)
   const [expanded, setExpanded] = useState(false)
+  const [commentCount, setCommentCount] = useState(0)
   const [avatarUrl, setAvatarUrl] = useState(null)
   const lastMediaTap = useRef(0)
 
@@ -122,6 +124,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     loadLikes()
     loadSaved()
     loadFollow()
+    loadCommentCount()
     if (expandComments) loadComments()
   }, [])
 
@@ -152,9 +155,15 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     setFollowing(!!data)
   }
 
+  async function loadCommentCount() {
+    const { count } = await supabase.from('comments').select('*', { count: 'exact', head: true }).eq('post_id', post.id)
+    setCommentCount(count ?? 0)
+  }
+
   async function loadComments() {
     const { data } = await supabase.from('comments').select('*').eq('post_id', post.id).order('created_at', { ascending: true })
     setComments(data ?? [])
+    setCommentCount(data?.length ?? 0)
   }
 
   async function toggleLike(e) {
@@ -208,10 +217,9 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     }
   }
 
-  async function handleToggleComments(e) {
+  function handleToggleComments(e) {
     e.stopPropagation()
-    setShowComments((s) => !s)
-    if (!showComments) await loadComments()
+    if (!expandComments) navigate(`/post/${post.id}`, { state: { post } })
   }
 
   async function submitComment(e) {
@@ -221,7 +229,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
     const { data, error } = await supabase.from('comments').insert({
       post_id: post.id, author_id: user.id, author_name: profile?.full_name || user.email, content: commentText,
     }).select().maybeSingle()
-    if (!error && data) { setComments((c) => [...c, data]); setCommentText('') }
+    if (!error && data) { setComments((c) => [...c, data]); setCommentCount((n) => n + 1); setCommentText('') }
     setSubmittingComment(false)
   }
 
@@ -236,7 +244,8 @@ export default function PostCard({ post, onDeleted, expandComments }) {
   }
 
   function goToPost() {
-    if (!expandComments) navigate(`/post/${post.id}`)
+    // The post travels with the link, so the detail screen shows it at once
+    if (!expandComments) navigate(`/post/${post.id}`, { state: { post } })
   }
 
   function goToAuthorProfile(e) {
@@ -382,7 +391,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
           className={iconBtn}
           style={showComments ? { background: tint('#7C3AED', 0.12), color: '#7C3AED' } : { color: 'var(--text-secondary, #6B7280)' }}
         >
-          <MessageCircle size={19} /> {comments.length || ''}
+          <MessageCircle size={19} /> {(showComments ? comments.length : commentCount) || ''}
         </button>
         <button
           onClick={toggleSave}
@@ -394,7 +403,7 @@ export default function PostCard({ post, onDeleted, expandComments }) {
         </button>
       </div>
 
-      {/* Comments */}
+      {/* Comments: shown on the post's own screen */}
       {showComments ? (
         <div className="border-t border-gray-100 px-4 py-3 space-y-2.5" onClick={(e) => e.stopPropagation()}>
           {comments.map((c) => (
@@ -469,4 +478,4 @@ export default function PostCard({ post, onDeleted, expandComments }) {
       ) : null}
     </div>
   )
-                 }
+}
