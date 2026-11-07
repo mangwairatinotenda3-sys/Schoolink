@@ -9,6 +9,7 @@ export async function loadStatusFeed(user, profile) {
     .from('statuses')
     .select('*')
     .gt('created_at', cutoff)
+    .is('school_author_id', null) // school updates show on the school's own page, not on people's rows
     .order('created_at', { ascending: true })
 
   const visible = (data ?? []).filter((s) => canViewStatus(s, profile, user.id))
@@ -65,4 +66,4 @@ export async function loadStatusFeed(user, profile) {
   people.sort((a, b) => Number(a.allSeen) - Number(b.allSeen) || (a.latest.created_at < b.latest.created_at ? 1 : -1))
 
   return { mine, people, seen }
-}
+  }
