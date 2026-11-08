@@ -8,8 +8,18 @@ export function isSchoolMember(profile) {
   )
 }
 
+// A student who has sent a request, or a member waiting for approval.
 export function isPendingApproval(profile) {
   return profile?.account_type === 'school_member' && profile?.status === 'pending'
+}
+
+// Pending or active: the student continues to their school without waiting for approval.
+export function hasSchool(profile) {
+  return (
+    profile?.account_type === 'school_member' &&
+    !!profile?.school_id &&
+    ['pending', 'active'].includes(profile?.status)
+  )
 }
 
 // Staff = an active school member who isn't a Student. Used to gate
@@ -41,9 +51,9 @@ export function canManageSports(profile) {
 
 export function canManageDevices(profile) {
   return isSchoolMember(profile) && ['ICT Administrator', 'Headteacher', 'Deputy Head'].includes(profile?.role)
-                                     }
+}
 
 // Who can create a post: active school members (any role) and investors.
 export function canPost(profile) {
   return isSchoolMember(profile) || profile?.account_type === 'investor'
-}
+  }
