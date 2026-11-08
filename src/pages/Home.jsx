@@ -33,6 +33,8 @@ const CLUBS = [
 const TABS = ['My School', 'Discover', 'Updates']
 const PAGE = 20 // posts per page; the next page loads as you reach the end of the list
 const TILE_COLORS = ['#7C3AED', '#0EA5E9', '#16A34A', '#EA580C', '#DB2777', '#0D9488', '#CA8A04', '#4F46E5']
+const HEADER_CLEARANCE = 110 // space the floating header needs at the top of each page
+const SCHOOL_CARD_CLEARANCE = 190 // header plus the school card on the My School page
 
 function tileColor(key) {
   const s = String(key || '')
@@ -42,9 +44,9 @@ function tileColor(key) {
 }
 
 // One full-width page of the swipeable feed. The top padding clears the floating header.
-function Pane({ children, onScroll }) {
+function Pane({ children, onScroll, top = HEADER_CLEARANCE }) {
   return (
-    <div onScroll={onScroll} className="w-full h-full shrink-0 snap-start overflow-y-auto" style={{ paddingTop: 110, paddingBottom: 96 }}>
+    <div onScroll={onScroll} className="w-full h-full shrink-0 snap-start overflow-y-auto" style={{ paddingTop: top, paddingBottom: 96 }}>
       {children}
     </div>
   )
@@ -70,7 +72,7 @@ function Avatar({ url, name, size = 44, ring = false }) {
   return (
     <span
       className="rounded-full flex items-center justify-center text-white font-semibold shrink-0"
-      style={{ ...style, background: '#7C5CF0', fontSize: size * 0.42 }}
+      style={{ ...style, background: '#7C5CF0', fontSize: `${size * 0.42 / 16}rem` }}
     >
       {(name || '?').trim().slice(0, 1).toUpperCase()}
     </span>
@@ -88,8 +90,10 @@ export default function Home() {
   const [tab, setTab] = useState(cache.tab)
   const [drawerOpen, setDrawerOpen] = useState(false)
 
-  // The floating header slides away while you scroll down and comes back when you scroll up
+  // Scrolling hides the floating header, the school card and the bottom bar. Returning to the top brings them back.
   const [chromeHidden, setChromeHidden] = useState(false)
+  const [cardHidden, setCardHidden] = useState(false)
+  const [navHidden, setNavHidden] = useState(false)
   const lastY = useRef(0)
 
   const [school, setSchool] = useState(cache.school[schoolKey]?.school ?? null)
@@ -242,7 +246,7 @@ export default function Home() {
     return () => observers.forEach((io) => io?.disconnect())
   }, [schoolId])
 
-  // School card and member count
+  // School card and member count. The count comes from a database function, so it isn't hidden by profile privacy rules.
   useEffect(() => {
     if (!schoolId) {
       setSchool(null)
@@ -255,10 +259,10 @@ export default function Home() {
       cache.school[schoolId] = { ...(cache.school[schoolId] || {}), school: data }
       setSchool(data)
     })
-    supabase.from('profiles').select('*', { count: 'exact', head: true }).eq('school_id', schoolId).eq('status', 'active').then(({ count }) => {
-      if (!live) return
-      cache.school[schoolId] = { ...(cache.school[schoolId] || {}), count: count ?? 0 }
-      setMemberCount(count ?? 0)
+    supabase.rpc('school_member_count', { p_school: schoolId }).then(({ data, error }) => {
+      if (!live || error) return
+      cache.school[schoolId] = { ...(cache.school[schoolId] || {}), count: data ?? 0 }
+      setMemberCount(data ?? 0)
     })
     return () => { live = false }
   }, [schoolId, profile?.status])
@@ -319,10 +323,16 @@ export default function Home() {
     setTab(i)
   }
 
+  function showChrome() {
+    setChromeHidden(false)
+    setCardHidden(false)
+    setNavHidden(false)
+  }
+
   function goTab(i) {
     selectTab(i)
     lastY.current = 0
-    setChromeHidden(false)
+    showChrome()
     const el = pagerRef.current
     if (el) el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
   }
@@ -334,15 +344,25 @@ export default function Home() {
     if (i !== cache.tab) selectTab(i)
   }
 
-  // Instagram-style: scrolling down hides the floating header, scrolling up brings it back
+  // Scrolling down hides the header, the school card and the bottom bar. Scrolling up brings them back.
+  // At the top of a page everything shows again.
   function onPaneScroll(e) {
     const y = e.currentTarget.scrollTop
     const dy = y - lastY.current
     lastY.current = y
-    if (y <= 8) setChromeHidden(false)
-    else if (dy > 6) setChromeHidden(true)
-    else if (dy < -6) setChromeHidden(false)
+    if (y <= 8) {
+      showChrome()
+      return
     }
+    if (Math.abs(dy) > 6) setCardHidden(true)
+    if (dy > 6) {
+      setChromeHidden(true)
+      setNavHidden(true)
+    } else if (dy < -6) {
+      setChromeHidden(false)
+      setNavHidden(false)
+    }
+  }
 
   const clubTiles = CLUBS.flatMap((club) => {
     const found = communities.find((c) => club.match.test(c.name || ''))
@@ -360,6 +380,9 @@ export default function Home() {
   const floatShadow = '0 6px 18px rgba(31,22,74,0.14)'
   const floatBlur = { backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)' }
 
+  // The school card sits over the top of My School. It only shows on that tab, and hides while scrolling.
+  const showSchoolCard = !!school && tab === 0 && !cardHidden && !profileLoading
+
   return (
     <div className="app-shell">
       <div className="relative flex-1 min-h-0 overflow-hidden" style={{ background: pageBg }}>
@@ -371,31 +394,13 @@ export default function Home() {
           style={{ scrollbarWidth: 'none' }}
         >
           {/* My School */}
-          <Pane onScroll={onPaneScroll}>
+          <Pane onScroll={onPaneScroll} top={school ? SCHOOL_CARD_CLEARANCE : HEADER_CLEARANCE}>
             {profileLoading ? (
               <div className="px-4 space-y-4"><PostListSkeleton count={3} /></div>
             ) : schoolId ? (
               <>
-                {school ? (
-                  <button
-                    type="button"
-                    onClick={() => navigate('/school-profile')}
-                    className="flex items-center gap-3 mx-4 rounded-xl px-3 py-2 text-left"
-                    style={{ background: frost, boxShadow: floatShadow, ...floatBlur }}
-                  >
-                    <span className="flex-1 min-w-0">
-                      <span className="flex items-center gap-1.5">
-                        <span className="font-semibold truncate" style={{ color: ink, fontSize: 14 }}>{school.name}</span>
-                        <VerifiedBadge schoolId={school.id} size={14} />
-                      </span>
-                      <span className="block truncate" style={{ color: muted, fontSize: 11 }}>{school.location}</span>
-                      <span className="block mt-0.5" style={{ color: ink, fontSize: 11 }}><b>{memberCount}</b> Members</span>
-                    </span>
-                    <ChevronRight size={15} color={muted} />
-                  </button>
-                ) : null}
                 {isPendingApproval(profile) ? (
-                  <div className="mx-4 mt-3 rounded-xl px-3 py-2 text-[12px]" style={{ background: frost, color: ink, boxShadow: floatShadow, ...floatBlur }}>
+                  <div className="mx-4 rounded-xl px-3 py-2 text-[0.8125rem]" style={{ background: frost, color: ink, boxShadow: floatShadow, ...floatBlur }}>
                     Your request to join this school is waiting for approval. You can already see its posts.
                   </div>
                 ) : null}
@@ -450,7 +455,7 @@ export default function Home() {
                   <Plus size={22} />
                 </span>
                 <span className="font-semibold text-sm">Share an update</span>
-                <span className="text-[11px]" style={{ color: muted }}>Visible for 24 hours</span>
+                <span className="text-xs" style={{ color: muted }}>Visible for 24 hours</span>
               </button>
 
               {mine.length > 0 ? (
@@ -462,7 +467,7 @@ export default function Home() {
                   <span className="absolute top-3 left-3"><Avatar url={profile?.avatar_url} name={profile?.full_name} size={44} ring /></span>
                   <span className="absolute inset-x-0 bottom-0 p-2.5 text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
                     <span className="block font-semibold text-sm truncate">My update</span>
-                    <span className="block text-[11px] opacity-90">{mine.length} in the last 24 hours</span>
+                    <span className="block text-xs opacity-90">{mine.length} in the last 24 hours</span>
                   </span>
                 </button>
               ) : null}
@@ -485,7 +490,7 @@ export default function Home() {
                   <span className="absolute top-3 left-3"><Avatar url={s.logo_url} name={s.name} size={44} ring /></span>
                   <span className="absolute inset-x-0 bottom-0 p-2.5 text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
                     <span className="block font-semibold text-sm truncate">{s.name}</span>
-                    <span className="block text-[11px] opacity-90">{s.items.length} update{s.items.length === 1 ? '' : 's'}</span>
+                    <span className="block text-xs opacity-90">{s.items.length} update{s.items.length === 1 ? '' : 's'}</span>
                   </span>
                 </button>
               ))}
@@ -506,7 +511,7 @@ export default function Home() {
                   </span>
                   <span className="absolute inset-x-0 bottom-0 p-2.5 text-white" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.6))' }}>
                     <span className="block font-semibold text-sm truncate">{p.full_name}</span>
-                    <span className="block text-[11px] opacity-90">{p.items.length} update{p.items.length === 1 ? '' : 's'}</span>
+                    <span className="block text-xs opacity-90">{p.items.length} update{p.items.length === 1 ? '' : 's'}</span>
                   </span>
                 </button>
               ))}
@@ -526,12 +531,12 @@ export default function Home() {
                     className="aspect-[3/4] rounded-2xl relative overflow-hidden text-white"
                     style={{ background: 'linear-gradient(160deg, #7C5CF0, #1B1450)' }}
                   >
-                    <p className="absolute inset-0 p-3.5 pt-4 text-[14px] leading-snug font-medium overflow-hidden whitespace-pre-wrap break-words" style={{ display: '-webkit-box', WebkitLineClamp: 12, WebkitBoxOrient: 'vertical' }}>
+                    <p className="absolute inset-0 p-3.5 pt-4 text-sm leading-snug font-medium overflow-hidden whitespace-pre-wrap break-words" style={{ display: '-webkit-box', WebkitLineClamp: 12, WebkitBoxOrient: 'vertical' }}>
                       {a.body}
                     </p>
                     <span className="absolute inset-x-0 bottom-0 p-2.5 flex items-center gap-2" style={{ background: 'linear-gradient(transparent, rgba(0,0,0,0.55))' }}>
                       <Avatar url={avatarUrl} name="Schoolink" size={24} />
-                      <span className="text-[11px] font-semibold truncate">Schoolink team</span>
+                      <span className="text-xs font-semibold truncate">Schoolink team</span>
                     </span>
                   </div>
                 ),
@@ -544,7 +549,37 @@ export default function Home() {
           </Pane>
         </div>
 
-        {/* Floating header: no bar behind it, just the buttons and tabs. It slides away on scroll down. */}
+        {/* School card: fixed over the top of My School. It fades and slides up while you scroll. */}
+        {school ? (
+          <button
+            type="button"
+            onClick={() => navigate('/school-profile')}
+            tabIndex={showSchoolCard ? 0 : -1}
+            className="absolute left-4 right-4 flex items-center gap-3 rounded-xl px-3 py-2 text-left z-[5]"
+            style={{
+              top: HEADER_CLEARANCE,
+              background: frost,
+              boxShadow: floatShadow,
+              ...floatBlur,
+              opacity: showSchoolCard ? 1 : 0,
+              transform: showSchoolCard ? 'translateY(0)' : 'translateY(-14px)',
+              pointerEvents: showSchoolCard ? 'auto' : 'none',
+              transition: 'opacity 220ms ease, transform 240ms ease',
+            }}
+          >
+            <span className="flex-1 min-w-0">
+              <span className="flex items-center gap-1.5">
+                <span className="font-semibold truncate" style={{ color: ink, fontSize: '0.9375rem' }}>{school.name}</span>
+                <VerifiedBadge schoolId={school.id} size={14} />
+              </span>
+              <span className="block truncate" style={{ color: muted, fontSize: '0.75rem' }}>{school.location}</span>
+              <span className="block mt-0.5" style={{ color: ink, fontSize: '0.75rem' }}><b>{memberCount}</b> Members</span>
+            </span>
+            <ChevronRight size={16} color={muted} />
+          </button>
+        ) : null}
+
+        {/* Floating header: no bar behind it, just the buttons and tabs */}
         <div
           className="absolute top-0 left-0 right-0 z-10 pointer-events-none"
           style={{
@@ -568,7 +603,7 @@ export default function Home() {
 
             <h1
               className="pointer-events-auto flex-1 min-w-0 flex items-center px-3.5 h-9 rounded-full"
-              style={{ background: frost, boxShadow: floatShadow, ...floatBlur, fontSize: 17, fontWeight: 800, color: ink }}
+              style={{ background: frost, boxShadow: floatShadow, ...floatBlur, fontSize: '1.0625rem', fontWeight: 800, color: ink }}
             >
               <span className="truncate">School<span style={{ color: '#6D4DFF' }}>ink</span></span>
             </h1>
@@ -612,10 +647,10 @@ export default function Home() {
                   role="tab"
                   aria-selected={tab === i}
                   onClick={() => goTab(i)}
-                  className="px-4 h-8 rounded-full text-[14px] font-semibold transition-colors"
-                  style={tab === i
+                  className="px-4 h-8 rounded-full font-semibold transition-colors"
+                  style={{ fontSize: '0.875rem', ...(tab === i
                     ? { background: '#6D4DFF', color: '#FFFFFF' }
-                    : { color: muted }}
+                    : { color: muted }) }}
                 >
                   {label}
                 </button>
@@ -626,7 +661,7 @@ export default function Home() {
       </div>
 
       <SideDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
-      <BottomNav />
+      {!navHidden ? <BottomNav /> : null}
     </div>
   )
-                     }
+    }
