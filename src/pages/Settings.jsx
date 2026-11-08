@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { ChevronRight, Shield, Lock, Palette, Eye, Bell, Database, HelpCircle, RefreshCw, Globe, ShieldCheck, FileText, LogOut, BadgeCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getAppInfo } from '../lib/appInfo.js'
 
@@ -87,7 +86,6 @@ export default function Settings() {
         </button>
         <p className="text-center text-xs text-gray-300 mt-5">Schoolink {info?.native ? `${info.version} (${info.build})` : 'web'}</p>
       </div>
-      <BottomNav />
     </div>
   )
   }
