@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ChevronRight, Shield, Lock, Palette, Eye, Bell, Database, HelpCircle, RefreshCw, Globe, ShieldCheck, FileText, LogOut } from 'lucide-react'
+import { ChevronRight, Shield, Lock, Palette, Eye, Bell, Database, HelpCircle, RefreshCw, Globe, ShieldCheck, FileText, LogOut, BadgeCheck } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import BottomNav from '../components/BottomNav.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
@@ -10,6 +10,7 @@ const GROUPS = [
     title: 'Account',
     items: [
       { label: 'Account', sub: 'Security, personal information', icon: Shield, color: 'bg-blue-500', to: '/settings/account' },
+      { label: 'Verification', sub: 'Send your school report to get a blue tick', icon: BadgeCheck, color: 'bg-sky-600', to: '/settings/verification' },
       { label: 'Privacy', sub: 'Block, visibility, read receipts', icon: Lock, color: 'bg-green-500', to: '/settings/privacy' },
       { label: 'Safety and Data', sub: 'Appeals, download your data', icon: ShieldCheck, color: 'bg-teal-500', to: '/settings/safety' },
     ],
@@ -89,4 +90,4 @@ export default function Settings() {
       <BottomNav />
     </div>
   )
-        }
+  }
