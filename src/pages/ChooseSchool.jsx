@@ -7,7 +7,8 @@ import { useAuth } from '../context/AuthContext.jsx'
 
 const FIELD_CLASS = 'w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm outline-none focus:border-brand-purple'
 
-// Students pick their school, then add their class and admission number. The school then approves them.
+// Students pick their school, then add their class and admission number.
+// They go straight into the app; the school's approval happens in the background.
 export default function ChooseSchool() {
   const navigate = useNavigate()
   const { saveProfileDetails } = useAuth()
@@ -68,11 +69,11 @@ export default function ChooseSchool() {
       })
     }
     setBusy(false)
-    navigate('/verify-student', { replace: true })
+    navigate('/home', { replace: true })
   }
 
   return (
-    <AuthPage title="Find your school" subtitle="Pick your school, then add your class. The school approves you after you verify your school report.">
+    <AuthPage title="Find your school" subtitle="Pick your school, then add your class and admission number. You'll be in the app straight away.">
       {error ? <Notice tone="error">{error}</Notice> : null}
 
       <div className="relative mt-2">
@@ -86,11 +87,21 @@ export default function ChooseSchool() {
       </div>
 
       <div className="mt-4 space-y-2 max-h-[38vh] overflow-y-auto">
-        {loading ? <p className="text-sm text-gray-400 text-center py-6">Loading schools…</p> : null}
+        {loading ? (
+          [0, 1, 2, 3].map((i) => (
+            <div key={i} className="flex items-center gap-3 rounded-xl border border-gray-200 bg-white p-3 animate-pulse">
+              <span className="w-10 h-10 rounded-full bg-gray-200 shrink-0" />
+              <span className="flex-1 min-w-0 space-y-2">
+                <span className="block h-3.5 w-3/4 rounded bg-gray-200" />
+                <span className="block h-3 w-1/2 rounded bg-gray-100" />
+              </span>
+            </div>
+          ))
+        ) : null}
         {!loading && filtered.length === 0 ? (
           <p className="text-sm text-gray-400 text-center py-6">No schools match. Check the spelling, or ask your school for a student code.</p>
         ) : null}
-        {filtered.map((s) => {
+        {!loading && filtered.map((s) => {
           const selected = picked?.id === s.id
           return (
             <button
@@ -140,4 +151,4 @@ export default function ChooseSchool() {
       </div>
     </AuthPage>
   )
-}
+  }
