@@ -99,7 +99,7 @@ function RootRoute() {
   if (target) return <Navigate to={target} replace />
   if (showWelcome) return <Welcome />
   return <PageLoading />
-    }
+        }
 
 const SchoolSettings = lazyPage(() => import('./pages/SchoolSettings.jsx'))
 const SchoolLearners = lazyPage(() => import('./pages/SchoolLearners.jsx'))
@@ -203,19 +203,13 @@ const StudentVerification = lazyPage(() => import('./pages/StudentVerification.j
 const ChooseSchool = lazyPage(() => import('./pages/ChooseSchool.jsx'))
 const StudentReports = lazyPage(() => import('./pages/StudentReports.jsx'))
 
+// Signed-in users only. Students are no longer held back until verified: verification lives in Settings.
 function RequireAuth({ children }) {
-  const { user, profile, loading } = useAuth()
-  const location = useLocation()
+  const { user, loading } = useAuth()
   if (loading) return <div className="app-shell items-center justify-center flex">Loading…</div>
   if (!user) return <Navigate to="/" replace />
-  // Students who aren't verified yet can use these screens. Everything else waits for their school to approve them.
-  const unverifiedStudent = profile?.role === 'Student' && profile?.student_verified !== true
-  const open = STUDENT_OPEN_PATHS.some((p) => location.pathname === p || location.pathname.startsWith(p + '/'))
-  if (unverifiedStudent && !open) return <Navigate to="/verify-student" replace />
   return children
 }
-
-const STUDENT_OPEN_PATHS = ['/verify-student', '/onboarding', '/chats', '/calls', '/settings', '/profile', '/edit-profile-details', '/notifications', '/library', '/schools', '/search']
 
 // Pages anyone can open, even a signed-in team member.
 const PUBLIC_PATHS = ['/', '/terms', '/privacy', '/forgot-password', '/reset-password']
@@ -224,6 +218,13 @@ const PUBLIC_PATHS = ['/', '/terms', '/privacy', '/forgot-password', '/reset-pas
 function ProfileRoute() {
   const { isGuest } = useAuth()
   return isGuest ? <GuestProfileView /> : <Profile />
+}
+
+// Students get the school-report screen. Everyone else gets the ID verification screen.
+function VerificationRoute() {
+  const { profile } = useAuth()
+  if (!profile) return <PageLoading />
+  return profile.role === 'Student' ? <StudentVerification /> : <GetVerified />
 }
 
 function BannedScreen() {
@@ -260,7 +261,7 @@ export default function App() {
     )
   }
 
-  return (
+    return (
     <div className={shellClasses}>
       <TranslateBanner />
       <GlobalGuards />
@@ -290,7 +291,7 @@ export default function App() {
         <Route path="/onboarding/join-student" element={<RequireAuth><JoinAsStudent /></RequireAuth>} />
         <Route path="/onboarding/select-alumni-school" element={<RequireAuth><SelectAlumniSchool /></RequireAuth>} />
         <Route path="/onboarding/choose-school" element={<RequireAuth><ChooseSchool /></RequireAuth>} />
-        <Route path="/verify-student" element={<RequireAuth><StudentVerification /></RequireAuth>} />
+        <Route path="/verify-student" element={<Navigate to="/settings/verification" replace />} />
         <Route path="/admin/student-reports" element={<RequireAuth><StudentReports /></RequireAuth>} />
 
         <Route path="/invite-member" element={<RequireAuth><InviteMember /></RequireAuth>} />
@@ -338,7 +339,7 @@ export default function App() {
         <Route path="/family" element={<RequireAuth><FamilyLinks /></RequireAuth>} />
 
         <Route path="/settings/account" element={<RequireAuth><AccountSettings /></RequireAuth>} />
-        <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
+                <Route path="/settings/privacy" element={<RequireAuth><PrivacySettings /></RequireAuth>} />
         <Route path="/settings/notifications" element={<RequireAuth><NotificationSettings /></RequireAuth>} />
         <Route path="/settings/accessibility" element={<RequireAuth><AccessibilitySettings /></RequireAuth>} />
         <Route path="/settings/chat-appearance" element={<RequireAuth><ChatAppearanceSettings /></RequireAuth>} />
@@ -351,7 +352,7 @@ export default function App() {
         <Route path="/settings/favourite-chats" element={<RequireAuth><FavouriteChats /></RequireAuth>} />
         <Route path="/settings/login-history" element={<RequireAuth><LoginHistory /></RequireAuth>} />
         <Route path="/settings/two-factor" element={<RequireAuth><TwoFactorSettings /></RequireAuth>} />
-        <Route path="/settings/verification" element={<RequireAuth><GetVerified /></RequireAuth>} />
+        <Route path="/settings/verification" element={<RequireAuth><VerificationRoute /></RequireAuth>} />
         <Route path="/admin/verification" element={<RequireAuth><AdminVerification /></RequireAuth>} />
 
         <Route path="/post/:postId" element={<RequireAuth><PostDetail /></RequireAuth>} />
@@ -407,4 +408,4 @@ export default function App() {
       </PageTransition>
     </div>
   )
-          }
+        }
