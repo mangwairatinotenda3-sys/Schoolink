@@ -10,7 +10,7 @@ import { AnnouncementCard } from '../components/SiteAnnouncements.jsx'
 import { PostListSkeleton, SkeletonBlock } from '../components/Skeleton.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { loadStatusFeed } from '../lib/statusFeed.js'
-import { isSchoolMember } from '../lib/permissions.js'
+import { hasSchool, isPendingApproval } from '../lib/permissions.js'
 
 // Kept in memory while the app is open, so leaving Home (for example to More) and coming back
 // shows the last results at once instead of skeletons. Fresh data loads in the background.
@@ -80,7 +80,7 @@ function Avatar({ url, name, size = 44, ring = false }) {
 export default function Home() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
-  const schoolId = isSchoolMember(profile) ? profile.school_id : null
+  const schoolId = hasSchool(profile) ? profile.school_id : null
   const schoolKey = schoolId || '_'
   const profileLoading = !profile
 
@@ -342,7 +342,7 @@ export default function Home() {
     if (y <= 8) setChromeHidden(false)
     else if (dy > 6) setChromeHidden(true)
     else if (dy < -6) setChromeHidden(false)
-      }
+    }
 
   const clubTiles = CLUBS.flatMap((club) => {
     const found = communities.find((c) => club.match.test(c.name || ''))
@@ -393,6 +393,11 @@ export default function Home() {
                     </span>
                     <ChevronRight size={15} color={muted} />
                   </button>
+                ) : null}
+                {isPendingApproval(profile) ? (
+                  <div className="mx-4 mt-3 rounded-xl px-3 py-2 text-[12px]" style={{ background: frost, color: ink, boxShadow: floatShadow, ...floatBlur }}>
+                    Your request to join this school is waiting for approval. You can already see its posts.
+                  </div>
                 ) : null}
                 <div className="px-4 pt-3 space-y-4">
                   {schoolLoading ? (
@@ -624,4 +629,4 @@ export default function Home() {
       <BottomNav />
     </div>
   )
-        }
+                     }
