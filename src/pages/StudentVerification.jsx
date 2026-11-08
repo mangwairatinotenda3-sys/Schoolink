@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Camera, Clock, Check, X } from 'lucide-react'
+import { Camera, Clock, X, BadgeCheck, School } from 'lucide-react'
 import BackHeader from '../components/BackHeader.jsx'
 import { supabase } from '../lib/supabaseClient.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { hasSchool } from '../lib/permissions.js'
 
 const BUCKET = 'id-verification'
 
@@ -43,11 +44,24 @@ function ReportPhoto({ label, slot, onPick, id }) {
   )
 }
 
+function Skeleton() {
+  return (
+    <div className="px-6 pt-4 space-y-4 animate-pulse">
+      <div className="h-4 w-3/4 rounded bg-gray-200" />
+      <div className="h-4 w-1/2 rounded bg-gray-200" />
+      <div className="h-36 rounded-xl bg-gray-200" />
+      <div className="h-36 rounded-xl bg-gray-200" />
+      <div className="h-12 rounded-xl bg-gray-200" />
+    </div>
+  )
+}
+
 export default function StudentVerification() {
   const navigate = useNavigate()
   const { user, profile } = useAuth()
 
   const [loading, setLoading] = useState(true)
+  const [verified, setVerified] = useState(false)
   const [latest, setLatest] = useState(null)
   const [front, setFront] = useState(null)
   const [back, setBack] = useState(null)
@@ -59,14 +73,18 @@ export default function StudentVerification() {
   async function load() {
     if (!user) return
     setLoading(true)
-    const { data } = await supabase
-      .from('student_report_requests')
-      .select('status, reject_reason, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-    setLatest(data ?? null)
+    const [{ data: me }, { data: report }] = await Promise.all([
+      supabase.from('profiles').select('student_verified, is_verified').eq('id', user.id).maybeSingle(),
+      supabase
+        .from('student_report_requests')
+        .select('status, reject_reason, created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ])
+    setVerified(!!me?.student_verified || !!me?.is_verified)
+    setLatest(report ?? null)
     setLoading(false)
   }
 
@@ -110,24 +128,40 @@ export default function StudentVerification() {
     setBusy(false)
   }
 
+  const header = <BackHeader title="Verification" />
+
   if (loading) {
     return (
       <div className="app-shell">
-        <BackHeader title="Verify student" />
-        <div className="screen-scroll flex items-center justify-center text-gray-400">Loading…</div>
+        {header}
+        <div className="screen-scroll"><Skeleton /></div>
       </div>
     )
   }
 
-  if (profile?.student_verified) {
+  if (verified) {
     return (
       <div className="app-shell">
-        <BackHeader title="Verify student" />
-        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-3">
-          <span className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center"><Check size={28} className="text-green-600" /></span>
+        {header}
+        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-3 pt-10">
+          <span className="w-16 h-16 rounded-full bg-sky-50 flex items-center justify-center"><BadgeCheck size={30} className="text-sky-500" /></span>
           <p className="font-semibold text-lg">You're verified</p>
-          <p className="text-sm text-gray-500">You can now use everything in Schoolink.</p>
-          <button onClick={() => navigate('/home', { replace: true })} className="mt-4 bg-brand-purple text-white font-medium px-8 py-3 rounded-xl">Continue</button>
+          <p className="text-sm text-gray-500">Your blue tick shows on your profile and your posts.</p>
+          <button onClick={() => navigate('/settings', { replace: true })} className="mt-4 bg-brand-purple text-white font-medium px-8 py-3 rounded-xl">Back to Settings</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (!hasSchool(profile)) {
+    return (
+      <div className="app-shell">
+        {header}
+        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-3 pt-10">
+          <span className="w-16 h-16 rounded-full bg-brand-light flex items-center justify-center"><School size={28} className="text-brand-purple" /></span>
+          <p className="font-semibold text-lg">Find your school first</p>
+          <p className="text-sm text-gray-500">Verification uses your school report, so choose your school before you send it.</p>
+          <button onClick={() => navigate('/onboarding/choose-school')} className="mt-4 bg-brand-purple text-white font-medium px-8 py-3 rounded-xl">Find my school</button>
         </div>
       </div>
     )
@@ -136,12 +170,12 @@ export default function StudentVerification() {
   if (latest?.status === 'pending') {
     return (
       <div className="app-shell">
-        <BackHeader title="Verify student" />
-        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-3">
+        {header}
+        <div className="screen-scroll px-6 flex flex-col items-center justify-center text-center gap-3 pt-10">
           <span className="w-16 h-16 rounded-full bg-brand-light flex items-center justify-center"><Clock size={28} className="text-brand-purple" /></span>
           <p className="font-semibold text-lg">Under review</p>
           <p className="text-sm text-gray-500">
-            We received your school report{latest.created_at ? ` on ${new Date(latest.created_at).toLocaleDateString()}` : ''}. Our team will check it. You'll be able to use all of Schoolink once it's approved.
+            We received your school report{latest.created_at ? ` on ${new Date(latest.created_at).toLocaleDateString()}` : ''}. Our team will check it and give you a blue tick if it's accepted.
           </p>
         </div>
       </div>
@@ -150,7 +184,7 @@ export default function StudentVerification() {
 
   return (
     <div className="app-shell">
-      <BackHeader title="Verify student" />
+      {header}
       <div className="screen-scroll px-6 pt-3 pb-8">
         {latest?.status === 'rejected' ? (
           <div className="flex gap-2 bg-red-50 text-red-600 rounded-xl p-3 text-sm mb-4">
@@ -163,7 +197,7 @@ export default function StudentVerification() {
           </div>
         ) : (
           <p className="text-sm text-gray-500 mb-5">
-            To use school features, add photos of the front and back of your latest school report. Our team checks them before your account is verified.
+            Send photos of the front and back of your latest school report. Our team checks them and then gives you a blue tick.
           </p>
         )}
 
@@ -186,4 +220,4 @@ export default function StudentVerification() {
       </div>
     </div>
   )
-}
+    }
