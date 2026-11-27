@@ -315,15 +315,20 @@ select { -webkit-appearance: none; appearance: none; background-image: none; }
 
 /* ===== Fit every screen =====
    Every screen, on phones, tablets and in landscape, uses the bar along the bottom.
-   Wider screens centre the content in a column. */
+   On wider screens the content uses the full width of the window. */
 
 @media (min-width: 600px) {
   .app-shell { max-width: none; }
-  .app-shell .screen-scroll { max-width: 720px; width: 100%; margin: 0 auto; }
+  .app-shell .screen-scroll { width: 100%; margin: 0 auto; }
+}
+
+/* Full-screen pages (composers, editors, lists) fill the whole window on tablets and laptops */
+@media (min-width: 600px) {
+  .fixed.inset-0[class*="max-w-[480px]"] { max-width: none !important; }
 }
 
 @media (min-width: 768px) and (orientation: landscape), (min-width: 1024px) {
-  .app-shell .screen-scroll { max-width: 960px; }
+  .app-shell .screen-scroll { max-width: none; width: 100%; }
 }
 
 /* The bottom bar slides away while scrolling down and comes back when scrolling stops or goes up */
@@ -394,4 +399,4 @@ button::selection,
 button *::selection,
 [role="button"] *::selection {
   background: transparent;
-  }
+}
